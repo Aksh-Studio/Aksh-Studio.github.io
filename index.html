@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Portfolio Project: Firebase Chat App</title>
+    <title>Portfolio: Firebase Chat Project</title>
     <link rel="icon" type="image/png" href="logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -12,9 +12,15 @@
 
     <div id="login-screen" class="screen">
         <div class="auth-box">
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px border #ddd; font-size: 11px; color: #555;">
+                <strong>STUDENT PORTFOLIO PROJECT</strong><br>
+                This is a non-commercial coding exercise by <strong>Akshat Mehta</strong>.<br>
+                <a href="https://github.com/AkshatMehta-124" target="_blank" style="color: #128C7E; text-decoration: none; font-weight: 600;">View Source on GitHub</a>
+            </div>
+
             <img src="logo.png" alt="ChatApp Logo" class="login-logo">
-            <h1>ChatApp</h1>
-            <p>Sign in to continue</p>
+            <h1>ChatApp Demo</h1>
+            <p style="margin-bottom: 20px;">Firebase Integration Test</p>
 
             <div class="input-group">
                 <input type="email" id="email-input" placeholder="Email Address">
@@ -31,13 +37,6 @@
             </button>
 
             <p id="auth-error" style="display:none; color: red; background: #fee; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 13px;"></p>
-
-            <footer style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 11px; color: #888; line-height: 1.6; text-align: center;">
-                <p><strong>Developer Portfolio Project</strong></p>
-                <p>This is a non-commercial educational project created to demonstrate Firebase integration.</p>
-                <p>Authentication is handled securely by Google. We do not store personal passwords.</p>
-                <p>Under Development by <strong>Akshat Mehta</strong></p>
-            </footer>
         </div>
     </div>
 
@@ -121,87 +120,77 @@
         function showError(msg) { 
             authError.textContent = msg; 
             authError.style.display = "block"; 
-            console.error("Auth Error:", msg);
         }
 
-        // --- AUTH ---
-        document.getElementById("google-login-btn").addEventListener("click", () => {
-            signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showError(err.code + ": " + err.message));
-        });
+        document.getElementById("google-login-btn").onclick = () => {
+            signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showError(err.code));
+        };
 
-        document.getElementById("toggle-mode-text").addEventListener("click", () => {
+        document.getElementById("toggle-mode-text").onclick = () => {
             isSignUpMode = !isSignUpMode;
             authError.style.display = "none";
             document.getElementById("email-auth-btn").textContent = isSignUpMode ? "Create Account" : "Sign In";
             document.getElementById("toggle-mode-text").innerHTML = isSignUpMode ? 'Already have an account? <span>Sign In</span>' : 'New here? <span>Create an account</span>';
-        });
+        };
 
-        document.getElementById("email-auth-btn").addEventListener("click", async () => {
-            const email = document.getElementById("email-input").value.trim();
-            const password = document.getElementById("password-input").value.trim();
-            if (!email || !password) return showError("Enter email and password.");
+        document.getElementById("email-auth-btn").onclick = async () => {
+            const e = document.getElementById("email-input").value.trim();
+            const p = document.getElementById("password-input").value.trim();
+            if (!e || !p) return showError("Enter credentials.");
             try {
-                if (isSignUpMode) await createUserWithEmailAndPassword(auth, email, password);
-                else await signInWithEmailAndPassword(auth, email, password);
-            } catch (err) { showError(err.code + ": " + err.message); }
-        });
+                if (isSignUpMode) await createUserWithEmailAndPassword(auth, e, p);
+                else await signInWithEmailAndPassword(auth, e, p);
+            } catch (err) { showError(err.code); }
+        };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
                 loginScreen.style.display = "none";
                 appScreen.style.display = "flex";
-                const displayName = user.displayName || user.email.split('@')[0];
-                const photoURL = user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-                document.getElementById("my-name").textContent = displayName;
-                document.getElementById("my-profile-pic").src = photoURL;
-                await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: displayName, email: user.email, photoURL: photoURL }, { merge: true });
+                const n = user.displayName || user.email.split('@')[0];
+                const pic = user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+                document.getElementById("my-name").textContent = n;
+                document.getElementById("my-profile-pic").src = pic;
+                await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: n, photoURL: pic }, { merge: true });
                 loadUsers();
             } else {
                 currentUser = null;
                 loginScreen.style.display = "flex";
                 appScreen.style.display = "none";
-                if (unsubscribeMessages) unsubscribeMessages();
             }
         });
 
-        // --- CORE FUNCTIONS ---
         function loadUsers() {
-            onSnapshot(collection(db, "users"), (snapshot) => {
-                userList.innerHTML = ""; 
-                snapshot.forEach((docSnap) => {
-                    const otherUser = docSnap.data();
-                    if (currentUser && otherUser.uid !== currentUser.uid) {
+            onSnapshot(collection(db, "users"), (s) => {
+                userList.innerHTML = "";
+                s.forEach((d) => {
+                    const u = d.data();
+                    if (currentUser && u.uid !== currentUser.uid) {
                         const li = document.createElement("li");
-                        const img = document.createElement("img");
-                        img.src = otherUser.photoURL.startsWith('http') ? otherUser.photoURL : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-                        const span = document.createElement("span");
-                        span.textContent = otherUser.name;
-                        li.append(img, span);
-                        li.onclick = () => openChat(otherUser);
+                        li.innerHTML = `<img src="${u.photoURL}"> <span>${u.name}</span>`;
+                        li.onclick = () => openChat(u);
                         userList.append(li);
                     }
                 });
             });
         }
 
-        async function openChat(otherUser) {
-            currentChatId = currentUser.uid < otherUser.uid ? currentUser.uid + "_" + otherUser.uid : otherUser.uid + "_" + currentUser.uid;
-            document.getElementById("chat-with-name").textContent = otherUser.name;
-            inputArea.style.display = "flex"; 
+        async function openChat(other) {
+            currentChatId = currentUser.uid < other.uid ? currentUser.uid + "_" + other.uid : other.uid + "_" + currentUser.uid;
+            document.getElementById("chat-with-name").textContent = other.name;
+            inputArea.style.display = "flex";
             if (unsubscribeMessages) unsubscribeMessages();
-            await setDoc(doc(db, "chats", currentChatId), { participants: [currentUser.uid, otherUser.uid] }, { merge: true });
+            await setDoc(doc(db, "chats", currentChatId), { participants: [currentUser.uid, other.uid] }, { merge: true });
             const q = query(collection(db, "chats", currentChatId, "messages"), orderBy("timestamp", "asc"));
-            unsubscribeMessages = onSnapshot(q, (snapshot) => {
-                messagesContainer.innerHTML = ""; 
-                snapshot.forEach((d) => {
+            unsubscribeMessages = onSnapshot(q, (s) => {
+                messagesContainer.innerHTML = "";
+                s.forEach((d) => {
                     const m = d.data({ serverTimestamps: "estimate" });
                     const div = document.createElement("div");
                     div.className = m.senderId === currentUser.uid ? "message my-message" : "message their-message";
-                    const t = m.timestamp ? m.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
-                    div.innerHTML = `<span class="msg-text"></span><span class="msg-time"></span>`;
-                    div.querySelector('.msg-text').textContent = m.text;
-                    div.querySelector('.msg-time').textContent = t;
+                    const txt = document.createElement("span"); txt.textContent = m.text;
+                    div.append(txt);
                     messagesContainer.append(div);
                 });
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -210,32 +199,17 @@
 
         document.getElementById("send-btn").onclick = async () => {
             const t = messageInput.value.trim();
-            if (!t) return;
-            messageInput.value = "";
-            await addDoc(collection(db, "chats", currentChatId, "messages"), { text: t, senderId: currentUser.uid, timestamp: Timestamp.now() });
+            if (t) {
+                messageInput.value = "";
+                await addDoc(collection(db, "chats", currentChatId, "messages"), { text: t, senderId: currentUser.uid, timestamp: Timestamp.now() });
+            }
         };
 
         document.getElementById("logout-btn").onclick = () => signOut(auth);
-        document.getElementById("edit-profile-btn").onclick = () => {
-            document.getElementById("edit-name-input").value = currentUser.displayName || document.getElementById("my-name").textContent;
-            document.getElementById("edit-pic-input").value = currentUser.photoURL || "";
-            document.getElementById("profile-modal").style.display = "flex";
-        };
-        document.getElementById("close-modal-btn").onclick = () => document.getElementById("profile-modal").style.display = "none";
-        document.getElementById("save-profile-btn").onclick = async () => {
-            const n = document.getElementById("edit-name-input").value.trim();
-            const p = document.getElementById("edit-pic-input").value.trim();
-            if (n) {
-                await updateProfile(currentUser, { displayName: n, photoURL: p });
-                await updateDoc(doc(db, "users", currentUser.uid), { name: n, photoURL: p });
-                location.reload();
-            }
-        };
         document.getElementById("delete-account-btn").onclick = async () => {
             if (confirm("Delete Account?")) {
                 await deleteDoc(doc(db, "users", currentUser.uid));
                 await deleteUser(currentUser);
-                location.reload();
             }
         };
     </script>
