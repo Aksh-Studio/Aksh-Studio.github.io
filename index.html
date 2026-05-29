@@ -3,16 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Portfolio: Firebase Chat Project</title>
+    <title>Portfolio Project: Firebase Chat App</title>
     <link rel="icon" type="image/png" href="logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Quick styles for the video overlay */
+        .video-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 9999;
+        }
+        .video-grid { position: relative; width: 80%; max-width: 800px; height: 60vh; background: #222; border-radius: 10px; overflow: hidden; }
+        #remote-video { width: 100%; height: 100%; object-fit: cover; }
+        #local-video { position: absolute; bottom: 20px; right: 20px; width: 150px; height: 110px; object-fit: cover; border-radius: 5px; border: 2px solid white; z-index: 10; }
+        .video-controls { margin-top: 20px; display: flex; gap: 20px; }
+        .call-btn { padding: 10px 20px; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .end-call { background: #d32f2f; color: white; }
+        .vid-header-btn { background: none; border: none; font-size: 20px; cursor: pointer; margin-right: 10px; }
+    </style>
 </head>
 <body>
 
     <div id="login-screen" class="screen">
         <div class="auth-box">
-            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px border #ddd; font-size: 11px; color: #555;">
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; font-size: 11px; color: #555;">
                 <strong>STUDENT PORTFOLIO PROJECT</strong><br>
                 This is a non-commercial coding exercise by <strong>Akshat Mehta</strong>.<br>
                 <a href="https://github.com/AkshatMehta-124" target="_blank" style="color: #128C7E; text-decoration: none; font-weight: 600;">View Source on GitHub</a>
@@ -60,13 +75,27 @@
         <div class="chat-area">
             <div class="chat-header">
                 <span id="chat-with-name">Select a contact to start chatting</span>
-                <img src="logo.png" alt="App Logo" class="header-logo">
+                <div style="margin-left: auto; display: flex; align-items: center;">
+                    <button id="start-video-btn" class="vid-header-btn" style="display: none;">📹</button>
+                    <img src="logo.png" alt="App Logo" class="header-logo">
+                </div>
             </div>
             <div class="messages-container" id="messages"></div>
             <div class="chat-input-area" id="input-area" style="display: none;">
                 <input type="text" id="message-input" placeholder="Type a message...">
                 <button id="send-btn">Send</button>
             </div>
+        </div>
+    </div>
+
+    <div id="video-overlay" class="video-overlay">
+        <h2 id="video-status" style="color: white; margin-bottom: 10px;">Calling...</h2>
+        <div class="video-grid">
+            <video id="remote-video" autoplay playsinline></video>
+            <video id="local-video" autoplay playsinline muted></video>
+        </div>
+        <div class="video-controls">
+            <button id="end-call-btn" class="call-btn end-call">Hang Up</button>
         </div>
     </div>
 
@@ -106,8 +135,17 @@
 
         let currentUser = null;
         let currentChatId = null;
+        let currentChatUser = null;
         let unsubscribeMessages = null;
         let isSignUpMode = false; 
+
+        // WebRTC Variables
+        let localStream = null;
+        let remoteStream = null;
+        let peerConnection = null;
+        let unsubscribeCall = null;
+        
+        const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
 
         const loginScreen = document.getElementById("login-screen");
         const appScreen = document.getElementById("app-screen");
@@ -116,12 +154,12 @@
         const inputArea = document.getElementById("input-area");
         const messageInput = document.getElementById("message-input");
         const authError = document.getElementById("auth-error");
+        const startVideoBtn = document.getElementById("start-video-btn");
+        const videoOverlay = document.getElementById("video-overlay");
 
-        function showError(msg) { 
-            authError.textContent = msg; 
-            authError.style.display = "block"; 
-        }
+        function showError(msg) { authError.textContent = msg; authError.style.display = "block"; }
 
+        // --- AUTH ---
         document.getElementById("google-login-btn").onclick = () => {
             signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showError(err.code));
         };
@@ -154,6 +192,7 @@
                 document.getElementById("my-profile-pic").src = pic;
                 await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: n, photoURL: pic }, { merge: true });
                 loadUsers();
+                listenForIncomingCalls();
             } else {
                 currentUser = null;
                 loginScreen.style.display = "flex";
@@ -161,6 +200,7 @@
             }
         });
 
+        // --- CORE CHAT ROUTINES ---
         function loadUsers() {
             onSnapshot(collection(db, "users"), (s) => {
                 userList.innerHTML = "";
@@ -168,7 +208,11 @@
                     const u = d.data();
                     if (currentUser && u.uid !== currentUser.uid) {
                         const li = document.createElement("li");
-                        li.innerHTML = `<img src="${u.photoURL}"> <span>${u.name}</span>`;
+                        const img = document.createElement("img");
+                        img.src = u.photoURL.startsWith('http') ? u.photoURL : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+                        const span = document.createElement("span");
+                        span.textContent = u.name;
+                        li.append(img, span);
                         li.onclick = () => openChat(u);
                         userList.append(li);
                     }
@@ -177,11 +221,15 @@
         }
 
         async function openChat(other) {
+            currentChatUser = other;
             currentChatId = currentUser.uid < other.uid ? currentUser.uid + "_" + other.uid : other.uid + "_" + currentUser.uid;
             document.getElementById("chat-with-name").textContent = other.name;
             inputArea.style.display = "flex";
+            startVideoBtn.style.display = "block"; // Show camera button once contact is selected
+            
             if (unsubscribeMessages) unsubscribeMessages();
             await setDoc(doc(db, "chats", currentChatId), { participants: [currentUser.uid, other.uid] }, { merge: true });
+            
             const q = query(collection(db, "chats", currentChatId, "messages"), orderBy("timestamp", "asc"));
             unsubscribeMessages = onSnapshot(q, (s) => {
                 messagesContainer.innerHTML = "";
@@ -205,11 +253,162 @@
             }
         };
 
+        // --- WebRTC VIDEO CALL SIGNALING LOGIC ---
+        async function setupStreams() {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            remoteStream = new MediaStream();
+
+            document.getElementById('local-video').srcObject = localStream;
+            document.getElementById('remote-video').srcObject = remoteStream;
+
+            peerConnection = new RTCPeerConnection(servers);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = (event) => {
+                event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+            };
+        }
+
+        // Trigger Call (Caller Side)
+        startVideoBtn.onclick = async () => {
+            await setupStreams();
+            videoOverlay.style.display = "flex";
+            document.getElementById("video-status").textContent = `Calling ${currentChatUser.name}...`;
+
+            const callDoc = doc(db, "calls", currentChatId);
+            const offerCandidates = collection(callDoc, "offerCandidates");
+            const answerCandidates = collection(callDoc, "answerCandidates");
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) addDoc(offerCandidates, event.candidate.toJSON());
+            };
+
+            const offerDescription = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offerDescription);
+
+            await setDoc(callDoc, {
+                offer: { type: offerDescription.type, sdp: offerDescription.sdp },
+                callerName: auth.currentUser.displayName || "Someone",
+                status: "dialing"
+            });
+
+            // Listen for answer
+            unsubscribeCall = onSnapshot(callDoc, async (snapshot) => {
+                const data = snapshot.data();
+                if (data?.answer && !peerConnection.currentRemoteDescription) {
+                    document.getElementById("video-status").textContent = "Connected";
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    await peerConnection.setRemoteDescription(answerDescription);
+                }
+                if (data?.status === "ended") endCallVisuals();
+            });
+
+            onSnapshot(answerCandidates, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                    }
+                });
+            });
+        };
+
+        // Listen for Call (Receiver Side)
+        function listenForIncomingCalls() {
+            onSnapshot(collection(db, "calls"), (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === "added" || change.type === "modified") {
+                        const callData = change.doc.data();
+                        const callId = change.doc.id;
+
+                        // Check if the call belongs to us and is actively dialing
+                        if (callId.includes(currentUser.uid) && callData.status === "dialing" && !peerConnection) {
+                            if (confirm(`Incoming video call from ${callData.callerName}. Accept?`)) {
+                                await acceptCall(callId, callData);
+                            } else {
+                                await updateDoc(doc(db, "calls", callId), { status: "ended" });
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        async function acceptCall(callId, callData) {
+            await setupStreams();
+            videoOverlay.style.display = "flex";
+            document.getElementById("video-status").textContent = "Connected";
+
+            const callDoc = doc(db, "calls", callId);
+            const offerCandidates = collection(callDoc, "offerCandidates");
+            const answerCandidates = collection(callDoc, "answerCandidates");
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) addDoc(answerCandidates, event.candidate.toJSON());
+            };
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+            const answerDescription = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answerDescription);
+
+            await updateDoc(callDoc, {
+                answer: { type: answerDescription.type, sdp: answerDescription.sdp },
+                status: "active"
+            });
+
+            unsubscribeCall = onSnapshot(callDoc, (snapshot) => {
+                if (snapshot.data()?.status === "ended") endCallVisuals();
+            });
+
+            onSnapshot(offerCandidates, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                    }
+                });
+            });
+        }
+
+        // Hang Up Logic
+        document.getElementById("end-call-btn").onclick = async () => {
+            if (currentChatId) {
+                await setDoc(doc(db, "calls", currentChatId), { status: "ended" }, { merge: true });
+            }
+            endCallVisuals();
+        };
+
+        function endCallVisuals() {
+            videoOverlay.style.display = "none";
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            if (peerConnection) peerConnection.close();
+            if (unsubscribeCall) unsubscribeCall();
+            
+            localStream = null;
+            peerConnection = null;
+            currentChatId = null;
+        }
+
+        // --- ACCOUNT MANAGEMENT ---
         document.getElementById("logout-btn").onclick = () => signOut(auth);
+        document.getElementById("edit-profile-btn").onclick = () => {
+            document.getElementById("edit-name-input").value = currentUser.displayName || document.getElementById("my-name").textContent;
+            document.getElementById("edit-pic-input").value = currentUser.photoURL || "";
+            document.getElementById("profile-modal").style.display = "flex";
+        };
+        document.getElementById("close-modal-btn").onclick = () => document.getElementById("profile-modal").style.display = "none";
+        document.getElementById("save-profile-btn").onclick = async () => {
+            const n = document.getElementById("edit-name-input").value.trim();
+            const p = document.getElementById("edit-pic-input").value.trim();
+            if (n) {
+                await updateProfile(currentUser, { displayName: n, photoURL: p });
+                await updateDoc(doc(db, "users", currentUser.uid), { name: n, photoURL: p });
+                location.reload();
+            }
+        };
         document.getElementById("delete-account-btn").onclick = async () => {
             if (confirm("Delete Account?")) {
                 await deleteDoc(doc(db, "users", currentUser.uid));
                 await deleteUser(currentUser);
+                location.reload();
             }
         };
     </script>
