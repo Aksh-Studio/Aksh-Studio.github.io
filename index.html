@@ -8,20 +8,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
+        /* Video Overlay Styles */
         .video-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: none; flex-direction: column;
+            background: rgba(0,0,0,0.95); display: none; flex-direction: column;
             align-items: center; justify-content: center; z-index: 9999;
         }
-        .video-grid { position: relative; width: 90%; max-width: 800px; height: 60vh; background: #222; border-radius: 10px; overflow: hidden; }
+        .video-grid { position: relative; width: 90%; max-width: 800px; height: 60vh; background: #111; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         #remote-video { width: 100%; height: 100%; object-fit: cover; }
         #local-video { position: absolute; bottom: 20px; right: 20px; width: 120px; height: 160px; object-fit: cover; border-radius: 8px; border: 2px solid white; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .video-controls { margin-top: 20px; display: flex; gap: 20px; }
-        .call-btn { padding: 12px 24px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .call-btn { padding: 12px 30px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
         .end-call { background: #ea4335; color: white; }
         .end-call:hover { background: #d32f2f; }
         .vid-header-btn { background: none; border: none; font-size: 24px; cursor: pointer; margin-right: 15px; transition: 0.2s; }
-        .vid-header-btn:hover { transform: scale(1.1); }
+        
+        /* Permanent Notification Top Bar Styles */
+        .top-noti-bar {
+            width: 100%; height: 100px; background: #fff; border-bottom: 2px solid #128C7E; 
+            padding: 10px 20px; overflow-y: auto; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .top-noti-title { margin: 0 0 5px 0; font-size: 14px; color: #128C7E; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .noti-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
+        .noti-item { font-size: 12px; background: #f8f9fa; padding: 6px 10px; border-radius: 4px; border-left: 3px solid #128C7E; display: flex; justify-content: space-between; }
+        .noti-time { color: #888; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -30,79 +40,79 @@
         <div class="auth-box">
             <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; font-size: 11px; color: #555; text-align: center;">
                 <strong>STUDENT PORTFOLIO PROJECT</strong><br>
-                This is a non-commercial coding exercise by <strong>Akshat Mehta</strong>.<br>
-                <a href="https://github.com/AkshatMehta-124" target="_blank" style="color: #128C7E; text-decoration: none; font-weight: 600;">View Source on GitHub</a>
+                This is a non-commercial coding exercise by <strong>Akshat Mehta</strong>.
             </div>
-
             <img src="logo.png" alt="ChatApp Logo" class="login-logo">
             <h1>ChatApp Demo</h1>
             <p style="margin-bottom: 20px;">Firebase Integration Test</p>
-
             <div class="input-group">
                 <input type="email" id="email-input" placeholder="Email Address">
                 <input type="password" id="password-input" placeholder="Password">
                 <button id="email-auth-btn" class="auth-btn">Sign In</button>
             </div>
-
             <p class="toggle-text" id="toggle-mode-text">New here? <span>Create an account</span></p>
             <div class="divider">OR</div>
-
-            <button id="google-login-btn" class="google-btn">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="20"> 
-                Continue with Google
-            </button>
-
+            <button id="google-login-btn" class="google-btn">Continue with Google</button>
             <p id="auth-error" style="display:none; color: red; background: #fee; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 13px;"></p>
         </div>
     </div>
 
-    <div id="app-screen" style="display: none;">
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <div class="my-profile-info">
-                    <img id="my-profile-pic" src="" alt="Me">
-                    <span id="my-name">Name</span>
-                </div>
-                <div class="header-buttons">
-                    <button id="edit-profile-btn">Edit</button>
-                    <button id="logout-btn">Logout</button>
-                </div>
-            </div>
-            <div class="user-list-container">
-                <ul id="user-list"></ul>
-            </div>
+    <div id="app-screen" style="display: none; flex-direction: column; height: 100vh;">
+        
+        <div id="top-notification-bar" class="top-noti-bar">
+            <h4 class="top-noti-title">🔔 Live Notifications</h4>
+            <ul id="permanent-noti-list" class="noti-list">
+                </ul>
         </div>
 
-        <div class="chat-area">
-            <div class="chat-header">
-                <span id="chat-with-name">Select a contact to start chatting</span>
-                <div style="margin-left: auto; display: flex; align-items: center;">
-                    <button id="start-video-btn" class="vid-header-btn" style="display: none;" title="Video Call">📹</button>
-                    <img src="logo.png" alt="App Logo" class="header-logo">
+        <div style="display: flex; flex: 1; overflow: hidden;">
+            <div class="sidebar">
+                <div class="sidebar-header" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div class="my-profile-info" style="display: flex; align-items: center;">
+                        <img id="my-profile-pic" src="" alt="Me" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 10px;">
+                        <span id="my-name" style="font-weight: 600;">Name</span>
+                    </div>
+                    <div class="header-buttons" style="display: flex; align-items: center;">
+                        <button id="edit-profile-btn" style="margin-right: 5px;">Edit</button>
+                        <button id="logout-btn">Logout</button>
+                    </div>
+                </div>
+                
+                <div class="user-list-container">
+                    <ul id="user-list"></ul>
                 </div>
             </div>
-            <div class="messages-container" id="messages"></div>
-            <div class="chat-input-area" id="input-area" style="display: none;">
-                <input type="text" id="message-input" placeholder="Type a message...">
-                <button id="send-btn">Send</button>
+
+            <div class="chat-area">
+                <div class="chat-header">
+                    <span id="chat-with-name">Select a contact to start chatting</span>
+                    <div style="margin-left: auto; display: flex; align-items: center;">
+                        <button id="start-video-btn" class="vid-header-btn" style="display: none;" title="Video Call">📹</button>
+                    </div>
+                </div>
+                <div class="messages-container" id="messages"></div>
+                <div class="chat-input-area" id="input-area" style="display: none;">
+                    <input type="text" id="message-input" placeholder="Type a message...">
+                    <button id="send-btn">Send</button>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="incoming-call-modal" class="modal" style="display: none; z-index: 10000;">
-        <div class="modal-content" style="text-align: center; max-width: 300px;">
-            <div style="font-size: 40px; margin-bottom: 10px;">📹</div>
+        <div class="modal-content" style="text-align: center; max-width: 300px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="font-size: 40px; margin-bottom: 10px; animation: pulse 1s infinite;">📞</div>
             <h2 style="margin-bottom: 5px;">Incoming Call</h2>
-            <p id="caller-name-display" style="color: #666; margin-bottom: 20px;">Someone is calling you...</p>
+            <p id="caller-name-display" style="color: #666; margin-bottom: 20px; font-weight: bold;">Someone is calling you...</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button id="reject-call-btn" style="flex: 1; background: #ea4335; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">Decline</button>
-                <button id="accept-call-btn" style="flex: 1; background: #34a853; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">Accept</button>
+                <button id="reject-call-btn" style="flex: 1; background: #ea4335; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold;">Decline</button>
+                <button id="accept-call-btn" style="flex: 1; background: #34a853; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold;">Accept</button>
             </div>
         </div>
     </div>
 
     <div id="video-overlay" class="video-overlay">
-        <h2 id="video-status" style="color: white; margin-bottom: 10px;">Calling...</h2>
+        <h2 id="video-status" style="color: white; margin-bottom: 15px; font-weight: 300;">Connecting...</h2>
         <div class="video-grid">
             <video id="remote-video" autoplay playsinline></video>
             <video id="local-video" autoplay playsinline muted></video>
@@ -117,10 +127,7 @@
             <h2>Edit Profile</h2>
             <label>Display Name:</label>
             <input type="text" id="edit-name-input" maxlength="30">
-            <label>Profile Picture URL:</label>
-            <input type="url" id="edit-pic-input" placeholder="https://link.com/pic.jpg">
             <div class="modal-buttons">
-                <button id="delete-account-btn" style="background: #d32f2f; color: white; margin-right: auto; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">Delete Account</button>
                 <button id="close-modal-btn">Cancel</button>
                 <button id="save-profile-btn">Save</button>
             </div>
@@ -129,8 +136,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, collection, onSnapshot, addDoc, Timestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, collection, onSnapshot, addDoc, Timestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA_lmaWDdayWIOKK02h2uvZSeBasdUonXc",
@@ -138,8 +145,7 @@
             projectId: "chat-with-anyone-73526",
             storageBucket: "chat-with-anyone-73526.firebasestorage.app",
             messagingSenderId: "440915092993",
-            appId: "1:440915092993:web:96e7af7a1a05156ae6c200",
-            measurementId: "G-E856F2F0B0"
+            appId: "1:440915092993:web:96e7af7a1a05156ae6c200"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -157,34 +163,43 @@
         let remoteStream = null;
         let peerConnection = null;
         let unsubscribeCall = null;
-        let activeCallId = null; // NEW: Tracks the current call for hanging up
-        let pendingCallData = null; // NEW: Holds data while user decides to accept/reject
+        let activeCallId = null; 
+        let pendingCallData = null;
         
         const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
 
+        // DOM Elements
         const loginScreen = document.getElementById("login-screen");
         const appScreen = document.getElementById("app-screen");
         const userList = document.getElementById("user-list");
         const messagesContainer = document.getElementById("messages");
         const inputArea = document.getElementById("input-area");
         const messageInput = document.getElementById("message-input");
-        const authError = document.getElementById("auth-error");
-        
-        // Video Elements
         const startVideoBtn = document.getElementById("start-video-btn");
         const videoOverlay = document.getElementById("video-overlay");
         const incomingCallModal = document.getElementById("incoming-call-modal");
+        const notiList = document.getElementById("permanent-noti-list");
 
-        function showError(msg) { authError.textContent = msg; authError.style.display = "block"; }
+        // --- GLOBAL NOTIFICATION LOGGER ---
+        function addNotification(text) {
+            const li = document.createElement("li");
+            li.className = "noti-item";
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            li.innerHTML = `<span>${text}</span><span class="noti-time">${time}</span>`;
+            notiList.prepend(li); // Adds to the top of the list
+        }
 
-        // --- AUTH ---
-        document.getElementById("google-login-btn").onclick = () => {
-            signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showError(err.code));
-        };
+        function showError(msg) { 
+            const errEl = document.getElementById("auth-error");
+            errEl.textContent = msg; 
+            errEl.style.display = "block"; 
+        }
 
+        // --- AUTHENTICATION ---
+        document.getElementById("google-login-btn").onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
+        
         document.getElementById("toggle-mode-text").onclick = () => {
             isSignUpMode = !isSignUpMode;
-            authError.style.display = "none";
             document.getElementById("email-auth-btn").textContent = isSignUpMode ? "Create Account" : "Sign In";
             document.getElementById("toggle-mode-text").innerHTML = isSignUpMode ? 'Already have an account? <span>Sign In</span>' : 'New here? <span>Create an account</span>';
         };
@@ -192,11 +207,8 @@
         document.getElementById("email-auth-btn").onclick = async () => {
             const e = document.getElementById("email-input").value.trim();
             const p = document.getElementById("password-input").value.trim();
-            if (!e || !p) return showError("Enter credentials.");
-            try {
-                if (isSignUpMode) await createUserWithEmailAndPassword(auth, e, p);
-                else await signInWithEmailAndPassword(auth, e, p);
-            } catch (err) { showError(err.code); }
+            if (isSignUpMode) await createUserWithEmailAndPassword(auth, e, p);
+            else await signInWithEmailAndPassword(auth, e, p);
         };
 
         onAuthStateChanged(auth, async (user) => {
@@ -209,8 +221,10 @@
                 document.getElementById("my-name").textContent = n;
                 document.getElementById("my-profile-pic").src = pic;
                 await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: n, photoURL: pic }, { merge: true });
+                
                 loadUsers();
                 listenForIncomingCalls();
+                addNotification(`System: Welcome, ${n}. You are successfully logged in.`);
             } else {
                 currentUser = null;
                 loginScreen.style.display = "flex";
@@ -218,7 +232,7 @@
             }
         });
 
-        // --- CORE CHAT ROUTINES ---
+        // --- CORE CHAT ---
         function loadUsers() {
             onSnapshot(collection(db, "users"), (s) => {
                 userList.innerHTML = "";
@@ -226,11 +240,7 @@
                     const u = d.data();
                     if (currentUser && u.uid !== currentUser.uid) {
                         const li = document.createElement("li");
-                        const img = document.createElement("img");
-                        img.src = u.photoURL.startsWith('http') ? u.photoURL : "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-                        const span = document.createElement("span");
-                        span.textContent = u.name;
-                        li.append(img, span);
+                        li.innerHTML = `<img src="${u.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}"> <span>${u.name}</span>`;
                         li.onclick = () => openChat(u);
                         userList.append(li);
                     }
@@ -271,7 +281,7 @@
             }
         };
 
-        // --- WebRTC VIDEO CALL SIGNALING LOGIC ---
+        // --- WebRTC VIDEO CALLING ---
         async function setupStreams() {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             remoteStream = new MediaStream();
@@ -284,12 +294,13 @@
             };
         }
 
-        // 1. Caller starts the call
+        // 1. START CALL (Caller)
         startVideoBtn.onclick = async () => {
+            activeCallId = currentChatId; 
             await setupStreams();
-            activeCallId = currentChatId; // Store globally
             videoOverlay.style.display = "flex";
-            document.getElementById("video-status").textContent = `Calling ${currentChatUser.name}...`;
+            document.getElementById("video-status").textContent = `Dialing ${currentChatUser.name}...`;
+            addNotification(`You are calling ${currentChatUser.name}...`);
 
             const callDoc = doc(db, "calls", activeCallId);
             const offerCandidates = collection(callDoc, "offerCandidates");
@@ -302,9 +313,11 @@
             const offerDescription = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offerDescription);
 
+            // FIX: Ensure callerUid is strictly sent so receiver knows who is calling
             await setDoc(callDoc, {
                 offer: { type: offerDescription.type, sdp: offerDescription.sdp },
                 callerName: auth.currentUser.displayName || "Someone",
+                callerUid: currentUser.uid,
                 status: "dialing"
             });
 
@@ -312,10 +325,18 @@
                 const data = snapshot.data();
                 if (data?.answer && !peerConnection.currentRemoteDescription) {
                     document.getElementById("video-status").textContent = "Connected";
+                    addNotification(`${currentChatUser.name} answered the call.`);
                     const answerDescription = new RTCSessionDescription(data.answer);
                     await peerConnection.setRemoteDescription(answerDescription);
                 }
-                if (data?.status === "ended" || data?.status === "rejected") endCallVisuals();
+                if (data?.status === "ended") {
+                    addNotification(`Call with ${currentChatUser.name} ended.`);
+                    endCallVisuals();
+                }
+                if (data?.status === "rejected") {
+                    addNotification(`${currentChatUser.name} declined the call.`);
+                    endCallVisuals();
+                }
             });
 
             onSnapshot(answerCandidates, (snapshot) => {
@@ -325,7 +346,7 @@
             });
         };
 
-        // 2. Receiver listens for call
+        // 2. LISTEN FOR CALL (Receiver)
         function listenForIncomingCalls() {
             onSnapshot(collection(db, "calls"), (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
@@ -333,24 +354,37 @@
                         const callData = change.doc.data();
                         const callId = change.doc.id;
 
-                        if (callId.includes(currentUser.uid) && callData.status === "dialing" && !peerConnection) {
-                            // SHOW CUSTOM POPUP INSTEAD OF BROWSER CONFIRM
-                            activeCallId = callId;
-                            pendingCallData = callData;
-                            document.getElementById("caller-name-display").textContent = `${callData.callerName} is calling...`;
-                            incomingCallModal.style.display = "flex";
+                        // FIX: Strict check to make sure it's for ME, and I am NOT the caller
+                        if (callId.includes(currentUser.uid) && callData.callerUid !== currentUser.uid) {
+                            
+                            if (callData.status === "dialing" && !activeCallId) {
+                                activeCallId = callId;
+                                pendingCallData = callData;
+                                document.getElementById("caller-name-display").textContent = `${callData.callerName} is calling...`;
+                                incomingCallModal.style.display = "flex";
+                                addNotification(`Incoming video call from ${callData.callerName}!`);
+                            } 
+                            else if (callData.status === "ended" || callData.status === "rejected") {
+                                // If they hang up before we answer, or if call is over
+                                incomingCallModal.style.display = "none";
+                                if (activeCallId === callId) {
+                                    endCallVisuals();
+                                }
+                                addNotification(`Missed or Ended call from ${callData.callerName}.`);
+                            }
                         }
                     }
                 });
             });
         }
 
-        // 3. Receiver clicks Accept
+        // 3. ACCEPT CALL (Receiver)
         document.getElementById("accept-call-btn").onclick = async () => {
             incomingCallModal.style.display = "none";
             await setupStreams();
             videoOverlay.style.display = "flex";
             document.getElementById("video-status").textContent = "Connected";
+            addNotification("You joined the call.");
 
             const callDoc = doc(db, "calls", activeCallId);
             const offerCandidates = collection(callDoc, "offerCandidates");
@@ -380,9 +414,10 @@
             });
         };
 
-        // 4. Receiver clicks Decline
+        // 4. DECLINE CALL (Receiver)
         document.getElementById("reject-call-btn").onclick = async () => {
             incomingCallModal.style.display = "none";
+            addNotification("You declined the call.");
             if (activeCallId) {
                 await updateDoc(doc(db, "calls", activeCallId), { status: "rejected" });
             }
@@ -390,10 +425,12 @@
             pendingCallData = null;
         };
 
-        // 5. Hang Up Logic (Works for both Caller and Receiver)
+        // 5. HANG UP (Caller or Receiver)
         document.getElementById("end-call-btn").onclick = async () => {
             if (activeCallId) {
+                // Instantly tell the database the call is over
                 await setDoc(doc(db, "calls", activeCallId), { status: "ended" }, { merge: true });
+                addNotification("You hung up.");
             }
             endCallVisuals();
         };
@@ -409,29 +446,21 @@
             peerConnection = null;
             activeCallId = null; 
             pendingCallData = null;
+            document.getElementById("video-status").textContent = "Connecting...";
         }
 
         // --- ACCOUNT MANAGEMENT ---
         document.getElementById("logout-btn").onclick = () => signOut(auth);
         document.getElementById("edit-profile-btn").onclick = () => {
             document.getElementById("edit-name-input").value = currentUser.displayName || document.getElementById("my-name").textContent;
-            document.getElementById("edit-pic-input").value = currentUser.photoURL || "";
             document.getElementById("profile-modal").style.display = "flex";
         };
         document.getElementById("close-modal-btn").onclick = () => document.getElementById("profile-modal").style.display = "none";
         document.getElementById("save-profile-btn").onclick = async () => {
             const n = document.getElementById("edit-name-input").value.trim();
-            const p = document.getElementById("edit-pic-input").value.trim();
             if (n) {
-                await updateProfile(currentUser, { displayName: n, photoURL: p });
-                await updateDoc(doc(db, "users", currentUser.uid), { name: n, photoURL: p });
-                location.reload();
-            }
-        };
-        document.getElementById("delete-account-btn").onclick = async () => {
-            if (confirm("Delete Account?")) {
-                await deleteDoc(doc(db, "users", currentUser.uid));
-                await deleteUser(currentUser);
+                await updateProfile(currentUser, { displayName: n });
+                await updateDoc(doc(db, "users", currentUser.uid), { name: n });
                 location.reload();
             }
         };
