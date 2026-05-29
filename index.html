@@ -3,31 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Portfolio Project: Firebase Chat App</title>
+    <title>Portfolio: Firebase Chat Project</title>
     <link rel="icon" type="image/png" href="logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Quick styles for the video overlay */
         .video-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); display: none; flex-direction: column;
             align-items: center; justify-content: center; z-index: 9999;
         }
-        .video-grid { position: relative; width: 80%; max-width: 800px; height: 60vh; background: #222; border-radius: 10px; overflow: hidden; }
+        .video-grid { position: relative; width: 90%; max-width: 800px; height: 60vh; background: #222; border-radius: 10px; overflow: hidden; }
         #remote-video { width: 100%; height: 100%; object-fit: cover; }
-        #local-video { position: absolute; bottom: 20px; right: 20px; width: 150px; height: 110px; object-fit: cover; border-radius: 5px; border: 2px solid white; z-index: 10; }
+        #local-video { position: absolute; bottom: 20px; right: 20px; width: 120px; height: 160px; object-fit: cover; border-radius: 8px; border: 2px solid white; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .video-controls { margin-top: 20px; display: flex; gap: 20px; }
-        .call-btn { padding: 10px 20px; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        .end-call { background: #d32f2f; color: white; }
-        .vid-header-btn { background: none; border: none; font-size: 20px; cursor: pointer; margin-right: 10px; }
+        .call-btn { padding: 12px 24px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .end-call { background: #ea4335; color: white; }
+        .end-call:hover { background: #d32f2f; }
+        .vid-header-btn { background: none; border: none; font-size: 24px; cursor: pointer; margin-right: 15px; transition: 0.2s; }
+        .vid-header-btn:hover { transform: scale(1.1); }
     </style>
 </head>
 <body>
 
     <div id="login-screen" class="screen">
         <div class="auth-box">
-            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; font-size: 11px; color: #555;">
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; font-size: 11px; color: #555; text-align: center;">
                 <strong>STUDENT PORTFOLIO PROJECT</strong><br>
                 This is a non-commercial coding exercise by <strong>Akshat Mehta</strong>.<br>
                 <a href="https://github.com/AkshatMehta-124" target="_blank" style="color: #128C7E; text-decoration: none; font-weight: 600;">View Source on GitHub</a>
@@ -76,7 +77,7 @@
             <div class="chat-header">
                 <span id="chat-with-name">Select a contact to start chatting</span>
                 <div style="margin-left: auto; display: flex; align-items: center;">
-                    <button id="start-video-btn" class="vid-header-btn" style="display: none;">📹</button>
+                    <button id="start-video-btn" class="vid-header-btn" style="display: none;" title="Video Call">📹</button>
                     <img src="logo.png" alt="App Logo" class="header-logo">
                 </div>
             </div>
@@ -84,6 +85,18 @@
             <div class="chat-input-area" id="input-area" style="display: none;">
                 <input type="text" id="message-input" placeholder="Type a message...">
                 <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="incoming-call-modal" class="modal" style="display: none; z-index: 10000;">
+        <div class="modal-content" style="text-align: center; max-width: 300px;">
+            <div style="font-size: 40px; margin-bottom: 10px;">📹</div>
+            <h2 style="margin-bottom: 5px;">Incoming Call</h2>
+            <p id="caller-name-display" style="color: #666; margin-bottom: 20px;">Someone is calling you...</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="reject-call-btn" style="flex: 1; background: #ea4335; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">Decline</button>
+                <button id="accept-call-btn" style="flex: 1; background: #34a853; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">Accept</button>
             </div>
         </div>
     </div>
@@ -144,6 +157,8 @@
         let remoteStream = null;
         let peerConnection = null;
         let unsubscribeCall = null;
+        let activeCallId = null; // NEW: Tracks the current call for hanging up
+        let pendingCallData = null; // NEW: Holds data while user decides to accept/reject
         
         const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
 
@@ -154,8 +169,11 @@
         const inputArea = document.getElementById("input-area");
         const messageInput = document.getElementById("message-input");
         const authError = document.getElementById("auth-error");
+        
+        // Video Elements
         const startVideoBtn = document.getElementById("start-video-btn");
         const videoOverlay = document.getElementById("video-overlay");
+        const incomingCallModal = document.getElementById("incoming-call-modal");
 
         function showError(msg) { authError.textContent = msg; authError.style.display = "block"; }
 
@@ -225,7 +243,7 @@
             currentChatId = currentUser.uid < other.uid ? currentUser.uid + "_" + other.uid : other.uid + "_" + currentUser.uid;
             document.getElementById("chat-with-name").textContent = other.name;
             inputArea.style.display = "flex";
-            startVideoBtn.style.display = "block"; // Show camera button once contact is selected
+            startVideoBtn.style.display = "block";
             
             if (unsubscribeMessages) unsubscribeMessages();
             await setDoc(doc(db, "chats", currentChatId), { participants: [currentUser.uid, other.uid] }, { merge: true });
@@ -257,25 +275,23 @@
         async function setupStreams() {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             remoteStream = new MediaStream();
-
             document.getElementById('local-video').srcObject = localStream;
             document.getElementById('remote-video').srcObject = remoteStream;
-
             peerConnection = new RTCPeerConnection(servers);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
             peerConnection.ontrack = (event) => {
                 event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
             };
         }
 
-        // Trigger Call (Caller Side)
+        // 1. Caller starts the call
         startVideoBtn.onclick = async () => {
             await setupStreams();
+            activeCallId = currentChatId; // Store globally
             videoOverlay.style.display = "flex";
             document.getElementById("video-status").textContent = `Calling ${currentChatUser.name}...`;
 
-            const callDoc = doc(db, "calls", currentChatId);
+            const callDoc = doc(db, "calls", activeCallId);
             const offerCandidates = collection(callDoc, "offerCandidates");
             const answerCandidates = collection(callDoc, "answerCandidates");
 
@@ -292,7 +308,6 @@
                 status: "dialing"
             });
 
-            // Listen for answer
             unsubscribeCall = onSnapshot(callDoc, async (snapshot) => {
                 const data = snapshot.data();
                 if (data?.answer && !peerConnection.currentRemoteDescription) {
@@ -300,45 +315,44 @@
                     const answerDescription = new RTCSessionDescription(data.answer);
                     await peerConnection.setRemoteDescription(answerDescription);
                 }
-                if (data?.status === "ended") endCallVisuals();
+                if (data?.status === "ended" || data?.status === "rejected") endCallVisuals();
             });
 
             onSnapshot(answerCandidates, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added") {
-                        peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                    }
+                    if (change.type === "added") peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 });
             });
         };
 
-        // Listen for Call (Receiver Side)
+        // 2. Receiver listens for call
         function listenForIncomingCalls() {
             onSnapshot(collection(db, "calls"), (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
+                snapshot.docChanges().forEach((change) => {
                     if (change.type === "added" || change.type === "modified") {
                         const callData = change.doc.data();
                         const callId = change.doc.id;
 
-                        // Check if the call belongs to us and is actively dialing
                         if (callId.includes(currentUser.uid) && callData.status === "dialing" && !peerConnection) {
-                            if (confirm(`Incoming video call from ${callData.callerName}. Accept?`)) {
-                                await acceptCall(callId, callData);
-                            } else {
-                                await updateDoc(doc(db, "calls", callId), { status: "ended" });
-                            }
+                            // SHOW CUSTOM POPUP INSTEAD OF BROWSER CONFIRM
+                            activeCallId = callId;
+                            pendingCallData = callData;
+                            document.getElementById("caller-name-display").textContent = `${callData.callerName} is calling...`;
+                            incomingCallModal.style.display = "flex";
                         }
                     }
                 });
             });
         }
 
-        async function acceptCall(callId, callData) {
+        // 3. Receiver clicks Accept
+        document.getElementById("accept-call-btn").onclick = async () => {
+            incomingCallModal.style.display = "none";
             await setupStreams();
             videoOverlay.style.display = "flex";
             document.getElementById("video-status").textContent = "Connected";
 
-            const callDoc = doc(db, "calls", callId);
+            const callDoc = doc(db, "calls", activeCallId);
             const offerCandidates = collection(callDoc, "offerCandidates");
             const answerCandidates = collection(callDoc, "answerCandidates");
 
@@ -346,7 +360,7 @@
                 if (event.candidate) addDoc(answerCandidates, event.candidate.toJSON());
             };
 
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingCallData.offer));
             const answerDescription = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answerDescription);
 
@@ -361,30 +375,40 @@
 
             onSnapshot(offerCandidates, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added") {
-                        peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                    }
+                    if (change.type === "added") peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 });
             });
-        }
+        };
 
-        // Hang Up Logic
+        // 4. Receiver clicks Decline
+        document.getElementById("reject-call-btn").onclick = async () => {
+            incomingCallModal.style.display = "none";
+            if (activeCallId) {
+                await updateDoc(doc(db, "calls", activeCallId), { status: "rejected" });
+            }
+            activeCallId = null;
+            pendingCallData = null;
+        };
+
+        // 5. Hang Up Logic (Works for both Caller and Receiver)
         document.getElementById("end-call-btn").onclick = async () => {
-            if (currentChatId) {
-                await setDoc(doc(db, "calls", currentChatId), { status: "ended" }, { merge: true });
+            if (activeCallId) {
+                await setDoc(doc(db, "calls", activeCallId), { status: "ended" }, { merge: true });
             }
             endCallVisuals();
         };
 
         function endCallVisuals() {
             videoOverlay.style.display = "none";
+            incomingCallModal.style.display = "none";
             if (localStream) localStream.getTracks().forEach(track => track.stop());
             if (peerConnection) peerConnection.close();
             if (unsubscribeCall) unsubscribeCall();
             
             localStream = null;
             peerConnection = null;
-            currentChatId = null;
+            activeCallId = null; 
+            pendingCallData = null;
         }
 
         // --- ACCOUNT MANAGEMENT ---
