@@ -84,8 +84,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 600; }
 .hub-container h3 { margin: 0; font-size: 24px; font-weight: 600; }
 .hub-welcome { margin: 5px 0 30px; color: var(--text-muted); font-size: 15px; }
 
-.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1xl)); gap: 20px; }.app-tile {
-    background: var(--surface); padding: 25px; border-radius: 10px;
+.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }    background: var(--surface); padding: 25px; border-radius: 10px;
     border: 1px solid var(--border); text-decoration: none; color: inherit;
     transition: transform 0.2s, box-shadow 0.2s; display: block;
 }
