@@ -84,14 +84,21 @@ h1 { margin: 0; font-size: 22px; font-weight: 600; }
 .hub-container h3 { margin: 0; font-size: 24px; font-weight: 600; }
 .hub-welcome { margin: 5px 0 30px; color: var(--text-muted); font-size: 15px; }
 
-.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }    background: var(--surface); padding: 25px; border-radius: 10px;
+/* FIXED APP GRID LAYOUT */
+.app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+.app-tile {
+    background: var(--surface); padding: 25px; border-radius: 10px;
     border: 1px solid var(--border); text-decoration: none; color: inherit;
     transition: transform 0.2s, box-shadow 0.2s; display: block;
 }
 .app-tile:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.05); }
+
+/* You can remove these specific icon colors later if you switch completely to Image Logos */
 .tile-icon { width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 15px; }
 .communication { background: #e8f5e9; }
 .math { background: #e3f2fd; }
 .schedule { background: #fff3e0; }
+
 .app-tile h4 { margin: 0 0 8px 0; font-size: 17px; font-weight: 600; }
 .app-tile p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
