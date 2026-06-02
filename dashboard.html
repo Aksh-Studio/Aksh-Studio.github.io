@@ -1,1 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Hub | Portal Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard-body">
 
+    <header class="hub-header">
+        <div class="brand">
+            <img src="logo.png" alt="Logo" class="hub-logo">
+            <h2>Workspace Suite</h2>
+        </div>
+        <button id="hub-logout-btn" class="logout-link-btn">Sign Out</button>
+    </header>
+
+    <main class="hub-container">
+        <h3>My Applications</h3>
+        <p class="hub-welcome">Select a utility tool to begin working</p>
+
+        <div class="app-grid">
+            <a href="apps/chat/index.html" class="app-tile">
+                <div class="tile-icon communication">💬</div>
+                <h4>Chat App</h4>
+                <p>Real-time messaging & WebRTC video endpoints.</p>
+            </a>
+
+            <a href="apps/calculator/index.html" class="app-tile">
+                <div class="tile-icon math">🧮</div>
+                <h4>Calculator</h4>
+                <p>Standard algebraic utility with active operations.</p>
+            </a>
+
+            <a href="apps/calendar/index.html" class="app-tile">
+                <div class="tile-icon schedule">📅</div>
+                <h4>Calendar</h4>
+                <p>Interactive schedule view and agenda log tracking.</p>
+            </a>
+        </div>
+    </main>
+
+    <script type="module">
+        import { auth } from "./auth.js";
+        import { signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        
+        document.getElementById("hub-logout-btn").onclick = () => {
+            signOut(auth).then(() => {
+                window.location.href = "index.html";
+            });
+        };
+    </script>
+</body>
+</html>
