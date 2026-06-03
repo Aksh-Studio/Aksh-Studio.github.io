@@ -18,15 +18,36 @@ class Calculator {
     }
 
     appendNumber(number) {
-        // Prevent multiple decimals
         if (number === '.' && this.currentOperand.includes('.')) return;
-        
-        // Remove initial zero unless it's a decimal
         if (this.currentOperand === '0' && number !== '.') {
             this.currentOperand = number.toString();
         } else {
             this.currentOperand = this.currentOperand.toString() + number.toString();
         }
+    }
+
+    appendConstant(constant) {
+        if (constant === 'pi') this.currentOperand = Math.PI.toString();
+        if (constant === 'e') this.currentOperand = Math.E.toString();
+    }
+
+    computeSingleOperand(operation) {
+        let current = parseFloat(this.currentOperand);
+        if (isNaN(current)) return;
+
+        switch (operation) {
+            case 'sin': current = Math.sin(current); break; // Assumes radians for standard sci calc
+            case 'cos': current = Math.cos(current); break;
+            case 'tan': current = Math.tan(current); break;
+            case 'sqrt': current = Math.sqrt(current); break;
+            case 'log': current = Math.log10(current); break;
+            case 'ln': current = Math.log(current); break;
+            case '1/x': current = 1 / current; break;
+            case 'abs': current = Math.abs(current); break;
+        }
+        
+        // Fix floating point errors
+        this.currentOperand = (Math.round(current * 1e10) / 1e10).toString();
     }
 
     chooseOperation(operation) {
@@ -47,29 +68,17 @@ class Calculator {
         if (isNaN(prev) || isNaN(current)) return;
         
         switch (this.operation) {
-            case '+':
-                computation = prev + current;
-                break;
-            case '−':
-                computation = prev - current;
-                break;
-            case '×':
-                computation = prev * current;
-                break;
-            case '÷':
-                if (current === 0) {
-                    alert("Cannot divide by zero");
-                    this.clear();
-                    return;
-                }
-                computation = prev / current;
-                break;
-            default:
-                return;
+            case '+': computation = prev + current; break;
+            case '−': computation = prev - current; break;
+            case '×': computation = prev * current; break;
+            case '÷': 
+                if (current === 0) { alert("Cannot divide by zero"); return this.clear(); }
+                computation = prev / current; break;
+            case '^': computation = Math.pow(prev, current); break;
+            default: return;
         }
         
-        // Handle floating point precision issues (e.g., 0.1 + 0.2)
-        this.currentOperand = Math.round(computation * 10000000000) / 10000000000;
+        this.currentOperand = (Math.round(computation * 1e10) / 1e10).toString();
         this.operation = undefined;
         this.previousOperand = '';
     }
@@ -79,13 +88,11 @@ class Calculator {
         const integerDigits = parseFloat(stringNumber.split('.')[0]);
         const decimalDigits = stringNumber.split('.')[1];
         let integerDisplay;
-        
         if (isNaN(integerDigits)) {
             integerDisplay = '';
         } else {
             integerDisplay = integerDigits.toLocaleString('en', { maximumFractionDigits: 0 });
         }
-        
         if (decimalDigits != null) {
             return `${integerDisplay}.${decimalDigits}`;
         } else {
@@ -96,50 +103,35 @@ class Calculator {
     updateDisplay() {
         this.currentOperandTextElement.innerText = this.getDisplayNumber(this.currentOperand);
         if (this.operation != null) {
-            this.previousOperandTextElement.innerText = 
-                `${this.getDisplayNumber(this.previousOperand)} ${this.operation}`;
+            this.previousOperandTextElement.innerText = `${this.getDisplayNumber(this.previousOperand)} ${this.operation}`;
         } else {
             this.previousOperandTextElement.innerText = '';
         }
     }
 }
 
-// Hooking up the buttons to the DOM
-const numberButtons = document.querySelectorAll('[data-number]');
-const operationButtons = document.querySelectorAll('[data-operation]');
-const equalsButton = document.querySelector('[data-equals]');
-const deleteButton = document.querySelector('[data-delete]');
-const allClearButton = document.querySelector('[data-all-clear]');
-const previousOperandTextElement = document.querySelector('[data-previous-operand]');
-const currentOperandTextElement = document.querySelector('[data-current-operand]');
+const calculator = new Calculator(
+    document.querySelector('[data-previous-operand]'),
+    document.querySelector('[data-current-operand]')
+);
 
-const calculator = new Calculator(previousOperandTextElement, currentOperandTextElement);
-
-numberButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        calculator.appendNumber(button.innerText);
-        calculator.updateDisplay();
-    });
+// Event Listeners
+document.querySelectorAll('[data-number]').forEach(button => {
+    button.addEventListener('click', () => { calculator.appendNumber(button.innerText); calculator.updateDisplay(); });
 });
 
-operationButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        calculator.chooseOperation(button.innerText);
-        calculator.updateDisplay();
-    });
+document.querySelectorAll('[data-operation]').forEach(button => {
+    button.addEventListener('click', () => { calculator.chooseOperation(button.dataset.operation); calculator.updateDisplay(); });
 });
 
-equalsButton.addEventListener('click', () => {
-    calculator.compute();
-    calculator.updateDisplay();
+document.querySelectorAll('[data-single-op]').forEach(button => {
+    button.addEventListener('click', () => { calculator.computeSingleOperand(button.dataset.singleOp); calculator.updateDisplay(); });
 });
 
-allClearButton.addEventListener('click', () => {
-    calculator.clear();
-    calculator.updateDisplay();
+document.querySelectorAll('[data-constant]').forEach(button => {
+    button.addEventListener('click', () => { calculator.appendConstant(button.dataset.constant); calculator.updateDisplay(); });
 });
 
-deleteButton.addEventListener('click', () => {
-    calculator.delete();
-    calculator.updateDisplay();
-});
+document.querySelector('[data-equals]').addEventListener('click', () => { calculator.compute(); calculator.updateDisplay(); });
+document.querySelector('[data-all-clear]').addEventListener('click', () => { calculator.clear(); calculator.updateDisplay(); });
+document.querySelector('[data-delete]').addEventListener('click', () => { calculator.delete(); calculator.updateDisplay(); });
