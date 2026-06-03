@@ -1,1 +1,124 @@
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: #f4f6f8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
 
+/* App Navigation Bar */
+.app-nav {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.back-btn {
+    text-decoration: none;
+    color: #128C7E;
+    font-weight: 600;
+    font-size: 15px;
+    transition: 0.2s;
+}
+
+.back-btn:hover {
+    color: #075E54;
+}
+
+.app-title {
+    font-weight: 600;
+    color: #555;
+}
+
+/* Mobile Calculator Frame */
+.calculator-grid {
+    display: grid;
+    justify-content: center;
+    align-content: center;
+    grid-template-columns: repeat(4, 80px);
+    grid-template-rows: minmax(120px, auto) repeat(5, 80px);
+    gap: 15px;
+    background-color: #111;
+    padding: 25px;
+    border-radius: 30px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    margin-bottom: 40px;
+}
+
+/* Screen Display */
+.output {
+    grid-column: 1 / -1;
+    background-color: transparent;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    flex-direction: column;
+    padding: 10px;
+    word-wrap: break-word;
+    word-break: break-all;
+}
+
+.output .previous-operand {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 24px;
+}
+
+.output .current-operand {
+    color: white;
+    font-size: 55px;
+    font-weight: 300;
+}
+
+/* Button Styling */
+.calculator-grid > button {
+    cursor: pointer;
+    font-size: 28px;
+    border: none;
+    outline: none;
+    border-radius: 50px;
+    background-color: #333;
+    color: white;
+    font-family: inherit;
+    transition: background-color 0.1s;
+}
+
+.calculator-grid > button:hover {
+    background-color: #444;
+}
+
+.calculator-grid > button:active {
+    background-color: #555;
+    transform: scale(0.95);
+}
+
+.btn-span-two {
+    grid-column: span 2;
+    border-radius: 50px;
+}
+
+.zero-btn {
+    text-align: left;
+    padding-left: 30px;
+}
+
+/* Specific Button Colors */
+.operator-btn {
+    background-color: #a5a5a5 !important;
+    color: black !important;
+    font-weight: 500;
+}
+
+.operator-btn:hover { background-color: #d4d4d2 !important; }
+
+.equals-btn, [data-operation] {
+    background-color: #ff9500 !important;
+    color: white !important;
+}
+
+.equals-btn:hover, [data-operation]:hover { background-color: #ffaa33 !important; }
