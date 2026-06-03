@@ -2,24 +2,25 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// Your verified Aksh-Studio Firebase Configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyA_lmaWDdayWIOKK02h2uvZSeBasdUonXc",
-    authDomain: "chat-with-anyone-73526.firebaseapp.com",
-    projectId: "chat-with-anyone-73526",
-    storageBucket: "chat-with-anyone-73526.firebasestorage.app",
-    messagingSenderId: "440915092993",
-    appId: "1:440915092993:web:96e7af7a1a05156ae6c200"
+  apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
+  authDomain: "aksh-studio.firebaseapp.com",
+  projectId: "aksh-studio",
+  storageBucket: "aksh-studio.firebasestorage.app",
+  messagingSenderId: "349325785973",
+  appId: "1:349325785973:web:86d5a15bcb700bfc15b13c",
+  measurementId: "G-R96N91NV2X"
 };
 
-// Initialize and export apps for child access
+// Initialize Core Engines
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Check current page context
+// Gateway Route Controller
 const isLoginPage = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname.endsWith("/");
 
-// Authentication State Listener
 onAuthStateChanged(auth, (user) => {
     if (user) {
         if (isLoginPage) {
@@ -32,7 +33,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// Event Binding for Login View Elements if present on page
+// Auth Element Bindings
 const googleBtn = document.getElementById("google-login-btn");
 const emailAuthBtn = document.getElementById("email-auth-btn");
 const toggleModeText = document.getElementById("toggle-mode-text");
