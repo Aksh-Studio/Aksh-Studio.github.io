@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aksh Calculator</title>
+    <title>Aksh Universal Calculator</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,37 +11,55 @@
 
     <div class="app-nav">
         <a href="../../dashboard.html" class="back-btn">← Dashboard</a>
-        <span class="app-title">Calculator</span>
+        <div class="mode-tabs">
+            <button class="tab active">Scientific</button>
+            <button class="tab" onclick="alert('Graphing module coming soon!')">Graphing</button>
+            <button class="tab" onclick="alert('Financial module coming soon!')">Financial</button>
+        </div>
     </div>
 
-    <div class="calculator-grid">
-        <div class="output">
-            <div data-previous-operand class="previous-operand"></div>
-            <div data-current-operand class="current-operand">0</div>
+    <div class="calculator-container">
+        <div class="calculator-grid">
+            <div class="output">
+                <div data-previous-operand class="previous-operand"></div>
+                <div data-current-operand class="current-operand">0</div>
+            </div>
+            
+            <button data-single-op="sin" class="sci-btn">sin</button>
+            <button data-single-op="cos" class="sci-btn">cos</button>
+            <button data-single-op="tan" class="sci-btn">tan</button>
+            <button data-constant="pi" class="sci-btn">π</button>
+            <button data-constant="e" class="sci-btn">e</button>
+
+            <button data-single-op="sqrt" class="sci-btn">√</button>
+            <button data-single-op="log" class="sci-btn">log</button>
+            <button data-all-clear class="operator-btn ac-btn">AC</button>
+            <button data-delete class="operator-btn">DEL</button>
+            <button data-operation="÷" class="operator-btn">÷</button>
+            
+            <button data-operation="^" class="sci-btn">x²</button>
+            <button data-number>7</button>
+            <button data-number>8</button>
+            <button data-number>9</button>
+            <button data-operation="×" class="operator-btn">×</button>
+            
+            <button data-single-op="ln" class="sci-btn">ln</button>
+            <button data-number>4</button>
+            <button data-number>5</button>
+            <button data-number>6</button>
+            <button data-operation="−" class="operator-btn">−</button>
+            
+            <button data-single-op="1/x" class="sci-btn">1/x</button>
+            <button data-number>1</button>
+            <button data-number>2</button>
+            <button data-number>3</button>
+            <button data-operation="+" class="operator-btn">+</button>
+            
+            <button data-single-op="abs" class="sci-btn">|x|</button>
+            <button data-number class="zero-btn">0</button>
+            <button data-number>.</button>
+            <button data-equals class="equals-btn span-two">=</button>
         </div>
-        
-        <button data-all-clear class="btn-span-two operator-btn">AC</button>
-        <button data-delete class="operator-btn">DEL</button>
-        <button data-operation class="operator-btn">÷</button>
-        
-        <button data-number>7</button>
-        <button data-number>8</button>
-        <button data-number>9</button>
-        <button data-operation class="operator-btn">×</button>
-        
-        <button data-number>4</button>
-        <button data-number>5</button>
-        <button data-number>6</button>
-        <button data-operation class="operator-btn">−</button>
-        
-        <button data-number>1</button>
-        <button data-number>2</button>
-        <button data-number>3</button>
-        <button data-operation class="operator-btn">+</button>
-        
-        <button data-number class="btn-span-two zero-btn">0</button>
-        <button data-number>.</button>
-        <button data-equals class="equals-btn">=</button>
     </div>
 
     <script src="calc.js"></script>
