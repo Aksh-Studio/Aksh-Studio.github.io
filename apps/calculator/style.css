@@ -72,3 +72,18 @@ canvas { width: 100%; max-width: 600px; height: auto; background: #fafafa; borde
     .history-panel { width: 100%; right: -100%; }
     .graph-controls { flex-direction: column; }
 }
+
+/* App Brand Styling */
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.nav-logo {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
