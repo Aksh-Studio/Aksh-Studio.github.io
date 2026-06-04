@@ -1,10 +1,10 @@
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+// Import the authenticated engine and database from your root auth file
+import { auth, db } from "../../auth.js";
+
 // --- 1. DEVICE DETECTION ---
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-if (isMobile) {
-    console.log("Mobile device detected: Optimizing touch targets.");
-} else {
-    console.log("PC detected: Keyboard input fully active.");
-}
 
 // --- 2. TAB SWITCHING LOGIC ---
 const tabs = document.querySelectorAll('.tab');
@@ -12,49 +12,99 @@ const modules = document.querySelectorAll('.app-module');
 
 tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-        // Remove active class from all
         tabs.forEach(t => t.classList.remove('active'));
         modules.forEach(m => m.classList.remove('active-module'));
-        
-        // Add active class to clicked tab and corresponding module
         tab.classList.add('active');
         const target = tab.getAttribute('data-target');
         document.getElementById(target).classList.add('active-module');
     });
 });
 
-// --- 3. HISTORY PANEL LOGIC ---
+// --- 3. CLOUD SYNC & HISTORY LOGIC ---
 const historyBtn = document.getElementById('history-toggle');
 const historyPanel = document.getElementById('history-panel');
 const historyList = document.getElementById('history-list');
 const clearHistoryBtn = document.getElementById('clear-history');
-let calculationHistory = [];
+let currentUser = null;
+
+// Track Auth State and Load User's Cloud Data
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUser = user;
+        console.log(`Syncing data for user: ${user.email || user.uid}`);
+        await loadCloudHistory();
+    } else {
+        currentUser = null;
+        historyList.innerHTML = '<p style="padding:10px; color:#aaa;">Log in to sync history.</p>';
+    }
+});
 
 historyBtn.addEventListener('click', () => {
     historyPanel.classList.toggle('show');
     historyPanel.classList.remove('hidden');
 });
 
-function saveToHistory(equation, result) {
-    calculationHistory.unshift({ eq: equation, res: result }); // Add to top
-    if (calculationHistory.length > 20) calculationHistory.pop(); // Keep last 20
-    renderHistory();
+// Fetch history from Firebase Firestore
+async function loadCloudHistory() {
+    if (!currentUser) return;
+    try {
+        const userDocRef = doc(db, "calculatorHistory", currentUser.uid);
+        const docSnap = await getDoc(userDocRef);
+        
+        historyList.innerHTML = '';
+        if (docSnap.exists() && docSnap.data().calculations) {
+            const historyData = docSnap.data().calculations;
+            // Render calculations from newest to oldest
+            historyData.reverse().forEach(item => {
+                const div = document.createElement('div');
+                div.classList.add('history-item');
+                div.innerHTML = `${item.eq} <span>= ${item.res}</span>`;
+                historyList.appendChild(div);
+            });
+        } else {
+            historyList.innerHTML = '<p style="padding:10px; color:#aaa;">No history recorded yet.</p>';
+        }
+    } catch (error) {
+        console.error("Error loading history from cloud:", error);
+    }
 }
 
-function renderHistory() {
-    historyList.innerHTML = '';
-    calculationHistory.forEach(item => {
-        const div = document.createElement('div');
-        div.classList.add('history-item');
-        div.innerHTML = `${item.eq} <span>= ${item.res}</span>`;
-        historyList.appendChild(div);
-    });
+// Save a calculation to Firebase Firestore under user's unique ID
+async function saveToCloud(equation, result) {
+    if (!currentUser) return;
+    try {
+        const userDocRef = doc(db, "calculatorHistory", currentUser.uid);
+        const newCalculation = { eq: equation, res: result, timestamp: new Date().toISOString() };
+        
+        // Check if doc exists to update it, otherwise create it fresh
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+            await updateDoc(userDocRef, {
+                calculations: arrayUnion(newCalculation)
+            });
+        } else {
+            await setDoc(userDocRef, {
+                calculations: [newCalculation]
+            });
+        }
+        await loadCloudHistory(); // Refresh view
+    } catch (error) {
+        console.error("Error saving to cloud:", error);
+    }
 }
 
-clearHistoryBtn.addEventListener('click', () => {
-    calculationHistory = [];
-    renderHistory();
-    historyPanel.classList.remove('show');
+// Clear history from cloud
+clearHistoryBtn.addEventListener('click', async () => {
+    if (!currentUser) return;
+    if (confirm("Are you sure you want to permanently delete your cloud calculation history?")) {
+        try {
+            await setDoc(doc(db, "calculatorHistory", currentUser.uid), { calculations: [] });
+            await loadCloudHistory();
+            historyPanel.classList.remove('show');
+        } catch (error) {
+            console.error("Error clearing cloud history:", error);
+        }
+    }
 });
 
 
@@ -111,8 +161,8 @@ class Calculator {
             case 'abs': current = Math.abs(current); break;
         }
         
-        current = Math.round(current * 1e10) / 1e10; // Fix float precision
-        saveToHistory(equationString, current);
+        current = Math.round(current * 1e10) / 1e10;
+        saveToCloud(equationString, current);
         this.currentOperand = current.toString();
     }
 
@@ -136,7 +186,7 @@ class Calculator {
         }
         
         computation = Math.round(computation * 1e10) / 1e10;
-        saveToHistory(equationString, computation);
+        saveToCloud(equationString, computation);
         
         this.currentOperand = computation.toString();
         this.operation = undefined;
@@ -168,14 +218,13 @@ document.querySelector('[data-delete]').addEventListener('click', () => { calcul
 
 // --- 5. KEYBOARD INTEGRATION (PC Support) ---
 document.addEventListener('keydown', e => {
-    // Only capture keys if the scientific calculator is active
     if(!document.getElementById('scientific').classList.contains('active-module')) return;
 
     if ((e.key >= '0' && e.key <= '9') || e.key === '.') {
         calculator.appendNumber(e.key);
     }
     if (e.key === '=' || e.key === 'Enter') {
-        e.preventDefault(); // Prevent form submission
+        e.preventDefault();
         calculator.compute();
     }
     if (e.key === 'Backspace') calculator.delete();
@@ -195,16 +244,15 @@ document.addEventListener('keydown', e => {
 // --- 6. FINANCIAL MODULE LOGIC ---
 document.getElementById('calc-fin-btn').addEventListener('click', () => {
     const p = parseFloat(document.getElementById('fin-principal').value);
-    const r = parseFloat(document.getElementById('fin-rate').value) / 100; // convert to decimal
+    const r = parseFloat(document.getElementById('fin-rate').value) / 100;
     const t = parseFloat(document.getElementById('fin-years').value);
-    const n = 12; // Compounded monthly default
+    const n = 12;
 
     if (isNaN(p) || isNaN(r) || isNaN(t)) {
         alert("Please fill out all Financial fields.");
         return;
     }
 
-    // Compound Interest Formula: A = P(1 + r/n)^(nt)
     const amount = p * Math.pow((1 + r/n), (n*t));
     const interest = amount - p;
 
@@ -220,7 +268,6 @@ const ctx = canvas.getContext('2d');
 function drawGraph() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw grid & axes
     ctx.beginPath();
     ctx.strokeStyle = "#ddd";
     for(let i=0; i<canvas.width; i+=40) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
@@ -230,25 +277,19 @@ function drawGraph() {
     ctx.beginPath();
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 2;
-    ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height); // Y axis
-    ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2); // X axis
+    ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height);
+    ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2);
     ctx.stroke();
 
-    // Plot Equation
     const eqStr = document.getElementById('graph-equation').value;
     ctx.beginPath();
-    ctx.strokeStyle = "#128C7E"; // Brand color
+    ctx.strokeStyle = "#128C7E";
     ctx.lineWidth = 3;
 
     try {
         for(let px = 0; px < canvas.width; px++) {
-            // Map pixel to math coordinates (-10 to 10 scale approx)
             let x = (px - canvas.width/2) / 20; 
-            
-            // Unsafe Eval for math string, acceptable for local client-side portfolio
             let y = eval(eqStr); 
-            
-            // Map math y back to pixel y
             let py = canvas.height/2 - (y * 20);
             
             if (px === 0) ctx.moveTo(px, py);
@@ -260,6 +301,5 @@ function drawGraph() {
     }
 }
 
-// Initial draw and button bind
 drawGraph();
 document.getElementById('plot-btn').addEventListener('click', drawGraph);
