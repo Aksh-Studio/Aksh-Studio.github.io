@@ -12,54 +12,101 @@
     <div class="app-nav">
         <a href="../../dashboard.html" class="back-btn">← Dashboard</a>
         <div class="mode-tabs">
-            <button class="tab active">Scientific</button>
-            <button class="tab" onclick="alert('Graphing module coming soon!')">Graphing</button>
-            <button class="tab" onclick="alert('Financial module coming soon!')">Financial</button>
+            <button class="tab active" data-target="scientific">Scientific</button>
+            <button class="tab" data-target="graphing">Graphing</button>
+            <button class="tab" data-target="financial">Financial</button>
         </div>
+        <button id="history-toggle" class="history-btn">🕒 History</button>
+    </div>
+
+    <div id="history-panel" class="history-panel hidden">
+        <h3>Calculation History</h3>
+        <div id="history-list"></div>
+        <button id="clear-history" class="history-clear-btn">Clear History</button>
     </div>
 
     <div class="calculator-container">
-        <div class="calculator-grid">
-            <div class="output">
-                <div data-previous-operand class="previous-operand"></div>
-                <div data-current-operand class="current-operand">0</div>
-            </div>
-            
-            <button data-single-op="sin" class="sci-btn">sin</button>
-            <button data-single-op="cos" class="sci-btn">cos</button>
-            <button data-single-op="tan" class="sci-btn">tan</button>
-            <button data-constant="pi" class="sci-btn">π</button>
-            <button data-constant="e" class="sci-btn">e</button>
+        
+        <div id="scientific" class="app-module active-module">
+            <div class="calculator-grid">
+                <div class="output">
+                    <div data-previous-operand class="previous-operand"></div>
+                    <div data-current-operand class="current-operand">0</div>
+                </div>
+                
+                <button data-single-op="sin" class="sci-btn">sin</button>
+                <button data-single-op="cos" class="sci-btn">cos</button>
+                <button data-single-op="tan" class="sci-btn">tan</button>
+                <button data-constant="pi" class="sci-btn">π</button>
+                <button data-constant="e" class="sci-btn">e</button>
 
-            <button data-single-op="sqrt" class="sci-btn">√</button>
-            <button data-single-op="log" class="sci-btn">log</button>
-            <button data-all-clear class="operator-btn ac-btn">AC</button>
-            <button data-delete class="operator-btn">DEL</button>
-            <button data-operation="÷" class="operator-btn">÷</button>
-            
-            <button data-operation="^" class="sci-btn">x²</button>
-            <button data-number>7</button>
-            <button data-number>8</button>
-            <button data-number>9</button>
-            <button data-operation="×" class="operator-btn">×</button>
-            
-            <button data-single-op="ln" class="sci-btn">ln</button>
-            <button data-number>4</button>
-            <button data-number>5</button>
-            <button data-number>6</button>
-            <button data-operation="−" class="operator-btn">−</button>
-            
-            <button data-single-op="1/x" class="sci-btn">1/x</button>
-            <button data-number>1</button>
-            <button data-number>2</button>
-            <button data-number>3</button>
-            <button data-operation="+" class="operator-btn">+</button>
-            
-            <button data-single-op="abs" class="sci-btn">|x|</button>
-            <button data-number class="zero-btn">0</button>
-            <button data-number>.</button>
-            <button data-equals class="equals-btn span-two">=</button>
+                <button data-single-op="sqrt" class="sci-btn">√</button>
+                <button data-single-op="log" class="sci-btn">log</button>
+                <button data-all-clear class="operator-btn ac-btn">AC</button>
+                <button data-delete class="operator-btn">DEL</button>
+                <button data-operation="÷" class="operator-btn">÷</button>
+                
+                <button data-operation="^" class="sci-btn">x²</button>
+                <button data-number>7</button>
+                <button data-number>8</button>
+                <button data-number>9</button>
+                <button data-operation="×" class="operator-btn">×</button>
+                
+                <button data-single-op="ln" class="sci-btn">ln</button>
+                <button data-number>4</button>
+                <button data-number>5</button>
+                <button data-number>6</button>
+                <button data-operation="−" class="operator-btn">−</button>
+                
+                <button data-single-op="1/x" class="sci-btn">1/x</button>
+                <button data-number>1</button>
+                <button data-number>2</button>
+                <button data-number>3</button>
+                <button data-operation="+" class="operator-btn">+</button>
+                
+                <button data-single-op="abs" class="sci-btn">|x|</button>
+                <button data-number class="zero-btn">0</button>
+                <button data-number>.</button>
+                <button data-equals class="equals-btn span-two">=</button>
+            </div>
         </div>
+
+        <div id="financial" class="app-module">
+            <div class="fin-card">
+                <h2>Time Value of Money (TVM)</h2>
+                <div class="input-group">
+                    <label>Principal Amount ($)</label>
+                    <input type="number" id="fin-principal" placeholder="e.g., 10000">
+                </div>
+                <div class="input-group">
+                    <label>Annual Interest Rate (%)</label>
+                    <input type="number" id="fin-rate" placeholder="e.g., 5">
+                </div>
+                <div class="input-group">
+                    <label>Time (Years)</label>
+                    <input type="number" id="fin-years" placeholder="e.g., 10">
+                </div>
+                <button id="calc-fin-btn" class="fin-btn">Calculate Compound Interest</button>
+                
+                <div class="fin-result">
+                    <p>Total Future Value: <span id="fin-fv">$0.00</span></p>
+                    <p>Total Interest Earned: <span id="fin-interest">$0.00</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="graphing" class="app-module">
+            <div class="graph-card">
+                <h2>Equation Plotter</h2>
+                <div class="graph-controls">
+                    <label>y = </label>
+                    <input type="text" id="graph-equation" placeholder="Math.sin(x)" value="Math.sin(x)">
+                    <button id="plot-btn" class="fin-btn">Plot Graph</button>
+                </div>
+                <canvas id="graphCanvas" width="600" height="400"></canvas>
+            </div>
+        </div>
+
     </div>
 
     <script src="calc.js"></script>
