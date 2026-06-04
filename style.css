@@ -102,3 +102,12 @@ h1 { margin: 0; font-size: 22px; font-weight: 600; }
 
 .app-tile h4 { margin: 0 0 8px 0; font-size: 17px; font-weight: 600; }
 .app-tile p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+.app-icon-img {
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
