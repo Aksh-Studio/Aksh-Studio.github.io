@@ -3,30 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <title>Calculator | Aksh Studio</title>
-    
     <link rel="icon" type="image/png" href="../../calc-logo.png">
-    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="app-nav">
-    <a href="../../dashboard.html" class="back-btn">← Dashboard</a>
-    
-    <div class="mode-tabs">
-        <button class="tab active" data-target="scientific">Scientific</button>
-        <button class="tab" data-target="graphing">Graphing</button>
-        <button class="tab" data-target="financial">Financial</button>
+        <a href="../../dashboard.html" class="back-btn">← Dashboard</a>
+        <div class="mode-tabs">
+            <button class="tab active" data-target="scientific">Scientific</button>
+            <button class="tab" data-target="graphing">Graphing</button>
+            <button class="tab" data-target="financial">Financial</button>
+        </div>
+        <div class="app-brand">
+            <img src="../../calc-logo.png" alt="Calculator" class="nav-logo" onerror="this.style.display='none'">
+            <button id="history-toggle" class="history-btn">🕒 History</button>
+        </div>
     </div>
-
-    <div class="app-brand">
-        <img src="../../calc-logo.png" alt="Calculator" class="nav-logo">
-        <button id="history-toggle" class="history-btn">🕒 History</button>
-    </div>
-</div>
 
     <div id="history-panel" class="history-panel hidden">
         <h3>Calculation History</h3>
@@ -55,7 +50,7 @@
                 <button data-delete class="operator-btn">DEL</button>
                 <button data-operation="÷" class="operator-btn">÷</button>
                 
-                <button data-operation="^" class="sci-btn">x²</button>
+                <button data-single-op="square" class="sci-btn">x²</button>
                 <button data-number>7</button>
                 <button data-number>8</button>
                 <button data-number>9</button>
@@ -82,10 +77,14 @@
 
         <div id="financial" class="app-module">
             <div class="fin-card">
-                <h2>Time Value of Money (TVM)</h2>
+                <h2>Advanced Time Value of Money</h2>
                 <div class="input-group">
-                    <label>Principal Amount ($)</label>
+                    <label>Initial Principal ($)</label>
                     <input type="number" id="fin-principal" placeholder="e.g., 10000">
+                </div>
+                <div class="input-group">
+                    <label>Monthly Contribution ($) <small>Optional</small></label>
+                    <input type="number" id="fin-pmt" placeholder="e.g., 200" value="0">
                 </div>
                 <div class="input-group">
                     <label>Annual Interest Rate (%)</label>
@@ -95,7 +94,16 @@
                     <label>Time (Years)</label>
                     <input type="number" id="fin-years" placeholder="e.g., 10">
                 </div>
-                <button id="calc-fin-btn" class="fin-btn">Calculate Compound Interest</button>
+                <div class="input-group">
+                    <label>Compounding Frequency</label>
+                    <select id="fin-compound" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ddd;">
+                        <option value="12">Monthly</option>
+                        <option value="1">Annually</option>
+                        <option value="4">Quarterly</option>
+                        <option value="365">Daily</option>
+                    </select>
+                </div>
+                <button id="calc-fin-btn" class="fin-btn">Calculate Investment</button>
                 
                 <div class="fin-result">
                     <p>Total Future Value: <span id="fin-fv">$0.00</span></p>
@@ -110,7 +118,9 @@
                 <div class="graph-controls">
                     <label>y = </label>
                     <input type="text" id="graph-equation" placeholder="Math.sin(x)" value="Math.sin(x)">
-                    <button id="plot-btn" class="fin-btn">Plot Graph</button>
+                    <button id="plot-btn" class="fin-btn" style="width: auto;">Plot</button>
+                    <button id="zoom-in" class="fin-btn" style="width: auto; background:#444;">Zoom +</button>
+                    <button id="zoom-out" class="fin-btn" style="width: auto; background:#444;">Zoom -</button>
                 </div>
                 <canvas id="graphCanvas" width="600" height="400"></canvas>
             </div>
