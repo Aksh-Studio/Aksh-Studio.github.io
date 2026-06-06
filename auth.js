@@ -18,15 +18,18 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Gateway Route Controller
-const isLoginPage = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname.endsWith("/");
+// SMART GATEWAY ROUTE CONTROLLER
+// This ensures sub-apps (like calculator/index.html) are never treated as the main login gateway
+const isLoginPage = (window.location.pathname === "/" || window.location.pathname.endsWith("/index.html")) && !window.location.pathname.includes("/apps/");
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
+        // Only redirect to dashboard if the logged-in user is explicitly on the root login gateway
         if (isLoginPage) {
-            window.location.href = "dashboard.html";
+            window.location.href = window.location.origin + "/dashboard.html";
         }
     } else {
+        // If not logged in, kick them back to the root login gateway
         if (!isLoginPage) {
             window.location.href = window.location.origin + "/index.html";
         }
