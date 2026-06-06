@@ -18,14 +18,16 @@
             <button class="tab" data-target="financial">Financial</button>
         </div>
         <div class="app-brand">
-            <img src="../../calc-logo.png" alt="Calculator" class="nav-logo" onerror="this.style.display='none'">
+            <img src="../../calc-logo.png" alt="Calculator" class="nav-logo">
             <button id="history-toggle" class="history-btn">🕒 History</button>
         </div>
     </div>
 
     <div id="history-panel" class="history-panel hidden">
         <h3>Calculation History</h3>
-        <div id="history-list"></div>
+        <div id="history-list">
+            <p style="padding:10px; color:#aaa;">Loading history...</p>
+        </div>
         <button id="clear-history" class="history-clear-btn">Clear History</button>
     </div>
 
@@ -62,7 +64,7 @@
                 <button data-number>6</button>
                 <button data-operation="−" class="operator-btn">−</button>
                 
-                <button data-single-op="1/x" class="sci-btn">1/x</button>
+                <button data-single-op="inv" class="sci-btn">1/x</button>
                 <button data-number>1</button>
                 <button data-number>2</button>
                 <button data-number>3</button>
@@ -77,37 +79,31 @@
 
         <div id="financial" class="app-module">
             <div class="fin-card">
-                <h2>Advanced Time Value of Money</h2>
-                <div class="input-group">
-                    <label>Initial Principal ($)</label>
-                    <input type="number" id="fin-principal" placeholder="e.g., 10000">
+                <div class="fin-header">
+                    <h2>Financial Engine</h2>
+                    <select id="fin-type" class="fin-select">
+                        <option value="compound">Investment (Compound Interest)</option>
+                        <option value="loan">Loan / Mortgage (EMI)</option>
+                    </select>
                 </div>
+
                 <div class="input-group">
-                    <label>Monthly Contribution ($) <small>Optional</small></label>
-                    <input type="number" id="fin-pmt" placeholder="e.g., 200" value="0">
+                    <label id="label-principal">Principal Amount ($)</label>
+                    <input type="number" id="fin-principal" placeholder="e.g., 10000">
                 </div>
                 <div class="input-group">
                     <label>Annual Interest Rate (%)</label>
                     <input type="number" id="fin-rate" placeholder="e.g., 5">
                 </div>
                 <div class="input-group">
-                    <label>Time (Years)</label>
-                    <input type="number" id="fin-years" placeholder="e.g., 10">
+                    <label id="label-time">Time (Years)</label>
+                    <input type="number" id="fin-time" placeholder="e.g., 10">
                 </div>
-                <div class="input-group">
-                    <label>Compounding Frequency</label>
-                    <select id="fin-compound" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ddd;">
-                        <option value="12">Monthly</option>
-                        <option value="1">Annually</option>
-                        <option value="4">Quarterly</option>
-                        <option value="365">Daily</option>
-                    </select>
-                </div>
-                <button id="calc-fin-btn" class="fin-btn">Calculate Investment</button>
+                <button id="calc-fin-btn" class="fin-btn">Calculate</button>
                 
-                <div class="fin-result">
-                    <p>Total Future Value: <span id="fin-fv">$0.00</span></p>
-                    <p>Total Interest Earned: <span id="fin-interest">$0.00</span></p>
+                <div class="fin-result" id="fin-result-box">
+                    <p id="res-line-1">Total Future Value: <span id="fin-val-1">$0.00</span></p>
+                    <p id="res-line-2">Total Interest Earned: <span id="fin-val-2">$0.00</span></p>
                 </div>
             </div>
         </div>
@@ -115,12 +111,28 @@
         <div id="graphing" class="app-module">
             <div class="graph-card">
                 <h2>Equation Plotter</h2>
+                
+                <div class="graph-settings">
+                    <div class="setting-box">
+                        <label>X Min / Max</label>
+                        <div class="multi-input">
+                            <input type="number" id="g-xmin" value="-10">
+                            <input type="number" id="g-xmax" value="10">
+                        </div>
+                    </div>
+                    <div class="setting-box">
+                        <label>Y Min / Max</label>
+                        <div class="multi-input">
+                            <input type="number" id="g-ymin" value="-10">
+                            <input type="number" id="g-ymax" value="10">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="graph-controls">
                     <label>y = </label>
                     <input type="text" id="graph-equation" placeholder="Math.sin(x)" value="Math.sin(x)">
-                    <button id="plot-btn" class="fin-btn" style="width: auto;">Plot</button>
-                    <button id="zoom-in" class="fin-btn" style="width: auto; background:#444;">Zoom +</button>
-                    <button id="zoom-out" class="fin-btn" style="width: auto; background:#444;">Zoom -</button>
+                    <button id="plot-btn" class="fin-btn">Plot Graph</button>
                 </div>
                 <canvas id="graphCanvas" width="600" height="400"></canvas>
             </div>
