@@ -15,14 +15,13 @@ tabs.forEach(tab => {
     });
 });
 
-// --- 2. HYBRID HISTORY LOGIC (INSTANT UI + CLOUD SYNC) ---
+// --- 2. CLOUD SYNC & OPTIMISTIC HISTORY LOGIC ---
 const historyBtn = document.getElementById('history-toggle');
 const historyPanel = document.getElementById('history-panel');
 const historyList = document.getElementById('history-list');
 const clearHistoryBtn = document.getElementById('clear-history');
-
 let currentUser = null;
-let localHistory = []; // Instant UI update array
+let localHistoryQueue = []; // Holds history instantly before cloud confirms
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -30,7 +29,7 @@ onAuthStateChanged(auth, async (user) => {
         await loadCloudHistory();
     } else {
         currentUser = null;
-        renderHistory();
+        historyList.innerHTML = '<p style="padding:10px; color:#aaa;">Log in to sync history.</p>';
     }
 });
 
@@ -39,13 +38,14 @@ historyBtn.addEventListener('click', () => {
     historyPanel.classList.remove('hidden');
 });
 
-function renderHistory() {
+function renderHistoryUI(dataArray) {
     historyList.innerHTML = '';
-    if (localHistory.length === 0) {
+    if (dataArray.length === 0) {
         historyList.innerHTML = '<p style="padding:10px; color:#aaa;">No history recorded yet.</p>';
         return;
     }
-    localHistory.forEach(item => {
+    // Render from newest to oldest
+    [...dataArray].reverse().forEach(item => {
         const div = document.createElement('div');
         div.classList.add('history-item');
         div.innerHTML = `${item.eq} <span>= ${item.res}</span>`;
@@ -58,43 +58,46 @@ async function loadCloudHistory() {
     try {
         const docSnap = await getDoc(doc(db, "calculatorHistory", currentUser.uid));
         if (docSnap.exists() && docSnap.data().calculations) {
-            // Load cloud data and reverse it so newest is on top
-            localHistory = docSnap.data().calculations.reverse();
-            renderHistory();
+            localHistoryQueue = docSnap.data().calculations;
+        } else {
+            localHistoryQueue = [];
         }
-    } catch (error) { console.error("Cloud load failed:", error); }
+        renderHistoryUI(localHistoryQueue);
+    } catch (error) {
+        console.error("Error loading cloud history:", error);
+    }
 }
 
-async function handleNewCalculation(equation, result) {
-    // 1. Update UI Instantly
-    localHistory.unshift({ eq: equation, res: result });
-    if (localHistory.length > 20) localHistory.pop();
-    renderHistory();
+async function saveToCloud(equation, result) {
+    // 1. Optimistic UI Update: Show it immediately without waiting for Firebase
+    const newCalculation = { eq: equation, res: result, timestamp: new Date().toISOString() };
+    localHistoryQueue.push(newCalculation);
+    renderHistoryUI(localHistoryQueue);
 
-    // 2. Sync to Cloud silently in background
-    if (currentUser) {
-        try {
-            const userRef = doc(db, "calculatorHistory", currentUser.uid);
-            const docSnap = await getDoc(userRef);
-            const newCalc = { eq: equation, res: result, timestamp: new Date().toISOString() };
-            if (docSnap.exists()) {
-                await updateDoc(userRef, { calculations: arrayUnion(newCalc) });
-            } else {
-                await setDoc(userRef, { calculations: [newCalc] });
-            }
-        } catch (e) { console.error("Cloud sync failed:", e); }
+    // 2. Background Sync
+    if (!currentUser) return;
+    try {
+        const userDocRef = doc(db, "calculatorHistory", currentUser.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+            await updateDoc(userDocRef, { calculations: arrayUnion(newCalculation) });
+        } else {
+            await setDoc(userDocRef, { calculations: [newCalculation] });
+        }
+    } catch (error) {
+        console.error("Error saving to cloud:", error);
     }
 }
 
 clearHistoryBtn.addEventListener('click', async () => {
-    localHistory = [];
-    renderHistory();
-    if (currentUser) {
+    if (!currentUser) return;
+    if (confirm("Permanently delete your calculation history?")) {
+        localHistoryQueue = [];
+        renderHistoryUI(localHistoryQueue);
         await setDoc(doc(db, "calculatorHistory", currentUser.uid), { calculations: [] });
+        historyPanel.classList.remove('show');
     }
-    historyPanel.classList.remove('show');
 });
-
 
 // --- 3. CORE SCIENTIFIC CALCULATOR ---
 class Calculator {
@@ -126,7 +129,6 @@ class Calculator {
     }
 
     appendConstant(constant) {
-        // Appends exact values for Pi and E
         if (constant === 'pi') this.currentOperand = Math.PI.toString();
         if (constant === 'e') this.currentOperand = Math.E.toString();
     }
@@ -144,26 +146,20 @@ class Calculator {
         if (isNaN(current)) return;
         let equationString = `${operation}(${current})`;
 
-        // Convert degrees to radians for standard trig UX
-        const toRad = (deg) => deg * (Math.PI / 180);
-
         switch (operation) {
-            case 'sin': current = Math.sin(toRad(current)); break;
-            case 'cos': current = Math.cos(toRad(current)); break;
-            case 'tan': current = Math.tan(toRad(current)); break;
+            case 'sin': current = Math.sin(current); break;
+            case 'cos': current = Math.cos(current); break;
+            case 'tan': current = Math.tan(current); break;
             case 'sqrt': current = Math.sqrt(current); break;
             case 'log': current = Math.log10(current); break;
             case 'ln': current = Math.log(current); break;
-            case '1/x': current = 1 / current; break;
+            case 'inv': current = 1 / current; equationString = `1/(${this.currentOperand})`; break;
             case 'abs': current = Math.abs(current); break;
-            case 'square': 
-                current = Math.pow(current, 2); 
-                equationString = `(${this.currentOperand})²`; 
-                break;
+            case 'square': current = Math.pow(current, 2); equationString = `(${this.currentOperand})²`; break;
         }
         
-        current = Math.round(current * 1e10) / 1e10; // Fix floating point issues
-        handleNewCalculation(equationString, current);
+        current = Math.round(current * 1e10) / 1e10;
+        saveToCloud(equationString, current);
         this.currentOperand = current.toString();
     }
 
@@ -182,11 +178,12 @@ class Calculator {
             case '÷': 
                 if (current === 0) { alert("Cannot divide by zero"); return this.clear(); }
                 computation = prev / current; break;
+            case '^': computation = Math.pow(prev, current); break;
             default: return;
         }
         
         computation = Math.round(computation * 1e10) / 1e10;
-        handleNewCalculation(equationString, computation);
+        saveToCloud(equationString, computation);
         
         this.currentOperand = computation.toString();
         this.operation = undefined;
@@ -203,19 +200,21 @@ class Calculator {
     }
 }
 
-const calculator = new Calculator(document.querySelector('[data-previous-operand]'), document.querySelector('[data-current-operand]'));
+const calculator = new Calculator(
+    document.querySelector('[data-previous-operand]'),
+    document.querySelector('[data-current-operand]')
+);
 
-// Event Listeners for Scientific Keys
+// Event Listeners (BUG FIX: Added Constant Listener)
 document.querySelectorAll('[data-number]').forEach(btn => btn.addEventListener('click', () => { calculator.appendNumber(btn.innerText); calculator.updateDisplay(); }));
 document.querySelectorAll('[data-operation]').forEach(btn => btn.addEventListener('click', () => { calculator.chooseOperation(btn.dataset.operation); calculator.updateDisplay(); }));
 document.querySelectorAll('[data-single-op]').forEach(btn => btn.addEventListener('click', () => { calculator.computeSingleOperand(btn.dataset.singleOp); calculator.updateDisplay(); }));
-// FIX: Restored Constant bindings
 document.querySelectorAll('[data-constant]').forEach(btn => btn.addEventListener('click', () => { calculator.appendConstant(btn.dataset.constant); calculator.updateDisplay(); }));
-
 document.querySelector('[data-equals]').addEventListener('click', () => { calculator.compute(); calculator.updateDisplay(); });
 document.querySelector('[data-all-clear]').addEventListener('click', () => { calculator.clear(); calculator.updateDisplay(); });
 document.querySelector('[data-delete]').addEventListener('click', () => { calculator.delete(); calculator.updateDisplay(); });
 
+// Keyboard PC Input
 document.addEventListener('keydown', e => {
     if(!document.getElementById('scientific').classList.contains('active-module')) return;
     if ((e.key >= '0' && e.key <= '9') || e.key === '.') calculator.appendNumber(e.key);
@@ -232,81 +231,127 @@ document.addEventListener('keydown', e => {
     calculator.updateDisplay();
 });
 
+// --- 4. ADVANCED FINANCIAL MODULE ---
+const finTypeSel = document.getElementById('fin-type');
+finTypeSel.addEventListener('change', (e) => {
+    if(e.target.value === 'loan') {
+        document.getElementById('label-principal').innerText = "Total Loan Amount ($)";
+        document.getElementById('label-time').innerText = "Loan Term (Years)";
+        document.getElementById('calc-fin-btn').innerText = "Calculate Monthly EMI";
+    } else {
+        document.getElementById('label-principal').innerText = "Principal Investment ($)";
+        document.getElementById('label-time').innerText = "Time (Years)";
+        document.getElementById('calc-fin-btn').innerText = "Calculate Compound Interest";
+    }
+});
 
-// --- 4. ENHANCED FINANCIAL MODULE ---
 document.getElementById('calc-fin-btn').addEventListener('click', () => {
-    const P = parseFloat(document.getElementById('fin-principal').value) || 0;
-    const PMT = parseFloat(document.getElementById('fin-pmt').value) || 0; // Monthly contribution
-    const r = parseFloat(document.getElementById('fin-rate').value) / 100;
-    const t = parseFloat(document.getElementById('fin-years').value);
-    const n = parseFloat(document.getElementById('fin-compound').value);
+    const p = parseFloat(document.getElementById('fin-principal').value);
+    const annualRate = parseFloat(document.getElementById('fin-rate').value);
+    const t = parseFloat(document.getElementById('fin-time').value);
 
-    if (isNaN(r) || isNaN(t)) {
-        alert("Please enter Rate and Time values.");
+    if (isNaN(p) || isNaN(annualRate) || isNaN(t)) {
+        alert("Please fill out all Financial fields.");
         return;
     }
 
-    // Compound Interest with Regular Contributions (Future Value)
-    // Formula: A = P(1+r/n)^(nt) + PMT * [((1+r/n)^(nt) - 1) / (r/n)]
-    let amount = P * Math.pow((1 + r/n), (n*t));
+    const type = finTypeSel.value;
     
-    // If they contribute monthly, we must align the PMT compound math
-    if (PMT > 0) {
-        // Approximate calculation for continuous monthly payments
-        const ratePerPeriod = r / 12;
-        const totalPeriods = t * 12;
-        const pmtValue = PMT * ((Math.pow(1 + ratePerPeriod, totalPeriods) - 1) / ratePerPeriod);
-        amount += pmtValue;
+    if(type === 'compound') {
+        const r = annualRate / 100;
+        const n = 12; // Compounded monthly
+        const amount = p * Math.pow((1 + r/n), (n*t));
+        const interest = amount - p;
+        document.getElementById('res-line-1').innerHTML = `Future Value: <span id="fin-val-1">$${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
+        document.getElementById('res-line-2').innerHTML = `Interest Earned: <span id="fin-val-2">$${interest.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
+    } 
+    else if(type === 'loan') {
+        const r = (annualRate / 100) / 12; // Monthly interest rate
+        const n = t * 12; // Total number of months
+        // EMI Formula: P x R x (1+R)^N / [(1+R)^N-1]
+        let emi = 0;
+        if(r === 0) emi = p / n;
+        else emi = p * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+        
+        const totalPaid = emi * n;
+        const totalInterest = totalPaid - p;
+        
+        document.getElementById('res-line-1').innerHTML = `Monthly EMI Payment: <span id="fin-val-1">$${emi.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
+        document.getElementById('res-line-2').innerHTML = `Total Interest Paid: <span id="fin-val-2">$${totalInterest.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
     }
-
-    const totalInvested = P + (PMT * 12 * t);
-    const interestEarned = amount - totalInvested;
-
-    document.getElementById('fin-fv').innerText = `$${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
-    document.getElementById('fin-interest').innerText = `$${interestEarned.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
 });
 
-
-// --- 5. ENHANCED GRAPHING MODULE ---
+// --- 5. ADVANCED GRAPHING MODULE ---
 const canvas = document.getElementById('graphCanvas');
 const ctx = canvas.getContext('2d');
-let graphScale = 20; // Default zoom
 
 function drawGraph() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    const xMin = parseFloat(document.getElementById('g-xmin').value) || -10;
+    const xMax = parseFloat(document.getElementById('g-xmax').value) || 10;
+    const yMin = parseFloat(document.getElementById('g-ymin').value) || -10;
+    const yMax = parseFloat(document.getElementById('g-ymax').value) || 10;
+    
+    const xRange = xMax - xMin;
+    const yRange = yMax - yMin;
+    
+    // Scale factors: pixels per math unit
+    const scaleX = canvas.width / xRange;
+    const scaleY = canvas.height / yRange;
+    
+    // Find origin pixel coordinates
+    const originX = -xMin * scaleX;
+    const originY = canvas.height + (yMin * scaleY); // Canvas Y goes down
+
+    // Draw grid
     ctx.beginPath();
     ctx.strokeStyle = "#eee";
-    for(let i=0; i<canvas.width; i+=graphScale) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
-    for(let i=0; i<canvas.height; i+=graphScale) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
+    for(let i=0; i<canvas.width; i+= (scaleX)) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
+    for(let i=0; i<canvas.height; i+= (scaleY)) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
     ctx.stroke();
 
+    // Draw Axis lines
     ctx.beginPath();
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 1;
-    ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height);
-    ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2);
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(originX, 0); ctx.lineTo(originX, canvas.height); // Y axis
+    ctx.moveTo(0, originY); ctx.lineTo(canvas.width, originY); // X axis
     ctx.stroke();
 
+    // Plot Equation
     const eqStr = document.getElementById('graph-equation').value;
     ctx.beginPath();
     ctx.strokeStyle = "#128C7E";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
 
     try {
-        for(let px = 0; px < canvas.width; px++) {
-            let x = (px - canvas.width/2) / graphScale; 
+        let firstPoint = true;
+        for(let px = 0; px < canvas.width; px += 2) {
+            // Map pixel to math X coordinate
+            let x = xMin + (px / scaleX); 
+            // Unsafe Eval for local string processing
             let y = eval(eqStr); 
-            let py = canvas.height/2 - (y * graphScale);
+            // Map math Y back to pixel Y coordinate
+            let py = originY - (y * scaleY);
             
-            if (px === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
+            if (isNaN(y) || !isFinite(y)) {
+                firstPoint = true;
+                continue;
+            }
+            
+            if (firstPoint) { ctx.moveTo(px, py); firstPoint = false; } 
+            else { ctx.lineTo(px, py); }
         }
         ctx.stroke();
-    } catch(e) { } // Ignore partial math typing errors
+    } catch(e) {
+        console.error("Invalid math equation");
+    }
 }
 
-drawGraph();
+// Initial draw and listeners
+setTimeout(drawGraph, 100); // slight delay to ensure DOM layout
 document.getElementById('plot-btn').addEventListener('click', drawGraph);
-document.getElementById('zoom-in').addEventListener('click', () => { graphScale += 10; drawGraph(); });
-document.getElementById('zoom-out').addEventListener('click', () => { if(graphScale > 10) graphScale -= 10; drawGraph(); });
+['g-xmin', 'g-xmax', 'g-ymin', 'g-ymax'].forEach(id => {
+    document.getElementById(id).addEventListener('change', drawGraph);
+});
