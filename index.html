@@ -5,12 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="google-site-verification" content="uxFFc2wW4266GeX3SJD-_9sGId4Mi6wer2hOxYW8SD0" />
     <title>Aksh Web Suite Gateway</title>
-    <link rel="icon" type="image/png" href="aksh-logo.png">
+    <link rel="icon" type="image/png" href="logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="login-screen" class="screen">
         <div class="auth-box">
             <div class="portfolio-banner">
@@ -18,29 +17,49 @@
                 This is an educational multi-app sandbox suite by <strong>Akshat Mehta</strong>.<br>
                 <a href="https://github.com/AkshatMehta-124" target="_blank" class="source-link">View Repository Source</a>
             </div>
+            <img src="logo.png" alt="Suite Logo" class="login-logo">
+            <h1>Web Sandbox Suite</h1>
 
-            <img src="aksh-logo.png" alt="Aksh Logo" class="login-logo">
-            <h1>Aksh Suite</h1>
-            <p class="subtitle">Sign in to access your utilities</p>
+            <div id="login-section">
+                <p class="subtitle">Sign in to access your utilities</p>
+                <div class="input-group">
+                    <input type="email" id="email-input" placeholder="Email Address">
+                    <input type="password" id="password-input" placeholder="Password">
+                    <button id="email-auth-btn" class="auth-btn">Sign In</button>
+                </div>
+                <p class="toggle-text" id="toggle-mode-text">New here? <span>Create an account</span></p>
+                <p class="toggle-text" id="link-forgot-password" style="margin-top: 5px;"><span>Forgot Password?</span></p>
 
-            <div class="input-group">
-                <input type="email" id="email-input" placeholder="Email Address">
-                <input type="password" id="password-input" placeholder="Password">
-                <button id="email-auth-btn" class="auth-btn">Sign In</button>
+                <div class="divider">OR</div>
+                <button id="google-login-btn" class="google-btn">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="18"> 
+                    Continue with Google
+                </button>
             </div>
 
-            <p class="toggle-text" id="toggle-mode-text">New here? <span>Create an account</span></p>
-            <div class="divider">OR</div>
+            <div id="onboarding-section" style="display: none;">
+                <p class="subtitle" style="color: #128C7E; font-weight: 600;">Complete Your Security Profile</p>
+                <div class="input-group">
+                    <label style="font-size: 12px; text-align: left; display: block; margin-bottom: 5px; color: #555;">Date of Birth (Security Q1):</label>
+                    <input type="date" id="dob-input" required>
+                    <label style="font-size: 12px; text-align: left; display: block; margin-bottom: 5px; color: #555;">Phone Number (Security Q2):</label>
+                    <input type="tel" id="phone-input" placeholder="+91..." required>
+                    <button id="btn-save-profile" class="auth-btn" style="margin-top: 10px;">Save & Continue</button>
+                </div>
+            </div>
 
-            <button id="google-login-btn" class="google-btn">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="18"> 
-                Continue with Google
-            </button>
+            <div id="forgot-password-section" style="display: none;">
+                <p class="subtitle">Secure Password Reset</p>
+                <div class="input-group">
+                    <input type="email" id="reset-email" placeholder="Enter your email">
+                    <button id="btn-send-reset" class="auth-btn">Send Reset Link</button>
+                </div>
+                <p class="toggle-text" id="link-back-login"><span>Back to Login</span></p>
+            </div>
 
             <p id="auth-error" class="error-msg" style="display:none;"></p>
         </div>
     </div>
-
     <script type="module" src="auth.js"></script>
 </body>
 </html>
