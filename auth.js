@@ -122,8 +122,9 @@ if (emailAuthBtn) {
         } else {
             try {
                 await signInWithEmailAndPassword(auth, e, p);
-            } catch (err) {
-                showError(err.code);
+          } catch (err) {
+                console.error("FIREBASE EXPLANATION: ", err.message);
+                showError(err.message);
             }
         }
     };
