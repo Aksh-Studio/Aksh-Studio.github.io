@@ -17,14 +17,24 @@
                 This is an educational multi-app sandbox suite by <strong>Akshat Mehta</strong>.<br>
                 <a href="https://github.com/AkshatMehta-124" target="_blank" class="source-link">View Repository Source</a>
             </div>
-            <img src="logo.png" alt="Suite Logo" class="login-logo">
+            
+            <img src="aksh-logo.png" alt="Suite Logo" class="login-logo">
             <h1>Web Sandbox Suite</h1>
 
             <div id="login-section">
-                <p class="subtitle">Sign in to access your utilities</p>
+                <p class="subtitle" id="auth-subtitle">Sign in to access your utilities</p>
                 <div class="input-group">
                     <input type="email" id="email-input" placeholder="Email Address">
                     <input type="password" id="password-input" placeholder="Password">
+                    
+                    <div id="signup-security-fields" style="display: none; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                        <label style="font-size: 12px; color: #555;">Security Question 1: Date of Birth</label>
+                        <input type="date" id="signup-dob" style="margin-bottom: 8px;">
+                        <label style="font-size: 12px; color: #555;">Security Question 2: Phone Number</label>
+                        <input type="tel" id="signup-phone" placeholder="+91...">
+                        <p style="font-size: 11px; color: #128C7E; margin-top: 5px;">A verification link will be sent to your email to prevent fake accounts.</p>
+                    </div>
+
                     <button id="email-auth-btn" class="auth-btn">Sign In</button>
                 </div>
                 <p class="toggle-text" id="toggle-mode-text">New here? <span>Create an account</span></p>
