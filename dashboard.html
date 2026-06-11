@@ -3,55 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aksh Dashboard</title>
-    <link rel="icon" type="image/png" href="aksh-logo.png">
+    <title>Dashboard Hub | Portal Suite</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Profile Dropdown Specific Styling */
+        .profile-menu { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; right: 0; top: 45px; background-color: #ffffff; min-width: 250px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.15); z-index: 100; border-radius: 8px; padding: 15px; border: 1px solid #e1e4e8; text-align: left; }
+        .profile-menu:hover .dropdown-content { display: block; }
+        .dropdown-content p { margin: 5px 0; font-size: 14px; color: #333; }
+        .dropdown-content hr { border: 0; border-top: 1px solid #e1e4e8; margin: 15px 0; }
+        .dropdown-btn { width: 100%; padding: 10px; background: #128C7E; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+        .dropdown-btn.outline { background: transparent; color: #128C7E; border: 1px solid #128C7E; }
+        .dropdown-btn:hover { opacity: 0.9; }
+    </style>
 </head>
 <body class="dashboard-body">
-
     <header class="hub-header">
         <div class="brand">
-            <img src="aksh-logo.png" alt="Aksh Logo" class="login-logo">
-            <h2>Aksh Workspace</h2>
+            <img src="logo.png" alt="Logo" class="hub-logo">
+            <h2>Workspace Suite</h2>
         </div>
-        <button id="hub-logout-btn" class="logout-link-btn">Sign Out</button>
+        
+        <div class="profile-menu">
+            <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover;">
+                <span id="header-name" style="font-weight: 500; font-size: 14px;">Loading...</span>
+            </div>
+            <div class="dropdown-content">
+                <p style="font-size: 12px; color: #888; text-transform: uppercase;">Profile Details</p>
+                <p id="profile-name"><strong>Name:</strong> Loading...</p>
+                <p id="profile-email"><strong>Email:</strong> loading@example.com</p>
+                <p id="profile-dob"><strong>DOB:</strong> -</p>
+                <p id="profile-phone"><strong>Phone:</strong> -</p>
+                <hr>
+                <button id="btn-edit-security" class="dropdown-btn outline">Edit DOB & Phone</button>
+                <button id="btn-bind-account" class="dropdown-btn outline">Link Account</button>
+                <button id="btn-signout" class="dropdown-btn" style="background: #ff4d4f;">Sign Out</button>
+            </div>
+        </div>
     </header>
 
     <main class="hub-container">
         <h3>My Applications</h3>
         <p class="hub-welcome">Select a utility tool to begin working</p>
-
-       <div class="app-grid">
-    <a href="apps/chat/index.html" class="app-tile">
-        <img src="chat-logo.png" alt="Chat Logo" class="app-icon-img">
-        <h4>Chat App</h4>
-        <p>Real-time messaging & WebRTC video endpoints.</p>
-    </a>
-
-    <a href="apps/calculator/index.html" class="app-tile">
-        <img src="calc-logo.png" alt="Calculator Logo" class="app-icon-img">
-        <h4>Calculator</h4>
-        <p>Standard algebraic utility with active operations.</p>
-    </a>
-
-    <a href="apps/calendar/index.html" class="app-tile">
-        <img src="cal-logo.png" alt="Calendar Logo" class="app-icon-img">
-        <h4>Calendar</h4>
-        <p>Interactive schedule view and agenda log tracking.</p>
-    </a>
-</div>
+        <div class="app-grid">
+            <a href="apps/chat/index.html" class="app-tile">
+                <div class="tile-icon communication">💬</div>
+                <h4>Chat App</h4>
+                <p>Real-time messaging & WebRTC video endpoints.</p>
+            </a>
+            <a href="apps/calculator/index.html" class="app-tile">
+                <div class="tile-icon math">🧮</div>
+                <h4>Calculator</h4>
+                <p>Standard algebraic utility with active operations.</p>
+            </a>
+            <a href="apps/calendar/index.html" class="app-tile">
+                <div class="tile-icon schedule">📅</div>
+                <h4>Calendar</h4>
+                <p>Interactive schedule view and agenda log tracking.</p>
+            </a>
+        </div>
     </main>
 
+    <div id="security-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 350px; text-align: left;">
+            <h3 style="margin-top: 0;">Update Security Questions</h3>
+            <label style="font-size: 12px; font-weight: 500;">Date of Birth:</label>
+            <input type="date" id="edit-dob" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <label style="font-size: 12px; font-weight: 500;">Phone Number:</label>
+            <input type="tel" id="edit-phone" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-save-security" class="dropdown-btn" style="flex: 1; margin: 0;">Save Changes</button>
+                <button id="btn-cancel-security" class="dropdown-btn outline" style="flex: 1; margin: 0;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
-        import { auth } from "./auth.js";
-        import { signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        
-        document.getElementById("hub-logout-btn").onclick = () => {
-            signOut(auth).then(() => {
-                window.location.href = "index.html";
-            });
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, linkWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
+            authDomain: "aksh-studio.firebaseapp.com",
+            projectId: "aksh-studio",
+            storageBucket: "aksh-studio.firebasestorage.app",
+            messagingSenderId: "349325785973",
+            appId: "1:349325785973:web:86d5a15bcb700bfc15b13c",
+            measurementId: "G-R96N91NV2X"
         };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "index.html"; 
+                return;
+            }
+
+            // Populate the Dropdown with User Details
+            const displayName = user.displayName || "Studio User";
+            document.getElementById('header-name').innerText = displayName;
+            document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${displayName}`;
+            document.getElementById('profile-email').innerHTML = `<strong>Email:</strong> ${user.email}`;
+            if (user.photoURL) document.getElementById('profile-pic').src = user.photoURL;
+
+            // Fetch the Security Questions from Firestore
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                document.getElementById('profile-dob').innerHTML = `<strong>DOB:</strong> ${data.dob || "Not Set"}`;
+                document.getElementById('profile-phone').innerHTML = `<strong>Phone:</strong> ${data.phone || "Not Set"}`;
+                document.getElementById('edit-dob').value = data.dob || "";
+                document.getElementById('edit-phone').value = data.phone || "";
+            }
+
+            // Automated Account Binding Detection
+            const providers = user.providerData.map(p => p.providerId);
+            const bindBtn = document.getElementById('btn-bind-account');
+
+            if (providers.includes('password') && !providers.includes('google.com')) {
+                bindBtn.innerText = "Link Google Account";
+                bindBtn.onclick = () => {
+                    const provider = new GoogleAuthProvider();
+                    linkWithPopup(auth.currentUser, provider).then(() => {
+                        alert("Google Account Successfully Linked!");
+                        window.location.reload();
+                    }).catch(e => alert(e.message));
+                };
+            } 
+            else if (providers.includes('google.com') && !providers.includes('password')) {
+                bindBtn.innerText = "Link Email/Password";
+                bindBtn.onclick = () => {
+                    const newPassword = prompt("Set a password for your new Email binding:");
+                    if(newPassword) {
+                        const credential = EmailAuthProvider.credential(user.email, newPassword);
+                        linkWithCredential(auth.currentUser, credential).then(() => {
+                            alert("Email/Password Successfully Linked!");
+                            window.location.reload();
+                        }).catch(e => alert(e.message));
+                    }
+                };
+            } else {
+                bindBtn.innerText = "Account Fully Bound";
+                bindBtn.disabled = true;
+                bindBtn.style.opacity = "0.5";
+            }
+        });
+
+        // Security Profile Editing Logic
+        const securityModal = document.getElementById('security-modal');
+        document.getElementById('btn-edit-security').addEventListener('click', () => securityModal.style.display = "flex");
+        document.getElementById('btn-cancel-security').addEventListener('click', () => securityModal.style.display = "none");
+
+        document.getElementById('btn-save-security').addEventListener('click', async () => {
+            const newDob = document.getElementById('edit-dob').value;
+            const newPhone = document.getElementById('edit-phone').value;
+            
+            if(!newDob || !newPhone) return alert("Fields cannot be empty.");
+
+            await setDoc(doc(db, "users", auth.currentUser.uid), {
+                dob: newDob,
+                phone: newPhone
+            }, { merge: true });
+
+            alert("Security details updated successfully.");
+            window.location.reload();
+        });
+
+        // Sign Out Controller
+        document.getElementById('btn-signout').addEventListener('click', () => {
+            signOut(auth).then(() => window.location.href = "index.html");
+        });
     </script>
 </body>
 </html>
