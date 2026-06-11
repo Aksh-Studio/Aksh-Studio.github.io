@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -18,7 +18,6 @@ export const db = getFirestore(app);
 
 const isLoginPage = (window.location.pathname === "/" || window.location.pathname.endsWith("/index.html")) && !window.location.pathname.includes("/apps/");
 
-// DOM Elements
 const loginSec = document.getElementById('login-section');
 const onboardSec = document.getElementById('onboarding-section');
 const forgotSec = document.getElementById('forgot-password-section');
@@ -26,6 +25,8 @@ const authError = document.getElementById('auth-error');
 const googleBtn = document.getElementById("google-login-btn");
 const emailAuthBtn = document.getElementById("email-auth-btn");
 const toggleModeText = document.getElementById("toggle-mode-text");
+const signupSecurityFields = document.getElementById("signup-security-fields");
+const authSubtitle = document.getElementById("auth-subtitle");
 
 let isSignUpMode = false;
 
@@ -35,9 +36,18 @@ function showError(msg) {
     authError.style.display = "block";
 }
 
-// Intercept routing to check for Security Profile Data
 async function handleUserRouting(user) {
     if (!isLoginPage) return;
+
+    // Check if email is verified (prevents fake emails)
+    if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
+        authError.style.display = "block";
+        authError.style.color = "#d9534f";
+        authError.textContent = "Please verify your email address. Check your inbox/spam folder.";
+        await signOut(auth);
+        return;
+    }
+
     const userDocRef = doc(db, "users", user.uid);
     const userDoc = await getDoc(userDocRef);
 
@@ -63,30 +73,63 @@ if (googleBtn) {
     googleBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showError(err.code));
 }
 
+// UI Toggle for Sign In vs Create Account
 if (toggleModeText) {
     toggleModeText.onclick = () => {
         isSignUpMode = !isSignUpMode;
         if (authError) authError.style.display = "none";
         emailAuthBtn.textContent = isSignUpMode ? "Create Account" : "Sign In";
+        authSubtitle.textContent = isSignUpMode ? "Create a secure account" : "Sign in to access your utilities";
+        signupSecurityFields.style.display = isSignUpMode ? "block" : "none";
         toggleModeText.innerHTML = isSignUpMode ? 'Already have an account? <span>Sign In</span>' : 'New here? <span>Create an account</span>';
     };
 }
 
+// Authentication Logic
 if (emailAuthBtn) {
     emailAuthBtn.onclick = async () => {
         const e = document.getElementById("email-input").value.trim();
         const p = document.getElementById("password-input").value.trim();
+        
         if (!e || !p) return showError("auth/missing-credentials");
-        try {
-            if (isSignUpMode) await createUserWithEmailAndPassword(auth, e, p);
-            else await signInWithEmailAndPassword(auth, e, p);
-        } catch (err) {
-            showError(err.code);
+
+        if (isSignUpMode) {
+            const dob = document.getElementById("signup-dob").value;
+            const phone = document.getElementById("signup-phone").value;
+            if (!dob || !phone) return showError("DOB and Phone are required to create an account.");
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, e, p);
+                const user = userCredential.user;
+                
+                // Immediately save security data to Firestore
+                await setDoc(doc(db, "users", user.uid), {
+                    email: user.email,
+                    dob: dob,
+                    phone: phone,
+                    createdAt: new Date()
+                });
+
+                // Send Email Verification to block fake emails
+                await sendEmailVerification(user);
+                
+                alert("Account created successfully! A verification link has been sent to your email. Please verify it before logging in.");
+                await signOut(auth);
+                window.location.reload();
+            } catch (err) {
+                showError(err.code);
+            }
+        } else {
+            try {
+                await signInWithEmailAndPassword(auth, e, p);
+            } catch (err) {
+                showError(err.code);
+            }
         }
     };
 }
 
-// Onboarding Save Logic
+// Onboarding Save Logic (For Google Sign-Ins)
 const btnSaveProfile = document.getElementById('btn-save-profile');
 if (btnSaveProfile) {
     btnSaveProfile.onclick = async () => {
@@ -105,27 +148,23 @@ if (btnSaveProfile) {
     };
 }
 
-// Forgot Password Navigation
-const linkForgotPassword = document.getElementById('link-forgot-password');
-const linkBackLogin = document.getElementById('link-back-login');
-const btnSendReset = document.getElementById('btn-send-reset');
-
-if (linkForgotPassword) {
-    linkForgotPassword.onclick = () => {
+// Forgot Password Flow
+if (document.getElementById('link-forgot-password')) {
+    document.getElementById('link-forgot-password').onclick = () => {
         loginSec.style.display = "none";
         forgotSec.style.display = "block";
     };
 }
 
-if (linkBackLogin) {
-    linkBackLogin.onclick = () => {
+if (document.getElementById('link-back-login')) {
+    document.getElementById('link-back-login').onclick = () => {
         forgotSec.style.display = "none";
         loginSec.style.display = "block";
     };
 }
 
-if (btnSendReset) {
-    btnSendReset.onclick = () => {
+if (document.getElementById('btn-send-reset')) {
+    document.getElementById('btn-send-reset').onclick = () => {
         const email = document.getElementById('reset-email').value;
         if(!email) return showError("Please enter an email");
         sendPasswordResetEmail(auth, email).then(() => {
