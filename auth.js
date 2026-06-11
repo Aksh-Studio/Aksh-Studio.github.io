@@ -1,48 +1,63 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// Your verified Aksh-Studio Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
-  authDomain: "aksh-studio.firebaseapp.com",
-  projectId: "aksh-studio",
-  storageBucket: "aksh-studio.firebasestorage.app",
-  messagingSenderId: "349325785973",
-  appId: "1:349325785973:web:86d5a15bcb700bfc15b13c",
-  measurementId: "G-R96N91NV2X"
+    apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
+    authDomain: "aksh-studio.firebaseapp.com",
+    projectId: "aksh-studio",
+    storageBucket: "aksh-studio.firebasestorage.app",
+    messagingSenderId: "349325785973",
+    appId: "1:349325785973:web:86d5a15bcb700bfc15b13c",
+    measurementId: "G-R96N91NV2X"
 };
 
-// Initialize Core Engines
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// SMART GATEWAY ROUTE CONTROLLER
-// This ensures sub-apps (like calculator/index.html) are never treated as the main login gateway
 const isLoginPage = (window.location.pathname === "/" || window.location.pathname.endsWith("/index.html")) && !window.location.pathname.includes("/apps/");
 
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        // Only redirect to dashboard if the logged-in user is explicitly on the root login gateway
-        if (isLoginPage) {
-            window.location.href = window.location.origin + "/dashboard.html";
-        }
+// DOM Elements
+const loginSec = document.getElementById('login-section');
+const onboardSec = document.getElementById('onboarding-section');
+const forgotSec = document.getElementById('forgot-password-section');
+const authError = document.getElementById('auth-error');
+const googleBtn = document.getElementById("google-login-btn");
+const emailAuthBtn = document.getElementById("email-auth-btn");
+const toggleModeText = document.getElementById("toggle-mode-text");
+
+let isSignUpMode = false;
+
+function showError(msg) {
+    if (!authError) return;
+    authError.textContent = msg.replace("auth/", "").replace(/-/g, " ");
+    authError.style.display = "block";
+}
+
+// Intercept routing to check for Security Profile Data
+async function handleUserRouting(user) {
+    if (!isLoginPage) return;
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists() && userDoc.data().dob && userDoc.data().phone) {
+        window.location.href = window.location.origin + "/dashboard.html";
     } else {
-        // If not logged in, kick them back to the root login gateway
+        if (loginSec) loginSec.style.display = "none";
+        if (onboardSec) onboardSec.style.display = "block";
+    }
+}
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        await handleUserRouting(user);
+    } else {
         if (!isLoginPage) {
             window.location.href = window.location.origin + "/index.html";
         }
     }
 });
-
-// Auth Element Bindings
-const googleBtn = document.getElementById("google-login-btn");
-const emailAuthBtn = document.getElementById("email-auth-btn");
-const toggleModeText = document.getElementById("toggle-mode-text");
-const authError = document.getElementById("auth-error");
-
-let isSignUpMode = false;
 
 if (googleBtn) {
     googleBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showError(err.code));
@@ -65,12 +80,58 @@ if (emailAuthBtn) {
         try {
             if (isSignUpMode) await createUserWithEmailAndPassword(auth, e, p);
             else await signInWithEmailAndPassword(auth, e, p);
-        } catch (err) { showError(err.code); }
+        } catch (err) {
+            showError(err.code);
+        }
     };
 }
 
-function showError(code) {
-    if (!authError) return;
-    authError.textContent = `Error: ${code.replace("auth/", "").replace(/-/g, " ")}`;
-    authError.style.display = "block";
+// Onboarding Save Logic
+const btnSaveProfile = document.getElementById('btn-save-profile');
+if (btnSaveProfile) {
+    btnSaveProfile.onclick = async () => {
+        const dob = document.getElementById('dob-input').value;
+        const phone = document.getElementById('phone-input').value;
+        if(!dob || !phone) return showError("Both fields are mandatory.");
+
+        await setDoc(doc(db, "users", auth.currentUser.uid), {
+            email: auth.currentUser.email,
+            dob: dob,
+            phone: phone,
+            createdAt: new Date()
+        }, { merge: true });
+
+        window.location.href = window.location.origin + "/dashboard.html";
+    };
+}
+
+// Forgot Password Navigation
+const linkForgotPassword = document.getElementById('link-forgot-password');
+const linkBackLogin = document.getElementById('link-back-login');
+const btnSendReset = document.getElementById('btn-send-reset');
+
+if (linkForgotPassword) {
+    linkForgotPassword.onclick = () => {
+        loginSec.style.display = "none";
+        forgotSec.style.display = "block";
+    };
+}
+
+if (linkBackLogin) {
+    linkBackLogin.onclick = () => {
+        forgotSec.style.display = "none";
+        loginSec.style.display = "block";
+    };
+}
+
+if (btnSendReset) {
+    btnSendReset.onclick = () => {
+        const email = document.getElementById('reset-email').value;
+        if(!email) return showError("Please enter an email");
+        sendPasswordResetEmail(auth, email).then(() => {
+            alert("Secure password reset link sent to your email.");
+            forgotSec.style.display = "none";
+            loginSec.style.display = "block";
+        }).catch(err => showError(err.code));
+    };
 }
