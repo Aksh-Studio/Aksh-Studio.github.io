@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Hub | Portal Suite</title>
-    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/png" href="aksh-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Profile Dropdown Specific Styling */
         .profile-menu { position: relative; display: inline-block; }
         .dropdown-content { display: none; position: absolute; right: 0; top: 45px; background-color: #ffffff; min-width: 250px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.15); z-index: 100; border-radius: 8px; padding: 15px; border: 1px solid #e1e4e8; text-align: left; }
         .profile-menu:hover .dropdown-content { display: block; }
@@ -25,7 +24,7 @@
 <body class="dashboard-body">
     <header class="hub-header">
         <div class="brand">
-            <img src="logo.png" alt="Logo" class="hub-logo">
+            <img src="aksh-logo.png" alt="Aksh Studio Logo" class="hub-logo">
             <h2>Workspace Suite</h2>
         </div>
         
@@ -109,14 +108,12 @@
                 return;
             }
 
-            // Populate the Dropdown with User Details
             const displayName = user.displayName || "Studio User";
             document.getElementById('header-name').innerText = displayName;
             document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${displayName}`;
             document.getElementById('profile-email').innerHTML = `<strong>Email:</strong> ${user.email}`;
             if (user.photoURL) document.getElementById('profile-pic').src = user.photoURL;
 
-            // Fetch the Security Questions from Firestore
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
@@ -127,7 +124,6 @@
                 document.getElementById('edit-phone').value = data.phone || "";
             }
 
-            // Automated Account Binding Detection
             const providers = user.providerData.map(p => p.providerId);
             const bindBtn = document.getElementById('btn-bind-account');
 
@@ -160,7 +156,6 @@
             }
         });
 
-        // Security Profile Editing Logic
         const securityModal = document.getElementById('security-modal');
         document.getElementById('btn-edit-security').addEventListener('click', () => securityModal.style.display = "flex");
         document.getElementById('btn-cancel-security').addEventListener('click', () => securityModal.style.display = "none");
@@ -180,7 +175,6 @@
             window.location.reload();
         });
 
-        // Sign Out Controller
         document.getElementById('btn-signout').addEventListener('click', () => {
             signOut(auth).then(() => window.location.href = "index.html");
         });
