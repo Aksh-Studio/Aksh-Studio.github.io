@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Hub | Portal Suite</title>
+    <link rel="icon" type="image/png" href="logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
@@ -16,6 +17,9 @@
         .dropdown-btn { width: 100%; padding: 10px; background: #128C7E; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
         .dropdown-btn.outline { background: transparent; color: #128C7E; border: 1px solid #128C7E; }
         .dropdown-btn:hover { opacity: 0.9; }
+
+        /* Custom App Tile Logo Styling */
+        .tile-logo { width: 54px; height: 54px; object-fit: contain; margin-bottom: 12px; display: block; }
     </style>
 </head>
 <body class="dashboard-body">
@@ -49,17 +53,17 @@
         <p class="hub-welcome">Select a utility tool to begin working</p>
         <div class="app-grid">
             <a href="apps/chat/index.html" class="app-tile">
-                <div class="tile-icon communication">💬</div>
+                <img src="chat-logo.png" alt="Chat App Logo" class="tile-logo">
                 <h4>Chat App</h4>
                 <p>Real-time messaging & WebRTC video endpoints.</p>
             </a>
             <a href="apps/calculator/index.html" class="app-tile">
-                <div class="tile-icon math">🧮</div>
+                <img src="calc-logo.png" alt="Calculator App Logo" class="tile-logo">
                 <h4>Calculator</h4>
                 <p>Standard algebraic utility with active operations.</p>
             </a>
             <a href="apps/calendar/index.html" class="app-tile">
-                <div class="tile-icon schedule">📅</div>
+                <img src="cal-logo.png" alt="Calendar App Logo" class="tile-logo">
                 <h4>Calendar</h4>
                 <p>Interactive schedule view and agenda log tracking.</p>
             </a>
