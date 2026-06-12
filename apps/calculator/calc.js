@@ -47,32 +47,46 @@ onAuthStateChanged(auth, user => {
         currentUser = user; 
         loadHistory(); 
         
-        // Fetch user details for profile dropdown
-        const userRef = doc(db, `users/${user.uid}`);
-        onSnapshot(userRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const nameEl = document.getElementById('calc-profile-name');
-                const emailEl = document.getElementById('calc-profile-email');
-                const avatarEl = document.getElementById('calc-header-avatar');
-                
-                if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${data.name || '-'}`;
-                if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${data.email || '-'}`;
-                if (avatarEl && data.photoURL) avatarEl.src = data.photoURL;
-            }
-        });
+        // SAFE PROFILE FETCHING
+        const nameEl = document.getElementById('calc-profile-name');
+        const emailEl = document.getElementById('calc-profile-email');
+        const avatarEl = document.getElementById('calc-header-avatar');
+        
+        const fallbackProfile = () => {
+            if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${user.displayName || 'User'}`;
+            if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${user.email || '-'}`;
+            if (avatarEl && user.photoURL) avatarEl.src = user.photoURL;
+        };
+
+        try {
+            const userRef = doc(db, `users/${user.uid}`);
+            onSnapshot(userRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${data.name || user.displayName || 'User'}`;
+                    if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${data.email || user.email || '-'}`;
+                    if (avatarEl && (data.photoURL || user.photoURL)) avatarEl.src = data.photoURL || user.photoURL;
+                } else {
+                    fallbackProfile();
+                }
+            }, () => fallbackProfile());
+        } catch (err) {
+            fallbackProfile();
+        }
     } else {
-        window.location.href = "../../index.html"; // Ensure protected route
+        window.location.href = "../../index.html"; 
     }
 });
 
-// Sign Out Handler
-const signoutBtn = document.getElementById('calc-btn-signout');
-if (signoutBtn) {
-    signoutBtn.onclick = () => {
-        auth.signOut().then(() => window.location.href = "../../index.html");
-    };
-}
+// SAFELY ATTACH SIGN OUT
+setTimeout(() => {
+    const signoutBtn = document.getElementById('calc-btn-signout');
+    if (signoutBtn) {
+        signoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => window.location.href = "../../index.html");
+        });
+    }
+}, 500);
 
 // ==========================================
 // TAB CONTROLLER
