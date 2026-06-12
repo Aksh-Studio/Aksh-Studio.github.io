@@ -1,121 +1,388 @@
-body { margin: 0; font-family: 'Inter', sans-serif; background-color: #f4f6f8; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden; }
+/* =========================================
+   AKSH STUDIO CALCULATOR - MASTER CSS
+   ========================================= */
 
-/* Nav & Tabs */
-.app-nav { width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: center; padding: 20px; box-sizing: border-box; flex-wrap: wrap; gap: 10px; }
-.back-btn { text-decoration: none; color: #128C7E; font-weight: 600; font-size: 15px; }
-.mode-tabs { display: flex; gap: 5px; background: #e1e4e8; padding: 5px; border-radius: 8px; }
-.tab { border: none; background: transparent; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 500; color: #555; transition: 0.2s; }
-.tab.active { background: white; color: #128C7E; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.app-brand { display: flex; align-items: center; gap: 15px; }
-.nav-logo { width: 35px; height: 35px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.history-btn { background: #333; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-.history-btn:hover { background: #555; }
+/* --- 1. CSS Variables (Theming) --- */
+:root {
+    --primary-color: #128C7E;
+    --primary-hover: #0d6b5f;
+    --bg-color: #f0f2f5;
+    --calc-bg: #ffffff;
+    --text-main: #333333;
+    --text-muted: #888888;
+    --btn-bg: #f8f9fa;
+    --btn-hover: #e2e6ea;
+    --btn-active: #dae0e5;
+    --operator-bg: #e8f5f3;
+    --operator-color: #128C7E;
+    --equals-bg: #128C7E;
+    --equals-color: #ffffff;
+    --danger-bg: #ffebee;
+    --danger-color: #ff4d4f;
+    --display-bg: #222222;
+}
 
-/* History Panel */
-.history-panel { position: fixed; right: -350px; top: 0; width: 300px; height: 100vh; background: white; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 20px; box-sizing: border-box; transition: right 0.3s ease; z-index: 100; display: flex; flex-direction: column; }
-.history-panel.show { right: 0; }
-.history-panel h3 { margin-top: 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-#history-list { flex-grow: 1; overflow-y: auto; margin-bottom: 20px; }
-.history-item { padding: 10px; border-bottom: 1px solid #f0f0f0; font-family: monospace; font-size: 16px; color: #555; background: #fafafa; border-radius: 5px; margin-bottom: 5px; }
-.history-item span { display: block; color: #128C7E; font-weight: bold; font-size: 18px; margin-top: 5px; }
-.history-clear-btn { background: #ff4d4f; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; }
+/* --- 2. Base Resets & Typography --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-/* Module Visibility */
-.calculator-container { width: 100%; max-width: 900px; padding: 10px; box-sizing: border-box; }
-.app-module { display: none; animation: fadeIn 0.3s ease; }
-.app-module.active-module { display: block; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: var(--text-main);
+}
 
-/* Scientific Grid */
-.calculator-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; background-color: #111; padding: 20px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
-.output { grid-column: 1 / -1; background-color: #1a1a1a; border-radius: 10px; display: flex; align-items: flex-end; justify-content: space-around; flex-direction: column; padding: 20px; margin-bottom: 10px; word-wrap: break-word; word-break: break-all; }
-.output .previous-operand { color: rgba(255, 255, 255, 0.7); font-size: 20px; min-height: 24px; }
-.output .current-operand { color: white; font-size: 45px; font-weight: 300; }
-.calculator-grid > button { cursor: pointer; font-size: 20px; border: none; outline: none; border-radius: 12px; padding: 20px 10px; background-color: #333; color: white; transition: 0.1s; }
-.calculator-grid > button:hover { background-color: #444; }
-.calculator-grid > button:active { transform: scale(0.95); }
-.sci-btn { background-color: #2a2a2a !important; color: #4dc0b5 !important; font-size: 18px !important; }
-.operator-btn { background-color: #a5a5a5 !important; color: black !important; font-weight: 500; }
-.equals-btn, [data-operation] { background-color: #128C7E !important; color: white !important; }
-.ac-btn { grid-column: span 2; }
-.span-two { grid-column: span 2; }
+/* Back to Dashboard Link */
+.back-link {
+    display: inline-block;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+}
+.back-link:hover {
+    text-decoration: underline;
+}
 
-/* Financial & Graphing Cards */
-.fin-card, .graph-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-.fin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
-.fin-header h2, .graph-card h2 { margin: 0; color: #222; }
-.fin-select { padding: 10px; border-radius: 6px; border: 1px solid #ddd; font-family: inherit; font-size: 15px; background: #fafafa; outline: none;}
+/* --- 3. Core App Layout (Desktop) --- */
+.app-layout {
+    display: flex;
+    flex-direction: row;
+    background-color: var(--calc-bg);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 950px;
+    overflow: hidden;
+    height: 600px;
+}
 
-.input-group { margin-bottom: 15px; }
-.input-group label { display: block; margin-bottom: 5px; font-weight: 500; color: #555; }
-.input-group input, .graph-controls input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; font-family: inherit; }
-.fin-btn { background: #128C7E; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.2s;}
-.fin-btn:hover { background: #075E54; }
-.fin-result { margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #128C7E; transition: 0.3s;}
-.fin-result p { margin: 5px 0; font-size: 16px; color: #444; font-weight: 500; }
-.fin-result span { font-weight: bold; color: #128C7E; font-size: 18px; }
+.calc-container {
+    flex: 1;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+}
 
-/* Advanced Graphing Settings */
-.graph-settings { display: flex; gap: 20px; margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; }
-.setting-box label { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 5px; display: block; }
-.multi-input { display: flex; gap: 5px; }
-.multi-input input { width: 70px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+/* --- 4. Calculator Display Screen --- */
+.calc-display {
+    background-color: var(--display-bg);
+    color: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: right;
+    margin-bottom: 20px;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
 
-.graph-controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
-.graph-controls input { flex-grow: 1; }
-.graph-controls button { width: auto; margin: 0; }
-canvas { width: 100%; max-width: 600px; height: auto; background: #fff; border: 1px solid #ddd; border-radius: 8px; display: block; margin: 0 auto; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); }
+.display-history {
+    min-height: 20px;
+    font-size: 14px;
+    color: #aaaaaa;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+}
 
-/* Mobile View */
-@media (max-width: 700px) {
-    .calculator-grid { grid-template-columns: repeat(4, 1fr); }
-    .sci-btn:nth-child(2), .sci-btn:nth-child(3), .sci-btn:nth-child(4) { display: none; }
-    .calculator-grid > button { padding: 15px 10px; font-size: 18px; }
-    .history-panel { width: 100%; right: -100%; }
-    .graph-controls, .graph-settings { flex-direction: column; }
-    .graph-controls button { width: 100%; }
+.display-main {
+    font-size: 40px;
+    font-weight: 600;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* --- 5. Tabs (Scientific, Financial, Graphing) --- */
+.calc-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+    background-color: #eeeeee;
+    padding: 5px;
+    border-radius: 8px;
+}
+
+.tab-btn {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: transparent;
+    cursor: pointer;
+    font-weight: 600;
+    color: #555555;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.tab-btn.active {
+    background-color: #ffffff;
+    color: var(--primary-color);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* --- 6. Button Grid --- */
+.calc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    flex: 1; /* Pushes grid to fill remaining space */
+}
+
+/* Modifier if your scientific calc needs 5 columns */
+.calc-grid.scientific {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.calc-btn {
+    border: none;
+    padding: 15px;
+    font-size: 20px;
+    border-radius: 8px;
+    background-color: var(--btn-bg);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.1s ease;
+    user-select: none;
+    font-family: inherit;
+    font-weight: 500;
+}
+
+.calc-btn:hover {
+    background-color: var(--btn-hover);
+}
+
+.calc-btn:active {
+    background-color: var(--btn-active);
+    transform: scale(0.96); /* Gives a satisfying "click" feel */
+}
+
+/* Specific Button Styles */
+.calc-btn.operator {
+    background-color: var(--operator-bg);
+    color: var(--operator-color);
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.calc-btn.equals {
+    background-color: var(--equals-bg);
+    color: var(--equals-color);
+    grid-column: span 2; /* Makes the equals button wide */
+    font-size: 24px;
+}
+
+.calc-btn.clear {
+    background-color: var(--danger-bg);
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+/* --- 7. History Sidebar --- */
+.history-sidebar {
+    width: 300px;
+    background-color: #fafafa;
+    border-left: 1px solid #e1e4e8;
+    display: flex;
+    flex-direction: column;
+}
+
+.history-header {
+    padding: 20px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-header h3 {
+    font-size: 16px;
+    color: var(--text-main);
+}
+
+.btn-clear-history {
+    background: transparent;
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #666;
+}
+
+.btn-clear-history:hover {
+    background: #eee;
+}
+
+.history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    list-style: none;
+}
+
+.history-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eeeeee;
+    background: #ffffff;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.history-item .eq {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.history-item .res {
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 18px;
+}
+
+/* --- 8. Financial & Graphing Form Elements --- */
+.module-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.module-form label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: -8px;
+}
+
+.module-form input, 
+.module-form select {
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.module-form input:focus, 
+.module-form select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.module-form button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    margin-top: 5px;
+}
+
+#graph-canvas {
+    width: 100%;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-top: 15px;
+    flex: 1; /* Auto expand height */
 }
 
 /* =========================================
-   MOBILE RESPONSIVENESS FIX
+   9. MOBILE RESPONSIVENESS (SMARTPHONES)
    ========================================= */
 @media screen and (max-width: 768px) {
-    /* Stack the Calculator and History vertically on phones */
-    .app-layout, body {
-        flex-direction: column !important;
-        overflow-y: auto;
+    /* Make body background match calculator to look like a native app */
+    body {
+        padding: 0;
+        background-color: var(--calc-bg);
+        align-items: flex-start; /* Pin to top */
     }
 
-    /* Make the main calculator take up the full screen width */
-    #calculator-app, .calc-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 auto;
-        border-radius: 0 !important; /* Removes corners for mobile edge-to-edge look */
+    /* Stack layout vertically, full width, full height */
+    .app-layout {
+        flex-direction: column;
+        border-radius: 0;
+        box-shadow: none;
+        height: 100vh;
+        max-width: 100%;
     }
 
-    /* Push the history panel below the calculator */
-    #history-panel, .history-sidebar {
-        width: 100% !important;
-        max-height: 250px !important;
-        border-left: none !important;
-        border-top: 2px solid #128C7E !important;
-        margin-top: 20px;
+    .calc-container {
+        padding: 15px;
+        flex: 1 1 auto; /* Allow shrinking/growing */
+        overflow-y: auto; /* Allow scrolling if screen is too small */
     }
 
-    /* Adjust button padding so they aren't crushed */
-    .calc-btn {
-        padding: 15px 5px !important;
-        font-size: 18px !important;
+    /* Push history to bottom and make it a neat drawer */
+    .history-sidebar {
+        width: 100%;
+        height: 35vh; /* Takes up bottom 35% of screen */
+        border-left: none;
+        border-top: 3px solid var(--primary-color);
+        flex-shrink: 0; /* Prevent it from squishing away */
     }
 
-    /* Ensure the Financial/Graphing Tabs don't overlap */
+    .history-header {
+        padding: 10px 15px;
+    }
+
+    .history-list {
+        padding: 10px;
+    }
+
+    /* Adjust sizing for fat fingers (Touch Targets) */
+    .calc-display {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .display-main {
+        font-size: 32px; /* Slightly smaller text on mobile */
+    }
+
+    /* Wrap tabs onto two lines if necessary */
     .calc-tabs {
-        flex-wrap: wrap !important;
+        flex-wrap: wrap;
     }
+    
     .tab-btn {
-        flex: 1 1 30%;
-        font-size: 12px !important;
-        padding: 8px 4px !important;
+        flex: 1 1 30%; /* Force tabs to stay reasonable width */
+        font-size: 12px;
+        padding: 8px 4px;
+    }
+
+    /* Adjust button padding to prevent them from breaking the screen width */
+    .calc-grid {
+        gap: 8px; /* Slightly tighter grid */
+    }
+    
+    .calc-btn {
+        padding: 12px 5px;
+        font-size: 18px;
+    }
+
+    .calc-btn.operator {
+        font-size: 20px;
+    }
+
+    /* Fix Canvas size for mobile graphing */
+    #graph-canvas {
+        min-height: 200px;
     }
 }
