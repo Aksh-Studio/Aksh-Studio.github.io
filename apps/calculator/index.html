@@ -5,12 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Math Solver Suite | Aksh Studio</title>
     <link rel="icon" type="image/png" href="../../calc-logo.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
 </head>
 <body>
-    <div style="width: 100%; max-width: 1200px; margin: auto;">
+    <div style="width: 100%; max-width: 1100px; margin: auto;">
         <a href="../../dashboard.html" class="back-link">← Back to Dashboard</a>
 
         <div class="app-layout">
@@ -53,24 +52,24 @@
                     <button class="calc-btn" data-val="4">4</button>
                     <button class="calc-btn" data-val="5">5</button>
                     <button class="calc-btn" data-val="6">6</button>
-                    <button class="calc-btn" data-val="×">×</button>
+                    <button class="calc-btn" data-val="*">×</button>
                     
                     <button class="calc-btn" data-val="^2">x²</button>
                     <button class="calc-btn" data-val="1">1</button>
                     <button class="calc-btn" data-val="2">2</button>
                     <button class="calc-btn" data-val="3">3</button>
-                    <button class="calc-btn" data-val="−">−</button>
+                    <button class="calc-btn" data-val="-">−</button>
                     
-                    <button class="calc-btn" data-val="√(">√</button>
+                    <button class="calc-btn" data-val="sqrt(">√</button>
                     <button class="calc-btn" data-val="0">0</button>
                     <button class="calc-btn" data-val=".">.</button>
-                    <button class="calc-btn" data-val="=" style="background: #1a73e8; color: white;">=</button>
+                    <button class="calc-btn" data-val="=" style="background: #1a73e8; color: white; font-size: 24px;">=</button>
                     <button class="calc-btn" data-val="+">+</button>
                 </div>
 
                 <div id="module-algebra" class="calc-grid advanced" style="display: none;">
                     <button class="calc-btn btn-alg" data-val="^2">x²</button>
-                    <button class="calc-btn btn-alg" data-val="√(">√□</button>
+                    <button class="calc-btn btn-alg" data-val="sqrt(">√□</button>
                     <button class="calc-btn btn-alg" data-val="<">&lt;</button>
                     <button class="calc-btn" data-val="(">(</button>
                     <button class="calc-btn" data-val=")">)</button>
@@ -79,7 +78,7 @@
                     
                     <button class="calc-btn btn-alg" data-val="^">xʸ</button>
                     <button class="calc-btn btn-alg" data-val="abs(">|□|</button>
-                    <button class="calc-btn btn-alg" data-val="≤">≤</button>
+                    <button class="calc-btn btn-alg" data-val="<=">≤</button>
                     <button class="calc-btn" data-val="7">7</button>
                     <button class="calc-btn" data-val="8">8</button>
                     <button class="calc-btn" data-val="9">9</button>
@@ -91,15 +90,15 @@
                     <button class="calc-btn" data-val="4">4</button>
                     <button class="calc-btn" data-val="5">5</button>
                     <button class="calc-btn" data-val="6">6</button>
-                    <button class="calc-btn" data-val="×">×</button>
+                    <button class="calc-btn" data-val="*">×</button>
                     
                     <button class="calc-btn btn-alg" data-val="i">i</button>
                     <button class="calc-btn btn-alg" data-val="%">%</button>
-                    <button class="calc-btn btn-alg" data-val="≥">≥</button>
+                    <button class="calc-btn btn-alg" data-val=">=">≥</button>
                     <button class="calc-btn" data-val="1">1</button>
                     <button class="calc-btn" data-val="2">2</button>
                     <button class="calc-btn" data-val="3">3</button>
-                    <button class="calc-btn" data-val="−">−</button>
+                    <button class="calc-btn" data-val="-">−</button>
                     
                     <button class="calc-btn btn-alg" data-val="x">x</button>
                     <button class="calc-btn btn-alg" data-val="y">y</button>
@@ -133,15 +132,15 @@
                     <button class="calc-btn" data-val="4">4</button>
                     <button class="calc-btn" data-val="5">5</button>
                     <button class="calc-btn" data-val="6">6</button>
-                    <button class="calc-btn" data-val="×">×</button>
+                    <button class="calc-btn" data-val="*">×</button>
                     
                     <button class="calc-btn btn-trig" data-val="^2">□²</button>
-                    <button class="calc-btn btn-trig" data-val="deg">°</button>
+                    <button class="calc-btn btn-trig" data-val=" deg">°</button>
                     <button class="calc-btn btn-trig" data-val="π">π</button>
                     <button class="calc-btn" data-val="1">1</button>
                     <button class="calc-btn" data-val="2">2</button>
                     <button class="calc-btn" data-val="3">3</button>
-                    <button class="calc-btn" data-val="−">−</button>
+                    <button class="calc-btn" data-val="-">−</button>
                     
                     <button class="calc-btn btn-trig" data-val="x">x</button>
                     <button class="calc-btn btn-trig" data-val="y">y</button>
@@ -154,7 +153,7 @@
 
                 <div id="module-calculus" class="calc-grid advanced" style="display: none;">
                     <button class="calc-btn btn-calc" data-val="d/dx(">d/dx</button>
-                    <button class="calc-btn btn-calc" data-val="∞">∞</button>
+                    <button class="calc-btn btn-calc" data-val="Infinity">∞</button>
                     <button class="calc-btn btn-calc" data-val="nthRoot(">ⁿ√</button>
                     <button class="calc-btn" data-val="(">(</button>
                     <button class="calc-btn" data-val=")">)</button>
@@ -170,20 +169,20 @@
                     <button class="calc-btn" data-val="÷">÷</button>
                     
                     <button class="calc-btn btn-calc" data-val="log(">log</button>
-                    <button class="calc-btn btn-calc" data-val="C(">C(n,k)</button>
-                    <button class="calc-btn btn-calc" data-val="P(">P(n,k)</button>
+                    <button class="calc-btn btn-calc" data-val="combinations(">C(n,k)</button>
+                    <button class="calc-btn btn-calc" data-val="permutations(">P(n,k)</button>
                     <button class="calc-btn" data-val="4">4</button>
                     <button class="calc-btn" data-val="5">5</button>
                     <button class="calc-btn" data-val="6">6</button>
-                    <button class="calc-btn" data-val="×">×</button>
+                    <button class="calc-btn" data-val="*">×</button>
                     
                     <button class="calc-btn btn-calc" data-val="sum(">Σ</button>
                     <button class="calc-btn btn-calc" data-val="int(">∫</button>
-                    <button class="calc-btn btn-calc" data-val="intBounds(">∫ₐᵇ</button>
+                    <button class="calc-btn btn-calc" data-val=",">,</button>
                     <button class="calc-btn" data-val="1">1</button>
                     <button class="calc-btn" data-val="2">2</button>
                     <button class="calc-btn" data-val="3">3</button>
-                    <button class="calc-btn" data-val="−">−</button>
+                    <button class="calc-btn" data-val="-">−</button>
                     
                     <button class="calc-btn btn-calc" data-val="x">x</button>
                     <button class="calc-btn btn-calc" data-val="y">y</button>
@@ -194,23 +193,19 @@
                     <button class="calc-btn" data-val="+">+</button>
                 </div>
 
-                <div id="module-graphing" class="module-form" style="display: none;">
-                    <input type="text" id="g-eq" placeholder="e.g. sin(x)">
-                    <div style="display: flex; gap:10px;"><input type="number" id="g-min" value="-10"><input type="number" id="g-max" value="10"></div>
-                    <button id="btn-plot">Plot</button><canvas id="graph-canvas" height="300" style="width:100%; border:1px solid #ddd;"></canvas>
-                </div>
-                <div id="module-financial" class="module-form" style="display: none;"><select id="fin-t"><option value="emi">EMI</option></select><input type="number" id="fin-p" placeholder="Principal"><input type="number" id="fin-r" placeholder="Rate %"><input type="number" id="fin-y" placeholder="Years"><button id="fin-btn">Calculate</button><div id="fin-res"></div></div>
-                <div id="module-currency" class="module-form" style="display: none;"><input type="number" id="cur-v" value="1"><select id="cur-f"><option value="USD">USD</option><option value="INR" selected>INR</option></select><select id="cur-t"><option value="USD" selected>USD</option><option value="INR">INR</option></select><button id="cur-btn">Convert</button><div id="cur-res"></div></div>
-                <div id="module-unit" class="module-form" style="display: none;"><select id="un-c"><option value="l">Length</option><option value="w">Weight</option></select><input type="number" id="un-v" value="1"><button id="un-btn">Convert</button><div id="un-res"></div></div>
-                <div id="module-age" class="module-form" style="display: none;"><input type="date" id="ag-d"><button id="ag-btn">Calculate Age</button><div id="ag-res"></div></div>
-                <div id="module-bmi" class="module-form" style="display: none;"><input type="number" id="bm-h" placeholder="Height cm"><input type="number" id="bm-w" placeholder="Weight kg"><button id="bm-btn">Calculate BMI</button><div id="bm-res"></div></div>
-                <div id="module-discount" class="module-form" style="display: none;"><input type="number" id="di-p" placeholder="Price"><input type="number" id="di-d" placeholder="Discount %"><button id="di-btn">Calculate</button><div id="di-res"></div></div>
-                <div id="module-data" class="module-form" style="display: none;"><input type="number" id="da-v" value="1"><select id="da-f"><option value="MB">MB</option></select><select id="da-t"><option value="GB">GB</option></select><button id="da-btn">Convert</button><div id="da-res"></div></div>
+                <div id="module-graphing" class="module-form" style="display: none;"><label>Equation y = f(x)</label><input type="text" id="g-eq" placeholder="e.g. sin(x)"><div style="display: flex; gap:10px;"><div style="flex:1"><label>X Min</label><input type="number" id="g-min" value="-10"></div><div style="flex:1"><label>X Max</label><input type="number" id="g-max" value="10"></div></div><button id="btn-plot">Plot Graph</button><canvas id="graph-canvas" height="300" style="width:100%; border:1px solid var(--border); border-radius:12px;"></canvas></div>
+                <div id="module-financial" class="module-form" style="display: none;"><label>Type</label><select id="fin-t"><option value="emi">Loan EMI</option><option value="compound">Compound Interest</option></select><label>Principal (₹)</label><input type="number" id="fin-p" placeholder="100000"><label>Rate (%)</label><input type="number" id="fin-r" placeholder="7.5"><label>Time (Years)</label><input type="number" id="fin-y" placeholder="5"><button id="fin-btn">Calculate</button><div id="fin-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
+                <div id="module-currency" class="module-form" style="display: none;"><label>Amount</label><input type="number" id="cur-v" value="1"><label>From</label><select id="cur-f"><option value="USD">USD</option><option value="INR" selected>INR</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select><label>To</label><select id="cur-t"><option value="USD" selected>USD</option><option value="INR">INR</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select><button id="cur-btn">Convert Currency</button><div id="cur-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
+                <div id="module-unit" class="module-form" style="display: none;"><label>Category</label><select id="un-c"><option value="l">Length (Meters ↔ Feet)</option><option value="w">Weight (Kg ↔ Lbs)</option><option value="t">Temperature (°C ↔ °F)</option></select><label>Value</label><input type="number" id="un-v" value="1"><button id="un-btn">Convert Unit</button><div id="un-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
+                <div id="module-age" class="module-form" style="display: none;"><label>Date of Birth</label><input type="date" id="ag-d"><label>Calculate At</label><input type="date" id="ag-t"><button id="ag-btn">Calculate Age</button><div id="ag-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
+                <div id="module-bmi" class="module-form" style="display: none;"><label>Height (cm)</label><input type="number" id="bm-h" placeholder="175"><label>Weight (kg)</label><input type="number" id="bm-w" placeholder="70"><button id="bm-btn">Calculate BMI</button><div id="bm-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
+                <div id="module-discount" class="module-form" style="display: none;"><label>Original Price</label><input type="number" id="di-p" placeholder="1000"><label>Discount (%)</label><input type="number" id="di-d" placeholder="20"><button id="di-btn">Calculate Final Price</button><div id="di-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
+                <div id="module-data" class="module-form" style="display: none;"><label>Value</label><input type="number" id="da-v" value="1"><label>From</label><select id="da-f"><option value="MB" selected>MB</option><option value="GB">GB</option><option value="TB">TB</option></select><label>To</label><select id="da-t"><option value="MB">MB</option><option value="GB" selected>GB</option><option value="TB">TB</option></select><button id="da-btn">Convert Data</button><div id="da-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
 
             </div>
 
             <div class="history-sidebar">
-                <div class="history-header"><h3>History</h3><button id="btn-clear-history" style="background:none;border:none;color:#1a73e8;cursor:pointer;">Clear</button></div>
+                <div class="history-header"><h3>Calculation History</h3><button id="btn-clear-history" style="background:none;border:none;color:var(--primary);font-weight:600;cursor:pointer;">Clear</button></div>
                 <ul class="history-list" id="history-list"></ul>
             </div>
         </div>
