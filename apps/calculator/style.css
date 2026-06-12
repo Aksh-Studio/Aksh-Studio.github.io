@@ -307,73 +307,64 @@ body {
    9. MOBILE RESPONSIVENESS (SMARTPHONES)
    ========================================= */
 @media screen and (max-width: 768px) {
-    /* Make body background match calculator to look like a native app */
+    /* Reset body to block display on mobile to allow natural scrolling */
     body {
+        display: block;
         padding: 0;
         background-color: var(--calc-bg);
-        align-items: flex-start; /* Pin to top */
     }
 
-    /* Stack layout vertically, full width, full height */
+    /* Stack layout vertically and allow it to grow as tall as it needs */
     .app-layout {
         flex-direction: column;
         border-radius: 0;
         box-shadow: none;
-        height: 100vh;
+        height: auto; 
+        min-height: 100vh;
         max-width: 100%;
+        display: flex;
     }
 
     .calc-container {
-        padding: 15px;
-        flex: 1 1 auto; /* Allow shrinking/growing */
-        overflow-y: auto; /* Allow scrolling if screen is too small */
-    }
-
-    /* Push history to bottom and make it a neat drawer */
-    .history-sidebar {
+        padding: 12px;
+        flex: none; /* Prevents the container from squishing */
         width: 100%;
-        height: 35vh; /* Takes up bottom 35% of screen */
-        border-left: none;
-        border-top: 3px solid var(--primary-color);
-        flex-shrink: 0; /* Prevent it from squishing away */
     }
 
-    .history-header {
-        padding: 10px 15px;
-    }
-
-    .history-list {
-        padding: 10px;
-    }
-
-    /* Adjust sizing for fat fingers (Touch Targets) */
+    /* Adjust display text to handle very long numbers safely */
     .calc-display {
         padding: 15px;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
     }
     
     .display-main {
-        font-size: 32px; /* Slightly smaller text on mobile */
+        font-size: 32px;
+        word-break: break-all;
     }
 
-    /* Wrap tabs onto two lines if necessary */
+    /* Make tabs scrollable left-to-right instead of wrapping and crushing */
     .calc-tabs {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 5px; /* Room for scrollbar */
+        margin-bottom: 15px;
+        -webkit-overflow-scrolling: touch; /* Smooth swipe on iOS */
     }
     
     .tab-btn {
-        flex: 1 1 30%; /* Force tabs to stay reasonable width */
-        font-size: 12px;
-        padding: 8px 4px;
+        flex: 0 0 auto; /* Prevent tabs from shrinking */
+        white-space: nowrap;
+        font-size: 13px;
+        padding: 10px 15px;
     }
 
-    /* Adjust button padding to prevent them from breaking the screen width */
+    /* Grid and Button adjustments for better touch targets */
     .calc-grid {
-        gap: 8px; /* Slightly tighter grid */
+        gap: 8px;
     }
     
     .calc-btn {
-        padding: 12px 5px;
+        padding: 16px 5px;
         font-size: 18px;
     }
 
@@ -381,8 +372,27 @@ body {
         font-size: 20px;
     }
 
+    /* History panel attaches natively below the calculator */
+    .history-sidebar {
+        width: 100%;
+        height: auto;
+        min-height: 250px;
+        border-left: none;
+        border-top: 3px solid var(--primary-color);
+        padding-bottom: 40px; /* Extra padding for bottom of phone */
+        flex-shrink: 0;
+    }
+
+    .history-header {
+        padding: 15px;
+    }
+
+    .history-list {
+        padding: 15px;
+    }
+
     /* Fix Canvas size for mobile graphing */
     #graph-canvas {
-        min-height: 200px;
+        min-height: 250px;
     }
 }
