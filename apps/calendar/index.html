@@ -16,10 +16,19 @@
 
     <nav class="top-nav">
         <div class="nav-left">
-            <a href="../../dashboard.html" class="back-link">
-                <span class="material-symbols-rounded">arrow_back</span>
-                Dashboard
-            </a>
+           <div class="profile-menu" style="position: relative; display: inline-block;">
+    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 20px; transition: background 0.2s;">
+        <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar" id="header-avatar" width="36" height="36" style="border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+        <span id="header-name" style="font-weight: 500; font-size: 14px; color: var(--text-main);">Loading...</span>
+    </div>
+    <div class="dropdown-content" style="display: none; position: absolute; right: 0; top: 50px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); width: 220px; padding: 16px; z-index: 1000;">
+        <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">Personal Profile</p>
+        <p id="profile-name" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; word-break: break-all;">Name: Loading...</p>
+        <p id="profile-email" style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; word-break: break-all;">Email: ...</p>
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
+        <button id="btn-signout" style="width: 100%; background: #ff4d4f; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;">Sign Out</button>
+    </div>
+</div>
             <div class="brand">
                 <img src="../../cal-logo.png" alt="Aksh Studio Calendar" class="brand-logo">
                 <h1 class="brand-title">Aksh Calendar</h1>
