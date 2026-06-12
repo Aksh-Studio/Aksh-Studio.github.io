@@ -2,10 +2,31 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// --- THEME SYNC ---
+// ==========================================
+// UNIVERSAL THEME SYNC ENGINE
+// ==========================================
+const themeBtn = document.getElementById('theme-toggle');
+
+// 1. Check local storage on load
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
+    if (themeBtn) themeBtn.innerText = 'Light Mode';
 }
+
+// 2. Allow user to toggle theme from inside the Calculator!
+if (themeBtn) {
+    themeBtn.onclick = () => {
+        document.body.classList.toggle('dark-theme');
+        if (document.body.classList.contains('dark-theme')) {
+            localStorage.setItem('theme', 'dark');
+            themeBtn.innerText = 'Light Mode';
+        } else {
+            localStorage.setItem('theme', 'light');
+            themeBtn.innerText = 'Dark Mode';
+        }
+    };
+}
+
 
 const firebaseConfig = {
     apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
@@ -22,10 +43,13 @@ let currentMode = "scientific";
 
 const dMain = document.getElementById('display-main');
 const dHist = document.getElementById('display-history');
+const displayContainer = document.getElementById('main-display-container');
 
 onAuthStateChanged(auth, user => { if(user){ currentUser = user; loadHistory(); }});
 
-// --- Tab Controller ---
+// ==========================================
+// TAB CONTROLLER (Fixes the Display Bug)
+// ==========================================
 const tabs = ['scientific', 'algebra', 'trigonometry', 'calculus', 'graphing', 'financial', 'currency', 'unit', 'age', 'bmi', 'discount', 'data'];
 tabs.forEach(t => {
     document.getElementById(`tab-${t}`).onclick = () => {
@@ -42,12 +66,12 @@ tabs.forEach(t => {
         else if(t==='calculus') btn.classList.add('active-calc');
         else btn.classList.add('active');
 
+        // CRITICAL FIX: Only show the black display screen for the 4 math modes!
+        const isMathMode = ['scientific', 'algebra', 'trigonometry', 'calculus'].includes(t);
+        displayContainer.style.display = isMathMode ? 'flex' : 'none';
+
         const mod = document.getElementById(`module-${t}`);
-        if(['scientific','algebra','trigonometry','calculus'].includes(t)) {
-            mod.style.display = 'grid';
-        } else {
-            mod.style.display = 'flex';
-        }
+        mod.style.display = isMathMode ? 'grid' : 'flex';
     };
 });
 
@@ -156,8 +180,16 @@ document.getElementById('btn-clear-history').onclick = async () => {
     snap.forEach(async (d) => await deleteDoc(d.ref));
 };
 
-// --- Keyboard Support ---
+// ==========================================
+// KEYBOARD HANDLER (Fixes the form typing bug)
+// ==========================================
 window.addEventListener('keydown', (e) => {
+    // CRITICAL FIX: Only capture keys if the user is using one of the 4 Math modes!
+    if (!['scientific', 'algebra', 'trigonometry', 'calculus'].includes(currentMode)) return;
+
+    // Prevent intercepting if the user somehow clicked inside an input field
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
     const valid = '0123456789.+-*/()xy=';
     if(valid.includes(e.key)) { e.preventDefault(); currentEq += e.key; updateDisplay(currentEq); }
     if(e.key === 'Backspace') { e.preventDefault(); currentEq = currentEq.slice(0,-1); updateDisplay(currentEq); }
