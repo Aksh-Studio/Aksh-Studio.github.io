@@ -3,245 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Google Calendar | Workspace Suite</title>
+    <title>Calendar | Aksh Studio</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="../../cal-logo.png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="light-theme">
+<body>
 
-    <header class="gc-header">
-        <div class="header-left">
-            <button class="icon-btn tooltip-anchor" id="btn-toggle-sidebar" aria-label="Main menu">
-                <span class="material-symbols-outlined">menu</span>
-                <span class="tooltip">Main menu</span>
-            </button>
-            <div class="logo-container">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" alt="Calendar Logo" class="gc-logo">
-                <span class="logo-text">Calendar</span>
-            </div>
-            <button class="btn-today" id="btn-today">Today</button>
-            <div class="date-nav">
-                <button class="icon-btn tooltip-anchor" id="btn-prev-date">
-                    <span class="material-symbols-outlined">chevron_left</span>
-                    <span class="tooltip">Previous</span>
-                </button>
-                <button class="icon-btn tooltip-anchor" id="btn-next-date">
-                    <span class="material-symbols-outlined">chevron_right</span>
-                    <span class="tooltip">Next</span>
-                </button>
-            </div>
-            <h2 class="current-date-display" id="current-date-display">Month Year</h2>
-        </div>
-
-        <div class="header-right">
-            <button class="icon-btn tooltip-anchor" id="btn-search">
-                <span class="material-symbols-outlined">search</span>
-                <span class="tooltip">Search</span>
-            </button>
-            <button class="icon-btn tooltip-anchor" id="btn-support">
-                <span class="material-symbols-outlined">help</span>
-                <span class="tooltip">Support</span>
-            </button>
-            <button class="icon-btn tooltip-anchor" id="btn-settings">
-                <span class="material-symbols-outlined">settings</span>
-                <span class="tooltip">Settings menu</span>
-            </button>
-            
-            <div class="dropdown-wrapper">
-                <button class="view-switcher-btn" id="btn-view-switcher">
-                    <span id="current-view-text">Month</span>
-                    <span class="material-symbols-outlined">arrow_drop_down</span>
-                </button>
-                <ul class="dropdown-menu" id="view-dropdown" style="display: none;">
-                    <li data-view="day">Day <span class="shortcut">D</span></li>
-                    <li data-view="week">Week <span class="shortcut">W</span></li>
-                    <li data-view="month" class="active-view">Month <span class="shortcut">M</span></li>
-                    <li data-view="year">Year <span class="shortcut">Y</span></li>
-                    <li data-view="agenda">Schedule <span class="shortcut">A</span></li>
-                </ul>
-            </div>
-
-            <button class="icon-btn tooltip-anchor" id="btn-apps">
-                <span class="material-symbols-outlined">apps</span>
-                <span class="tooltip">Google apps</span>
-            </button>
-            
-            <a href="../../dashboard.html" class="profile-link tooltip-anchor">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="profile-avatar" id="user-avatar">
-                <span class="tooltip">Back to Dashboard</span>
+    <nav class="top-nav">
+        <div class="nav-left">
+            <a href="../../dashboard.html" class="back-link">
+                <span class="material-symbols-rounded">arrow_back</span>
+                Dashboard
             </a>
-        </div>
-    </header>
-
-    <div class="gc-app-body">
-        
-        <aside class="gc-sidebar" id="main-sidebar">
-            <div class="create-wrapper">
-                <button class="btn-create shadow-hover" id="btn-create-master">
-                    <svg width="36" height="36" viewBox="0 0 36 36"><path fill="#34A853" d="M16 16v14h4V20z"></path><path fill="#4285F4" d="M30 16H20l-4 4h14z"></path><path fill="#FBBC05" d="M6 16v4h10l4-4z"></path><path fill="#EA4335" d="M20 16V6h-4v14z"></path><path fill="none" d="M0 0h36v36H0z"></path></svg>
-                    <span>Create</span>
-                    <span class="material-symbols-outlined dropdown-arrow">arrow_drop_down</span>
-                </button>
-                <ul class="dropdown-menu create-menu" id="create-dropdown" style="display: none;">
-                    <li id="create-event"><span class="material-symbols-outlined">event</span> Event</li>
-                    <li id="create-task"><span class="material-symbols-outlined">task_alt</span> Task</li>
-                    <li id="create-appointment"><span class="material-symbols-outlined">book_online</span> Appointment schedule</li>
-                </ul>
+            <div class="brand">
+                <img src="../../cal-logo.png" alt="Aksh Studio Calendar" class="brand-logo">
+                <h1 class="brand-title">Workspace Calendar</h1>
             </div>
+        </div>
 
-            <div class="mini-calendar" id="mini-calendar">
+        <div class="nav-right">
+            <button id="theme-toggle" class="btn-outline">
+                <span class="material-symbols-rounded" id="theme-icon">dark_mode</span>
+            </button>
+            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar">
+        </div>
+    </nav>
+
+    <div class="app-workspace">
+        
+        <aside class="sidebar-left">
+            <button class="btn-primary-large" id="btn-create-event">
+                <span class="material-symbols-rounded">add</span>
+                New Event
+            </button>
+
+            <div class="mini-cal-widget">
                 <div class="mini-cal-header">
-                    <span class="mini-cal-title" id="mini-cal-month">Month Year</span>
-                    <div>
-                        <button class="icon-btn-small" id="mini-prev"><span class="material-symbols-outlined">chevron_left</span></button>
-                        <button class="icon-btn-small" id="mini-next"><span class="material-symbols-outlined">chevron_right</span></button>
+                    <span id="mini-month-year">Loading...</span>
+                    <div class="mini-arrows">
+                        <button id="mini-prev"><span class="material-symbols-rounded">chevron_left</span></button>
+                        <button id="mini-next"><span class="material-symbols-rounded">chevron_right</span></button>
                     </div>
                 </div>
-                <div class="mini-cal-days-header">
+                <div class="mini-cal-days">
                     <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
                 </div>
-                <div class="mini-cal-grid" id="mini-cal-grid">
+                <div class="mini-cal-grid" id="mini-grid">
                     </div>
             </div>
 
-            <div class="meet-with-input">
-                <span class="material-symbols-outlined">people</span>
-                <input type="text" placeholder="Meet with...">
-            </div>
-
-            <div class="calendar-list-section">
-                <div class="section-header" id="toggle-my-cals">
-                    <span class="material-symbols-outlined chevron">expand_more</span>
-                    <h4>My calendars</h4>
-                </div>
-                <ul class="calendar-list" id="my-calendars-list">
-                    <li><input type="checkbox" checked id="cal-personal"> <label for="cal-personal" class="cal-color-user">Personal</label></li>
-                    <li><input type="checkbox" checked id="cal-work"> <label for="cal-work" class="cal-color-work">Work</label></li>
-                    <li><input type="checkbox" checked id="cal-tasks"> <label for="cal-tasks" class="cal-color-tasks">Tasks</label></li>
-                </ul>
-            </div>
-
-            <div class="calendar-list-section">
-                <div class="section-header" id="toggle-other-cals">
-                    <span class="material-symbols-outlined chevron">expand_more</span>
-                    <h4>Other calendars</h4>
-                    <button class="icon-btn-small add-cal"><span class="material-symbols-outlined">add</span></button>
-                </div>
-                <ul class="calendar-list" id="other-calendars-list">
-                    <li><input type="checkbox" checked id="cal-holidays"> <label for="cal-holidays" class="cal-color-holidays">Holidays in India</label></li>
-                </ul>
+            <div class="filter-section">
+                <h3>My Schedules</h3>
+                <label class="custom-checkbox">
+                    <input type="checkbox" checked value="personal">
+                    <span class="checkmark personal"></span> Personal
+                </label>
+                <label class="custom-checkbox">
+                    <input type="checkbox" checked value="work">
+                    <span class="checkmark work"></span> Work / Projects
+                </label>
+                <label class="custom-checkbox">
+                    <input type="checkbox" checked value="important">
+                    <span class="checkmark important"></span> Important
+                </label>
             </div>
         </aside>
 
-        <main class="gc-viewport" id="calendar-viewport">
-            <div class="loading-state">Loading your calendar...</div>
+        <main class="calendar-center">
+            <div class="cal-controls">
+                <div class="date-stepper">
+                    <button class="btn-today" id="btn-today">Today</button>
+                    <button class="icon-btn" id="btn-main-prev"><span class="material-symbols-rounded">chevron_left</span></button>
+                    <button class="icon-btn" id="btn-main-next"><span class="material-symbols-rounded">chevron_right</span></button>
+                    <h2 id="main-month-year" class="main-date-title">Loading...</h2>
+                </div>
+                
+                <div class="view-switcher">
+                    <button class="view-btn" data-view="day">Day</button>
+                    <button class="view-btn" data-view="week">Week</button>
+                    <button class="view-btn active" data-view="month">Month</button>
+                </div>
+            </div>
+
+            <div class="main-grid-container" id="main-calendar-grid">
+                <div class="loading-pulse">Rendering Calendar...</div>
+            </div>
         </main>
 
-        <aside class="right-sidebar">
-            <button class="side-app-btn tooltip-anchor"><img src="https://upload.wikimedia.org/wikipedia/commons/d/df/Google_Keep_icon.svg" alt="Keep"><span class="tooltip left">Keep</span></button>
-            <button class="side-app-btn tooltip-anchor"><img src="https://upload.wikimedia.org/wikipedia/commons/5/5b/Google_Tasks_2021.svg" alt="Tasks"><span class="tooltip left">Tasks</span></button>
-            <button class="side-app-btn tooltip-anchor"><img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" alt="Maps"><span class="tooltip left">Maps</span></button>
-            <div class="divider"></div>
-            <button class="side-app-btn tooltip-anchor"><span class="material-symbols-outlined">add</span><span class="tooltip left">Get Add-ons</span></button>
+        <aside class="sidebar-right ai-panel">
+            <div class="ai-header">
+                <span class="material-symbols-rounded ai-sparkle">auto_awesome</span>
+                <h3>Smart Planner</h3>
+            </div>
+            
+            <div class="ai-chat-area" id="ai-chat-history">
+                <div class="ai-msg">
+                    Hi! I'm your scheduling AI. Type naturally to add an event.
+                </div>
+                <div class="ai-msg prompt-suggestion">
+                    Try: "Meeting with team tomorrow at 3 PM for 2 hours"
+                </div>
+            </div>
+
+            <div class="ai-input-area">
+                <input type="text" id="ai-prompt-input" placeholder="Ask AI to schedule...">
+                <button class="btn-ai-send" id="btn-ai-send">
+                    <span class="material-symbols-rounded">send</span>
+                </button>
+            </div>
+
+            <hr class="ai-divider">
+
+            <div class="agenda-section">
+                <h3>Upcoming Next</h3>
+                <ul class="agenda-list" id="upcoming-agenda">
+                    <p class="empty-state">No upcoming events.</p>
+                </ul>
+            </div>
         </aside>
 
     </div>
 
-    <div class="modal-overlay" id="global-modal-overlay" style="display: none;">
+    <div class="modal-overlay" id="modal-overlay" style="display: none;">
         
-        <div class="modal-box event-modal" id="modal-event" style="display: none;">
-            <div class="modal-header drag-handle">
-                <div class="modal-actions">
-                    <button class="icon-btn-small" id="btn-close-event"><span class="material-symbols-outlined">close</span></button>
-                </div>
-                <button class="btn-save" id="btn-save-event">Save</button>
+        <div class="custom-modal" id="event-modal">
+            <div class="modal-head">
+                <h3 id="modal-title-text">Create Event</h3>
+                <button class="icon-btn-close" id="btn-close-modal">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
             </div>
-            <div class="modal-body scrollable">
-                <input type="text" class="input-title" id="event-title" placeholder="Add title">
+            
+            <div class="modal-body">
+                <input type="text" id="event-title" class="modern-input large" placeholder="Event Title">
                 
-                <div class="event-tabs">
-                    <button class="active">Event</button>
-                    <button>Task</button>
-                    <button>Focus time</button>
-                    <button>Out of office</button>
-                </div>
-
-                <div class="form-row icon-row">
-                    <span class="material-symbols-outlined icon-muted">schedule</span>
-                    <div class="time-controls">
-                        <div class="date-time-group">
-                            <input type="date" id="event-start-date">
-                            <input type="time" id="event-start-time">
-                            <span class="to-text">to</span>
-                            <input type="time" id="event-end-time">
-                            <input type="date" id="event-end-date">
-                        </div>
-                        <div class="timezone-recurrence">
-                            <label><input type="checkbox" id="event-all-day"> All day</label>
-                            <select id="event-recurrence">
-                                <option value="none">Does not repeat</option>
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
-                                <option value="yearly">Annually</option>
-                                <option value="custom">Custom...</option>
-                            </select>
-                        </div>
+                <div class="datetime-group">
+                    <div class="input-wrap">
+                        <span class="material-symbols-rounded">calendar_month</span>
+                        <input type="date" id="event-date" class="modern-input">
+                    </div>
+                    <div class="input-wrap">
+                        <span class="material-symbols-rounded">schedule</span>
+                        <input type="time" id="event-time" class="modern-input">
                     </div>
                 </div>
 
-                <div class="form-row icon-row">
-                    <span class="material-symbols-outlined icon-muted">videocam</span>
-                    <button class="btn-add-meet" id="btn-add-meet">Add Google Meet video conferencing</button>
-                    <div id="meet-link-container" style="display:none;" class="meet-active-box">
-                        <a href="#" target="_blank" id="meet-link" class="meet-link">meet.google.com/xyz-abcd-efg</a>
-                        <button class="icon-btn-small"><span class="material-symbols-outlined">content_copy</span></button>
-                        <button class="icon-btn-small" id="btn-remove-meet"><span class="material-symbols-outlined">close</span></button>
-                    </div>
+                <div class="input-wrap">
+                    <span class="material-symbols-rounded">label</span>
+                    <select id="event-category" class="modern-select">
+                        <option value="personal">Personal</option>
+                        <option value="work">Work / Projects</option>
+                        <option value="important">Important</option>
+                    </select>
                 </div>
 
-                <div class="form-row icon-row">
-                    <span class="material-symbols-outlined icon-muted">location_on</span>
-                    <input type="text" class="input-standard" id="event-location" placeholder="Add location">
-                </div>
-
-                <div class="form-row icon-row">
-                    <span class="material-symbols-outlined icon-muted">subject</span>
-                    <textarea class="input-standard textarea-desc" id="event-desc" placeholder="Add description or attachments"></textarea>
-                </div>
-
-                <div class="form-row icon-row">
-                    <span class="material-symbols-outlined icon-muted">event_available</span>
-                    <div class="cal-color-group">
-                        <select id="event-calendar" class="input-standard select-small">
-                            <option value="personal">Personal</option>
-                            <option value="work">Work</option>
-                        </select>
-                        <input type="color" id="event-color" class="color-picker" value="#039be5" title="Event Color">
-                    </div>
+                <div class="input-wrap align-top">
+                    <span class="material-symbols-rounded">notes</span>
+                    <textarea id="event-desc" class="modern-input textarea" placeholder="Add description or notes..."></textarea>
                 </div>
             </div>
-        </div>
 
-        <div class="modal-box view-modal" id="modal-view-event" style="display: none;">
-            <div class="modal-header">
-                <div class="modal-actions right-align">
-                    <button class="icon-btn-small tooltip-anchor" id="btn-edit-event"><span class="material-symbols-outlined">edit</span><span class="tooltip">Edit event</span></button>
-                    <button class="icon-btn-small tooltip-anchor" id="btn-delete-event"><span class="material-symbols-outlined">delete</span><span class="tooltip">Delete event</span></button>
-                    <button class="icon-btn-small" id="btn-close-view"><span class="material-symbols-outlined">close</span></button>
-                </div>
+            <div class="modal-foot">
+                <button class="btn-text" id="btn-delete-event" style="display: none; color: #ff4d4f;">Delete</button>
+                <button class="btn-primary" id="btn-save-event">Save Event</button>
             </div>
-            <div class="modal-body" id="view-modal-content">
-                </div>
         </div>
-
     </div>
 
-    <script type="module" src="app.js"></script>
+    <script type="module" src="cal.js"></script>
 </body>
 </html>
