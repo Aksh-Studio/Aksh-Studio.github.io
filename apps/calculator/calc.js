@@ -53,7 +53,7 @@ function switchTab(activeTab) {
 document.getElementById('age-target').valueAsDate = new Date();
 
 // ==========================================
-// 2. CORE SCIENTIFIC LOGIC & HISTORY
+// 2. CORE SCIENTIFIC LOGIC & KEYBOARD
 // ==========================================
 function updateDisplay(mainTxt, subTxt = "") {
     displayMain.innerText = mainTxt || "0";
@@ -71,6 +71,7 @@ function calculateResult() {
     } catch (e) { updateDisplay("Error"); currentExpression = ""; }
 }
 
+// Mouse Click Listeners
 document.querySelectorAll('.calc-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const val = btn.getAttribute('data-val');
@@ -80,6 +81,38 @@ document.querySelectorAll('.calc-btn').forEach(btn => {
         else if (val) currentExpression += val;
         updateDisplay(currentExpression);
     });
+});
+
+// MISSING KEYBOARD LOGIC RESTORED HERE
+window.addEventListener('keydown', (e) => {
+    // Only hijack the keyboard if the Scientific tab is active
+    if (!tabs['scientific'].classList.contains('active')) return;
+    
+    const validKeys = ['0','1','2','3','4','5','6','7','8','9','.','+','-','*','/','(',')'];
+    
+    if (validKeys.includes(e.key)) {
+        e.preventDefault(); 
+        if (currentExpression === "Error") currentExpression = "";
+        currentExpression += e.key;
+        updateDisplay(currentExpression);
+    }
+    
+    if (e.key === 'Enter' || e.key === '=') {
+        e.preventDefault();
+        calculateResult();
+    }
+    
+    if (e.key === 'Backspace') {
+        e.preventDefault();
+        currentExpression = currentExpression.slice(0, -1);
+        updateDisplay(currentExpression || "0");
+    }
+    
+    if (e.key === 'Escape' || e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        currentExpression = "";
+        updateDisplay("0", "");
+    }
 });
 
 async function saveToCloudHistory(eq, res) {
@@ -103,7 +136,6 @@ document.getElementById('btn-clear-history').addEventListener('click', async () 
         snap.forEach(async (docSnap) => await deleteDoc(docSnap.ref));
     }
 });
-
 
 // ==========================================
 // 3. ALGEBRA CALCULATOR
@@ -185,7 +217,6 @@ document.getElementById('calc-int-btn').addEventListener('click', () => {
     try {
         const code = math.compile(fStr);
         const f = (x) => code.evaluate({x: x});
-        // Simpson's 1/3 Rule numerical integration
         let n = 1000; let h = (b - a) / n; let sum = f(a) + f(b);
         for(let i=1; i<n; i+=2) sum += 4 * f(a + i*h);
         for(let i=2; i<n-1; i+=2) sum += 2 * f(a + i*h);
