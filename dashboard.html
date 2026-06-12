@@ -16,9 +16,12 @@
         .dropdown-btn { width: 100%; padding: 10px; background: #128C7E; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
         .dropdown-btn.outline { background: transparent; color: #128C7E; border: 1px solid #128C7E; }
         .dropdown-btn:hover { opacity: 0.9; }
-
-        /* Custom App Tile Logo Styling */
         .tile-logo { width: 54px; height: 54px; object-fit: contain; margin-bottom: 12px; display: block; }
+        
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-box { background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 350px; text-align: left; }
+        .modal-box input, .modal-box select { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
     </style>
 </head>
 <body class="dashboard-body">
@@ -30,17 +33,18 @@
         
         <div class="profile-menu">
             <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover;">
+                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover; border: 2px solid #128C7E;" title="Click to change picture">
                 <span id="header-name" style="font-weight: 500; font-size: 14px;">Loading...</span>
             </div>
             <div class="dropdown-content">
-                <p style="font-size: 12px; color: #888; text-transform: uppercase;">Profile Details</p>
+                <p style="font-size: 12px; color: #888; text-transform: uppercase;">Personal Profile</p>
                 <p id="profile-name"><strong>Name:</strong> Loading...</p>
                 <p id="profile-email"><strong>Email:</strong> loading@example.com</p>
+                <p id="profile-gender"><strong>Gender:</strong> -</p>
                 <p id="profile-dob"><strong>DOB:</strong> -</p>
                 <p id="profile-phone"><strong>Phone:</strong> -</p>
                 <hr>
-                <button id="btn-edit-security" class="dropdown-btn outline">Edit DOB & Phone</button>
+                <button id="btn-edit-security" class="dropdown-btn outline">Edit Personal Info</button>
                 <button id="btn-bind-account" class="dropdown-btn outline">Link Account</button>
                 <button id="btn-signout" class="dropdown-btn" style="background: #ff4d4f;">Sign Out</button>
             </div>
@@ -49,7 +53,6 @@
 
     <main class="hub-container">
         <h3>My Applications</h3>
-        <p class="hub-welcome">Select a utility tool to begin working</p>
         <div class="app-grid">
             <a href="apps/chat/index.html" class="app-tile">
                 <img src="chat-logo.png" alt="Chat App Logo" class="tile-logo">
@@ -69,24 +72,63 @@
         </div>
     </main>
 
-    <div id="security-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 1000;">
-        <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 350px; text-align: left;">
-            <h3 style="margin-top: 0;">Update Security Questions</h3>
-            <label style="font-size: 12px; font-weight: 500;">Date of Birth:</label>
-            <input type="date" id="edit-dob" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            <label style="font-size: 12px; font-weight: 500;">Phone Number:</label>
-            <input type="tel" id="edit-phone" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+    <div id="security-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="margin-top: 0; color: #128C7E;">Update Personal Info</h3>
+            
+            <label style="font-size: 12px;">First Name:</label>
+            <input type="text" id="edit-first">
+            
+            <label style="font-size: 12px;">Middle Name:</label>
+            <input type="text" id="edit-middle">
+            
+            <label style="font-size: 12px;">Last Name:</label>
+            <input type="text" id="edit-last">
+
+            <label style="font-size: 12px;">Gender:</label>
+            <select id="edit-gender">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label style="font-size: 12px;">Date of Birth:</label>
+            <input type="date" id="edit-dob">
+            
+            <label style="font-size: 12px;">Phone Number:</label>
+            <input type="tel" id="edit-phone">
+            
             <div style="display: flex; gap: 10px;">
-                <button id="btn-save-security" class="dropdown-btn" style="flex: 1; margin: 0;">Save Changes</button>
+                <button id="btn-save-security" class="dropdown-btn" style="flex: 1; margin: 0;">Save</button>
                 <button id="btn-cancel-security" class="dropdown-btn outline" style="flex: 1; margin: 0;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="picture-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="margin-top: 0; color: #128C7E;">Update Profile Picture</h3>
+            <p style="font-size: 12px; color: #666;">Choose a file from your device, or paste an image URL.</p>
+            
+            <label style="font-size: 12px; font-weight: bold;">Upload File:</label>
+            <input type="file" id="upload-pic" accept="image/*" style="border: none; padding: 0;">
+            
+            <p style="text-align: center; font-size: 12px; margin: 5px 0;">- OR -</p>
+            
+            <label style="font-size: 12px; font-weight: bold;">Paste Image URL:</label>
+            <input type="url" id="url-pic" placeholder="https://...">
+
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button id="btn-save-pic" class="dropdown-btn" style="flex: 1; margin: 0;">Update Picture</button>
+                <button id="btn-cancel-pic" class="dropdown-btn outline" style="flex: 1; margin: 0;">Cancel</button>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, linkWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut, linkWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, sendEmailVerification, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
@@ -94,8 +136,7 @@
             projectId: "aksh-studio",
             storageBucket: "aksh-studio.firebasestorage.app",
             messagingSenderId: "349325785973",
-            appId: "1:349325785973:web:86d5a15bcb700bfc15b13c",
-            measurementId: "G-R96N91NV2X"
+            appId: "1:349325785973:web:86d5a15bcb700bfc15b13c"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -108,46 +149,112 @@
                 return;
             }
 
-            const displayName = user.displayName || "Studio User";
-            document.getElementById('header-name').innerText = displayName;
-            document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${displayName}`;
+            // Set Display Name (from Auth or Firestore)
+            let displayName = user.displayName;
             document.getElementById('profile-email').innerHTML = `<strong>Email:</strong> ${user.email}`;
-            if (user.photoURL) document.getElementById('profile-pic').src = user.photoURL;
 
+            // Fetch Personal Data from Firestore
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
+            let userData = {};
+
             if (userDoc.exists()) {
-                const data = userDoc.data();
-                document.getElementById('profile-dob').innerHTML = `<strong>DOB:</strong> ${data.dob || "Not Set"}`;
-                document.getElementById('profile-phone').innerHTML = `<strong>Phone:</strong> ${data.phone || "Not Set"}`;
-                document.getElementById('edit-dob').value = data.dob || "";
-                document.getElementById('edit-phone').value = data.phone || "";
+                userData = userDoc.data();
+                
+                // If Name is missing from auth but in Firestore, use Firestore
+                if (!displayName && userData.firstName) {
+                    displayName = `${userData.firstName} ${userData.lastName || ""}`.trim();
+                }
+
+                // Populate Dropdown text
+                document.getElementById('profile-dob').innerHTML = `<strong>DOB:</strong> ${userData.dob || "-"}`;
+                document.getElementById('profile-phone').innerHTML = `<strong>Phone:</strong> ${userData.phone || "-"}`;
+                document.getElementById('profile-gender').innerHTML = `<strong>Gender:</strong> ${userData.gender || "-"}`;
+                
+                // Populate Edit Modal inputs
+                document.getElementById('edit-first').value = userData.firstName || "";
+                document.getElementById('edit-middle').value = userData.middleName || "";
+                document.getElementById('edit-last').value = userData.lastName || "";
+                document.getElementById('edit-dob').value = userData.dob || "";
+                document.getElementById('edit-phone').value = userData.phone || "";
+                if(userData.gender) document.getElementById('edit-gender').value = userData.gender;
+
+                // Load Custom Profile Picture if saved in DB
+                if (userData.customProfilePic) {
+                    document.getElementById('profile-pic').src = userData.customProfilePic;
+                } else if (user.photoURL) {
+                    document.getElementById('profile-pic').src = user.photoURL;
+                }
             }
 
+            // Set UI Names
+            displayName = displayName || "Studio User";
+            document.getElementById('header-name').innerText = displayName;
+            document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${displayName}`;
+
+            // ==========================================
+            // Account Binding Logic (With 24h Expiry)
+            // ==========================================
             const providers = user.providerData.map(p => p.providerId);
             const bindBtn = document.getElementById('btn-bind-account');
 
-            if (providers.includes('password') && !providers.includes('google.com')) {
+            // Check if there is a pending binding request
+            if (userData.pendingBindingTime) {
+                const hoursPassed = (Date.now() - userData.pendingBindingTime) / (1000 * 60 * 60);
+                
+                if (user.emailVerified) {
+                    // Success! They clicked the link. Remove pending status.
+                    await updateDoc(userDocRef, { pendingBindingTime: deleteField() });
+                    bindBtn.innerText = "Account Fully Bound";
+                    bindBtn.disabled = true;
+                    bindBtn.style.opacity = "0.5";
+                } else if (hoursPassed > 24) {
+                    // Over 24 hours without clicking link
+                    bindBtn.innerText = "Binding Expired - Retry";
+                    bindBtn.style.background = "#d9534f";
+                    bindBtn.onclick = () => alert("Your previous verification link expired. Please sign out, sign in with Google, and try linking again.");
+                } else {
+                    // Waiting for them to click
+                    bindBtn.innerText = "Pending Binding (Check Email)";
+                    bindBtn.style.background = "#f0ad4e";
+                    bindBtn.onclick = () => alert("We sent a verification link to your email. You must click it within 24 hours to finalize the binding.");
+                }
+            } 
+            // If Not Pending, figure out what they can bind
+            else if (providers.includes('google.com') && !providers.includes('password')) {
+                bindBtn.innerText = "Link Email/Password";
+                bindBtn.onclick = async () => {
+                    const bindEmail = prompt("Enter the Email address you want to bind:");
+                    if(!bindEmail) return;
+                    const bindPass = prompt("Enter a secure Password for this binding:");
+                    if(!bindPass) return;
+
+                    try {
+                        const credential = EmailAuthProvider.credential(bindEmail, bindPass);
+                        await linkWithCredential(auth.currentUser, credential);
+                        
+                        // Send verification to the new email
+                        await sendEmailVerification(auth.currentUser);
+                        
+                        // Start 24h timer in Database
+                        await setDoc(doc(db, "users", auth.currentUser.uid), {
+                            pendingBindingTime: Date.now()
+                        }, { merge: true });
+
+                        alert("Success! A verification link has been sent to that email. You have 24 hours to click it.");
+                        window.location.reload();
+                    } catch(e) {
+                        alert(e.message);
+                    }
+                };
+            } 
+            else if (providers.includes('password') && !providers.includes('google.com')) {
                 bindBtn.innerText = "Link Google Account";
                 bindBtn.onclick = () => {
-                    const provider = new GoogleAuthProvider();
-                    linkWithPopup(auth.currentUser, provider).then(() => {
+                    linkWithPopup(auth.currentUser, new GoogleAuthProvider()).then(() => {
                         alert("Google Account Successfully Linked!");
                         window.location.reload();
                     }).catch(e => alert(e.message));
-                };
-            } 
-            else if (providers.includes('google.com') && !providers.includes('password')) {
-                bindBtn.innerText = "Link Email/Password";
-                bindBtn.onclick = () => {
-                    const newPassword = prompt("Set a password for your new Email binding:");
-                    if(newPassword) {
-                        const credential = EmailAuthProvider.credential(user.email, newPassword);
-                        linkWithCredential(auth.currentUser, credential).then(() => {
-                            alert("Email/Password Successfully Linked!");
-                            window.location.reload();
-                        }).catch(e => alert(e.message));
-                    }
                 };
             } else {
                 bindBtn.innerText = "Account Fully Bound";
@@ -156,24 +263,82 @@
             }
         });
 
+        // ==========================================
+        // Modal 1: Edit Personal Details
+        // ==========================================
         const securityModal = document.getElementById('security-modal');
         document.getElementById('btn-edit-security').addEventListener('click', () => securityModal.style.display = "flex");
         document.getElementById('btn-cancel-security').addEventListener('click', () => securityModal.style.display = "none");
 
         document.getElementById('btn-save-security').addEventListener('click', async () => {
-            const newDob = document.getElementById('edit-dob').value;
-            const newPhone = document.getElementById('edit-phone').value;
+            const f = document.getElementById('edit-first').value.trim();
+            const m = document.getElementById('edit-middle').value.trim();
+            const l = document.getElementById('edit-last').value.trim();
             
-            if(!newDob || !newPhone) return alert("Fields cannot be empty.");
+            if(!f) return alert("First name is required.");
 
+            // Update Auth Profile Display Name
+            const fullName = `${f} ${l}`.trim();
+            await updateProfile(auth.currentUser, { displayName: fullName });
+
+            // Update Firestore
             await setDoc(doc(db, "users", auth.currentUser.uid), {
-                dob: newDob,
-                phone: newPhone
+                firstName: f,
+                middleName: m,
+                lastName: l,
+                fullName: fullName,
+                dob: document.getElementById('edit-dob').value,
+                phone: document.getElementById('edit-phone').value,
+                gender: document.getElementById('edit-gender').value
             }, { merge: true });
 
-            alert("Security details updated successfully.");
+            alert("Personal details updated successfully.");
             window.location.reload();
         });
+
+        // ==========================================
+        // Modal 2: Update Profile Picture
+        // ==========================================
+        const picModal = document.getElementById('picture-modal');
+        document.getElementById('profile-pic').addEventListener('click', () => picModal.style.display = "flex");
+        document.getElementById('btn-cancel-pic').addEventListener('click', () => picModal.style.display = "none");
+
+        document.getElementById('btn-save-pic').addEventListener('click', async () => {
+            const fileInput = document.getElementById('upload-pic');
+            const urlInput = document.getElementById('url-pic').value;
+            
+            let finalImageStr = "";
+
+            if (fileInput.files.length > 0) {
+                // Convert uploaded file to Base64 String
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    finalImageStr = e.target.result;
+                    await finishPictureUpdate(finalImageStr);
+                };
+                reader.readAsDataURL(file);
+            } else if (urlInput) {
+                // Use pasted URL
+                finalImageStr = urlInput;
+                await finishPictureUpdate(finalImageStr);
+            } else {
+                alert("Please upload a file or paste a URL.");
+            }
+        });
+
+        async function finishPictureUpdate(imageString) {
+            // Save to Firestore so it remembers on next login
+            await setDoc(doc(db, "users", auth.currentUser.uid), {
+                customProfilePic: imageString
+            }, { merge: true });
+            
+            // Also update Firebase Auth core object
+            await updateProfile(auth.currentUser, { photoURL: imageString });
+            
+            alert("Profile Picture Updated!");
+            window.location.reload();
+        }
 
         document.getElementById('btn-signout').addEventListener('click', () => {
             signOut(auth).then(() => window.location.href = "index.html");
