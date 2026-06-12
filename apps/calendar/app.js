@@ -290,10 +290,10 @@ function renderAgenda() {
 }
 
 // ==========================================
-// 6. ✨ ADVANCED NLP SMART PLANNER
+// 6. ✨ AKSH STUDIO ADVANCED INTENT & NLP ENGINE
 // ==========================================
-// Import the powerful Chrono NLP engine via ESM
 import * as chrono from 'https://esm.sh/chrono-node@2.4.2';
+import { collection, addDoc, getDocs, deleteDoc, query, where, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const aiInput = document.getElementById('ai-prompt-input');
 const btnAiSend = document.getElementById('btn-ai-send');
@@ -320,89 +320,142 @@ btnAiSend.onclick = async () => {
     addAiMessage(text, true);
     aiInput.value = "";
 
-    // Simulate AI "Thinking" Delay for UX
+    // Append Thinking Indicator
     const typingIndicator = document.createElement('div');
     typingIndicator.className = 'ai-msg';
-    typingIndicator.innerText = "Thinking...";
+    typingIndicator.innerText = "Processing intent...";
     typingIndicator.style.fontStyle = "italic";
     typingIndicator.style.opacity = "0.6";
     aiChat.appendChild(typingIndicator);
     aiChat.scrollTop = aiChat.scrollHeight;
 
     setTimeout(async () => {
-        aiChat.removeChild(typingIndicator); // Remove "Thinking..."
+        aiChat.removeChild(typingIndicator);
+        const lowerText = text.toLowerCase();
 
-        // --- 1. NLP DATE/TIME PARSING ---
-        const parsedResults = chrono.parse(text);
+        // ==========================================
+        // ADVANCED FEATURE 1: INTENT CLASSIFICATION (Beyond Scheduling)
+        // ==========================================
+        
+        // ACTION A: BATCH DELETION / CLEARING BY CATEGORY
+        if (lowerText.startsWith('clear') || lowerText.startsWith('delete all')) {
+            let targetCategory = null;
+            if (lowerText.includes('work')) targetCategory = 'work';
+            if (lowerText.includes('personal')) targetCategory = 'personal';
+            if (lowerText.includes('important')) targetCategory = 'important';
+
+            if (targetCategory) {
+                try {
+                    const qRef = query(collection(db, `users/${currentUser.uid}/calendarEvents`), where("category", "==", targetCategory));
+                    const snap = await getDocs(qRef);
+                    let count = 0;
+                    for (const documentSnapshot of snap.docs) {
+                        await deleteDoc(doc(db, `users/${currentUser.uid}/calendarEvents`, documentSnapshot.id));
+                        count++;
+                    }
+                    addAiMessage(`🗑️ Cleaned up your schedule. Successfully deleted ${count} events from your "${targetCategory}" calendar.`);
+                } catch(err) {
+                    addAiMessage("Encountered an issue adjusting your database constraints.");
+                }
+                return;
+            }
+        }
+
+        // ACTION B: SEARCH & QUERYING VIA CHAT
+        if (lowerText.includes('show') || lowerText.includes('find') || lowerText.includes('what do i have')) {
+            let matches = [];
+            if (lowerText.includes('work')) matches = events.filter(e => e.category === 'work');
+            else if (lowerText.includes('important')) matches = events.filter(e => e.category === 'important');
+            else if (lowerText.includes('personal')) matches = events.filter(e => e.category === 'personal');
+            else matches = events;
+
+            if (matches.length === 0) {
+                addAiMessage("🔍 I searched your workspace collections but found no active listings matching that description.");
+            } else {
+                let report = "🔍 Here is what I discovered on your current itinerary:\n";
+                matches.slice(0, 5).forEach(m => {
+                    report += `• ${m.title} (${m.date} at ${m.time})\n`;
+                });
+                addAiMessage(report);
+            }
+            return;
+        }
+
+        // ==========================================
+        // ACTION C: RE-ENGINEERED DYNAMIC SCHEDULING
+        // ==========================================
+        const referenceDate = new Date(); // Secure real-time context anchor
+        const parsedResults = chrono.parse(text, referenceDate, { forwardDate: true });
         
         if (parsedResults.length === 0) {
-            addAiMessage("I couldn't quite figure out the date or time in that sentence. Try something like 'Team sync next Friday at 3pm'.");
+            addAiMessage("🤖 I couldn't isolate an explicit timeframe or calendar milestone from that input. Try outlining a specific target hour or relative day index.");
             return;
         }
 
         const result = parsedResults[0];
         const startDate = result.start.date();
-        
-        // --- 2. CLEANING THE TITLE ---
-        // Remove the parsed time text (e.g., "tomorrow at 5pm") from the title
-        let cleanTitle = text.replace(result.text, '').trim();
-        // Remove lingering prepositions (e.g., "meeting 'for' ", "lunch 'on' ")
-        cleanTitle = cleanTitle.replace(/^(on|at|for|from|to)\s+/i, '').replace(/\s+(on|at|for|from|to)$/i, '').trim();
-        
-        if (!cleanTitle) cleanTitle = "Scheduled Event";
 
-        // --- 3. SMART CATEGORIZATION ---
-        const lowerText = text.toLowerCase();
-        let category = 'personal'; // Default
-        
-        const workKeywords = ['meet', 'sync', 'project', 'client', 'boss', 'work', 'office', 'review'];
-        const urgentKeywords = ['doctor', 'dentist', 'flight', 'urgent', 'deadline', 'exam'];
-        
-        if (workKeywords.some(kw => lowerText.includes(kw))) category = 'work';
-        if (urgentKeywords.some(kw => lowerText.includes(kw))) category = 'important';
-
-        // --- 4. FORMATTING FOR FIREBASE ---
-        // Adjust timezone offset safely for YYYY-MM-DD
-        const tzOffset = startDate.getTimezoneOffset() * 60000;
-        const localISOTime = (new Date(startDate - tzOffset)).toISOString();
-        
-        const dateStr = localISOTime.split('T')[0];
-        
-        // Determine exact time, default to 12:00 if user didn't specify hours
-        let timeStr = "12:00";
-        if (result.start.isCertain('hour')) {
-            timeStr = startDate.toTimeString().substring(0, 5); // Extracts HH:MM
+        // PROTECT AGAINST PAST DATES: If time conversion forces an ambiguous date backward, roll it forward
+        if (startDate < referenceDate && !result.start.isCertain('day')) {
+            startDate.setDate(startDate.getDate() + 7);
         }
 
-        // Save to Firebase
+        // FIXING THE ISO MUTATION BUG: Extract explicitly via local system parameters
+        const year = startDate.getFullYear();
+        const month = String(startDate.getMonth() + 1).padStart(2, '0');
+        const day = String(startDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        // FIXING THE TIME DROPPING BUG: Guarantee hour extraction validation
+        let hours = startDate.getHours();
+        let minutes = startDate.getMinutes();
+        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        // EXTRACTING DURATION / END TIMEFRAMES
+        let description = `Auto-scheduled via Smart Input execution loop.`;
+        if (result.end) {
+            const endDate = result.end.date();
+            const durationMs = endDate - startDate;
+            const durationHours = Math.round(durationMs / (1000 * 60 * 60) * 10) / 10;
+            description += ` Allocated duration blocks out approximately ${durationHours} hours, ending near ${endDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.`;
+        }
+
+        // EXTRACT CLEAN TARGET TITLE
+        let cleanTitle = text.replace(result.text, '').trim();
+        cleanTitle = cleanTitle.replace(/^(on|at|for|from|to|me to)\s+/i, '').replace(/\s+(on|at|for|from|to)$/i, '').trim();
+        if (!cleanTitle) cleanTitle = "AI Generated Milestone";
+
+        // CATEGORY DETERMINATION ALGORITHM
+        let category = 'personal';
+        if (['meet', 'sync', 'project', 'client', 'work', 'session', 'hours'].some(k => lowerText.includes(k))) category = 'work';
+        if (['urgent', 'deadline', 'priority', 'important', 'exam', 'flight'].some(k => lowerText.includes(k))) category = 'important';
+
+        // COMMIT STRUCT TO FIRESTORE
         try {
             await addDoc(collection(db, `users/${currentUser.uid}/calendarEvents`), {
                 title: cleanTitle,
                 date: dateStr,
                 time: timeStr,
                 category: category,
-                desc: `Auto-scheduled by AI from: "${text}"`
+                desc: description
             });
             
-            // Format nice response
-            const niceDate = startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            let responseMsg = `✨ I've scheduled "${cleanTitle}" for ${niceDate}`;
-            if (result.start.isCertain('hour')) {
-                responseMsg += ` at ${startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-            }
-            responseMsg += `!`;
-
-            addAiMessage(responseMsg);
+            const niceDate = startDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+            const niceTime = startDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            
+            addAiMessage(`✨ Workspace updated. Logged "${cleanTitle}" under [${category.toUpperCase()}] mapped to ${niceDate} starting promptly at ${niceTime}.`);
         } catch(e) {
-            addAiMessage(`I figured out the details, but my connection to your database failed. Check your network.`);
+            addAiMessage("Database synchronization variance detected. Verify Firestore availability credentials.");
             console.error(e);
         }
     }, 600);
 };
 
-aiInput.addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') btnAiSend.click();
-});
+if (aiInput) {
+    aiInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') btnAiSend.click();
+    });
+}
 
 // Init on load
 updateAllViews();
