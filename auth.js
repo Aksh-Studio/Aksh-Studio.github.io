@@ -39,11 +39,29 @@ function showError(msg) {
 async function handleUserRouting(user) {
     if (!isLoginPage) return;
 
-    // Check if email is verified (prevents fake emails)
+    // Check if email is verified
     if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
         authError.style.display = "block";
         authError.style.color = "#d9534f";
-        authError.textContent = "Please verify your email address. Check your inbox/spam folder.";
+        
+        // Add a clickable "Resend" link to the error message
+        authError.innerHTML = `Please verify your email. Check your inbox/spam folder.<br><a href="#" id="resend-verification" style="color: #128C7E; font-weight: bold; text-decoration: underline; cursor: pointer;">Click here to resend the email</a>`;
+        
+        // Make the Resend link actually work
+        document.getElementById('resend-verification').onclick = async (e) => {
+            e.preventDefault();
+            try {
+                await sendEmailVerification(user);
+                alert("A new verification link has been sent! Please check your inbox.");
+            } catch (err) {
+                if (err.code === "auth/too-many-requests") {
+                    alert("Firebase paused emails due to too many requests. Please wait a few minutes and try again.");
+                } else {
+                    alert("Error: " + err.message);
+                }
+            }
+        };
+
         await signOut(auth);
         return;
     }
