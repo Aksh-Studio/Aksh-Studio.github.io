@@ -290,8 +290,11 @@ function renderAgenda() {
 }
 
 // ==========================================
-// 6. ✨ AI SMART PLANNER MOCKUP
+// 6. ✨ ADVANCED NLP SMART PLANNER
 // ==========================================
+// Import the powerful Chrono NLP engine via ESM
+import * as chrono from 'https://esm.sh/chrono-node@2.4.2';
+
 const aiInput = document.getElementById('ai-prompt-input');
 const btnAiSend = document.getElementById('btn-ai-send');
 const aiChat = document.getElementById('ai-chat-history');
@@ -307,7 +310,7 @@ function addAiMessage(msg, isUser = false) {
     }
     div.innerText = msg;
     aiChat.appendChild(div);
-    aiChat.scrollTop = aiChat.scrollHeight; // Auto-scroll
+    aiChat.scrollTop = aiChat.scrollHeight;
 }
 
 btnAiSend.onclick = async () => {
@@ -317,42 +320,88 @@ btnAiSend.onclick = async () => {
     addAiMessage(text, true);
     aiInput.value = "";
 
-    // Simulate AI Processing Delay
+    // Simulate AI "Thinking" Delay for UX
+    const typingIndicator = document.createElement('div');
+    typingIndicator.className = 'ai-msg';
+    typingIndicator.innerText = "Thinking...";
+    typingIndicator.style.fontStyle = "italic";
+    typingIndicator.style.opacity = "0.6";
+    aiChat.appendChild(typingIndicator);
+    aiChat.scrollTop = aiChat.scrollHeight;
+
     setTimeout(async () => {
-        // --- Extremely basic Natural Language Parsing Engine ---
-        let title = text.replace(/tomorrow|today|at \d+(am|pm)?/gi, "").trim();
-        let dateObj = new Date();
+        aiChat.removeChild(typingIndicator); // Remove "Thinking..."
+
+        // --- 1. NLP DATE/TIME PARSING ---
+        const parsedResults = chrono.parse(text);
         
-        if (text.toLowerCase().includes("tomorrow")) {
-            dateObj.setDate(dateObj.getDate() + 1);
+        if (parsedResults.length === 0) {
+            addAiMessage("I couldn't quite figure out the date or time in that sentence. Try something like 'Team sync next Friday at 3pm'.");
+            return;
         }
+
+        const result = parsedResults[0];
+        const startDate = result.start.date();
         
-        let dateStr = dateObj.toISOString().split('T')[0];
-        let category = text.toLowerCase().includes("work") || text.toLowerCase().includes("meeting") ? "work" : "personal";
+        // --- 2. CLEANING THE TITLE ---
+        // Remove the parsed time text (e.g., "tomorrow at 5pm") from the title
+        let cleanTitle = text.replace(result.text, '').trim();
+        // Remove lingering prepositions (e.g., "meeting 'for' ", "lunch 'on' ")
+        cleanTitle = cleanTitle.replace(/^(on|at|for|from|to)\s+/i, '').replace(/\s+(on|at|for|from|to)$/i, '').trim();
+        
+        if (!cleanTitle) cleanTitle = "Scheduled Event";
 
-        if(title === "") title = "AI Scheduled Event";
+        // --- 3. SMART CATEGORIZATION ---
+        const lowerText = text.toLowerCase();
+        let category = 'personal'; // Default
+        
+        const workKeywords = ['meet', 'sync', 'project', 'client', 'boss', 'work', 'office', 'review'];
+        const urgentKeywords = ['doctor', 'dentist', 'flight', 'urgent', 'deadline', 'exam'];
+        
+        if (workKeywords.some(kw => lowerText.includes(kw))) category = 'work';
+        if (urgentKeywords.some(kw => lowerText.includes(kw))) category = 'important';
 
-        // Save magic event to Firebase
+        // --- 4. FORMATTING FOR FIREBASE ---
+        // Adjust timezone offset safely for YYYY-MM-DD
+        const tzOffset = startDate.getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(startDate - tzOffset)).toISOString();
+        
+        const dateStr = localISOTime.split('T')[0];
+        
+        // Determine exact time, default to 12:00 if user didn't specify hours
+        let timeStr = "12:00";
+        if (result.start.isCertain('hour')) {
+            timeStr = startDate.toTimeString().substring(0, 5); // Extracts HH:MM
+        }
+
+        // Save to Firebase
         try {
             await addDoc(collection(db, `users/${currentUser.uid}/calendarEvents`), {
-                title: title,
+                title: cleanTitle,
                 date: dateStr,
-                time: "12:00",
+                time: timeStr,
                 category: category,
-                desc: `Created by AI Assistant from prompt: "${text}"`
+                desc: `Auto-scheduled by AI from: "${text}"`
             });
-            addAiMessage(`✨ I've scheduled "${title}" for ${dateStr}. You can click it in the agenda to edit the exact time!`);
+            
+            // Format nice response
+            const niceDate = startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            let responseMsg = `✨ I've scheduled "${cleanTitle}" for ${niceDate}`;
+            if (result.start.isCertain('hour')) {
+                responseMsg += ` at ${startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+            }
+            responseMsg += `!`;
+
+            addAiMessage(responseMsg);
         } catch(e) {
-            addAiMessage(`Sorry, I ran into a database error.`);
+            addAiMessage(`I figured out the details, but my connection to your database failed. Check your network.`);
+            console.error(e);
         }
-    }, 800);
+    }, 600);
 };
 
-// Allow 'Enter' key to send AI message
 aiInput.addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-        btnAiSend.click();
-    }
+    if (e.key === 'Enter') btnAiSend.click();
 });
 
 // Init on load
