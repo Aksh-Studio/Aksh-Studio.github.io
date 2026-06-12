@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // ==========================================
 // UNIVERSAL THEME SYNC ENGINE
@@ -42,7 +42,37 @@ const dMain = document.getElementById('display-main');
 const dHist = document.getElementById('display-history');
 const displayContainer = document.getElementById('main-display-container');
 
-onAuthStateChanged(auth, user => { if(user){ currentUser = user; loadHistory(); }});
+onAuthStateChanged(auth, user => { 
+    if(user){ 
+        currentUser = user; 
+        loadHistory(); 
+        
+        // Fetch user details for profile dropdown
+        const userRef = doc(db, `users/${user.uid}`);
+        onSnapshot(userRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const nameEl = document.getElementById('calc-profile-name');
+                const emailEl = document.getElementById('calc-profile-email');
+                const avatarEl = document.getElementById('calc-header-avatar');
+                
+                if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${data.name || '-'}`;
+                if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${data.email || '-'}`;
+                if (avatarEl && data.photoURL) avatarEl.src = data.photoURL;
+            }
+        });
+    } else {
+        window.location.href = "../../index.html"; // Ensure protected route
+    }
+});
+
+// Sign Out Handler
+const signoutBtn = document.getElementById('calc-btn-signout');
+if (signoutBtn) {
+    signoutBtn.onclick = () => {
+        auth.signOut().then(() => window.location.href = "../../index.html");
+    };
+}
 
 // ==========================================
 // TAB CONTROLLER
