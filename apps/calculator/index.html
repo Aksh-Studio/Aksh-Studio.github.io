@@ -7,6 +7,8 @@
     <link rel="icon" type="image/png" href="../../calc-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
 </head>
 <body>
     <div style="width: 100%; max-width: 1000px;">
@@ -24,6 +26,9 @@
                     <button class="tab-btn active" id="tab-scientific">Scientific</button>
                     <button class="tab-btn" id="tab-financial">Financial</button>
                     <button class="tab-btn" id="tab-graphing">Graphing</button>
+                    <button class="tab-btn" id="tab-algebra">Algebra</button>
+                    <button class="tab-btn" id="tab-trigonometry">Trigonometry</button>
+                    <button class="tab-btn" id="tab-calculus">Calculus</button>
                     <button class="tab-btn" id="tab-currency">Currency</button>
                     <button class="tab-btn" id="tab-unit">Unit</button>
                     <button class="tab-btn" id="tab-age">Age</button>
@@ -84,27 +89,67 @@
                     <canvas id="graph-canvas" width="400" height="300"></canvas>
                 </div>
 
+                <div id="module-algebra" class="module-form" style="display: none;">
+                    <h4 style="color: var(--primary-color); margin-bottom: 0;">Linear Equation Solver</h4>
+                    <label>Equation (use 'x' as variable)</label>
+                    <input type="text" id="alg-eq" placeholder="e.g. 2*x + 5 = 15">
+                    <button id="alg-solve-btn">Solve for x</button>
+                    <div id="alg-eq-result" style="margin-top: 10px; font-weight: bold; color: var(--primary-color); text-align: center;"></div>
+                    
+                    <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">
+                    
+                    <h4 style="color: var(--primary-color); margin-bottom: 0;">Quadratic Equation (ax² + bx + c = 0)</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;"><label>a</label><input type="number" id="alg-a" placeholder="a"></div>
+                        <div style="flex: 1;"><label>b</label><input type="number" id="alg-b" placeholder="b"></div>
+                        <div style="flex: 1;"><label>c</label><input type="number" id="alg-c" placeholder="c"></div>
+                    </div>
+                    <button id="alg-quad-btn">Calculate Roots</button>
+                    <div id="alg-quad-result" style="margin-top: 10px; font-weight: bold; color: var(--primary-color); text-align: center;"></div>
+                </div>
+
+                <div id="module-trigonometry" class="module-form" style="display: none;">
+                    <label>Angle Value</label>
+                    <input type="number" id="trig-angle" placeholder="e.g. 45">
+                    <label>Unit</label>
+                    <select id="trig-unit"><option value="deg">Degrees</option><option value="rad">Radians</option></select>
+                    <button id="trig-calc-btn">Calculate All Functions</button>
+                    <div id="trig-result" style="margin-top: 15px; font-size: 15px; color: var(--text-main); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px;"></div>
+                </div>
+
+                <div id="module-calculus" class="module-form" style="display: none;">
+                    <h4 style="color: var(--primary-color); margin-bottom: 0;">Derivatives</h4>
+                    <label>Function f(x)</label>
+                    <input type="text" id="calc-deriv-func" placeholder="e.g. x^2 + 2*x">
+                    <button id="calc-deriv-btn">Calculate Derivative</button>
+                    <div id="calc-deriv-result" style="margin-top: 10px; font-weight: bold; font-size: 20px; color: var(--primary-color); text-align: center; word-break: break-all;"></div>
+                    
+                    <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">
+                    
+                    <h4 style="color: var(--primary-color); margin-bottom: 0;">Definite Integrals</h4>
+                    <label>Function f(x)</label>
+                    <input type="text" id="calc-int-func" placeholder="e.g. x^2">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;"><label>Lower Limit (a)</label><input type="number" id="calc-int-a" value="0"></div>
+                        <div style="flex: 1;"><label>Upper Limit (b)</label><input type="number" id="calc-int-b" value="1"></div>
+                    </div>
+                    <button id="calc-int-btn">Calculate Integral</button>
+                    <div id="calc-int-result" style="margin-top: 10px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
+                </div>
+
                 <div id="module-currency" class="module-form" style="display: none;">
                     <label>Amount</label><input type="number" id="curr-amount" value="1">
                     <label>From Currency</label>
-                    <select id="curr-from">
-                        <option value="USD">USD - US Dollar</option><option value="INR" selected>INR - Indian Rupee</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option><option value="JPY">JPY - Japanese Yen</option><option value="AUD">AUD - Australian Dollar</option>
-                    </select>
+                    <select id="curr-from"><option value="USD">USD - US Dollar</option><option value="INR" selected>INR - Indian Rupee</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option><option value="JPY">JPY - Japanese Yen</option><option value="AUD">AUD - Australian Dollar</option></select>
                     <label>To Currency</label>
-                    <select id="curr-to">
-                        <option value="USD" selected>USD - US Dollar</option><option value="INR">INR - Indian Rupee</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option><option value="JPY">JPY - Japanese Yen</option><option value="AUD">AUD - Australian Dollar</option>
-                    </select>
+                    <select id="curr-to"><option value="USD" selected>USD - US Dollar</option><option value="INR">INR - Indian Rupee</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option><option value="JPY">JPY - Japanese Yen</option><option value="AUD">AUD - Australian Dollar</option></select>
                     <button id="curr-calc-btn">Convert Currency</button>
                     <div id="curr-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
                 </div>
 
                 <div id="module-unit" class="module-form" style="display: none;">
                     <label>Category</label>
-                    <select id="unit-category">
-                        <option value="length">Length (Meters ↔ Feet)</option>
-                        <option value="weight">Weight (Kg ↔ Lbs)</option>
-                        <option value="temp">Temperature (°C ↔ °F)</option>
-                    </select>
+                    <select id="unit-category"><option value="length">Length (Meters ↔ Feet)</option><option value="weight">Weight (Kg ↔ Lbs)</option><option value="temp">Temperature (°C ↔ °F)</option></select>
                     <label>Value</label><input type="number" id="unit-val" value="1">
                     <button id="unit-calc-btn">Convert</button>
                     <div id="unit-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
@@ -133,14 +178,8 @@
 
                 <div id="module-data" class="module-form" style="display: none;">
                     <label>Data Amount</label><input type="number" id="data-val" value="1">
-                    <label>From</label>
-                    <select id="data-from">
-                        <option value="KB">Kilobytes (KB)</option><option value="MB" selected>Megabytes (MB)</option><option value="GB">Gigabytes (GB)</option><option value="TB">Terabytes (TB)</option>
-                    </select>
-                    <label>To</label>
-                    <select id="data-to">
-                        <option value="KB">Kilobytes (KB)</option><option value="MB">Megabytes (MB)</option><option value="GB" selected>Gigabytes (GB)</option><option value="TB">Terabytes (TB)</option>
-                    </select>
+                    <label>From</label><select id="data-from"><option value="KB">Kilobytes (KB)</option><option value="MB" selected>Megabytes (MB)</option><option value="GB">Gigabytes (GB)</option><option value="TB">Terabytes (TB)</option></select>
+                    <label>To</label><select id="data-to"><option value="KB">Kilobytes (KB)</option><option value="MB">Megabytes (MB)</option><option value="GB" selected>Gigabytes (GB)</option><option value="TB">Terabytes (TB)</option></select>
                     <button id="data-calc-btn">Convert Data</button>
                     <div id="data-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
                 </div>
