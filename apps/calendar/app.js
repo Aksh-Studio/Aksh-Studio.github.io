@@ -3,6 +3,25 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { initShortcuts } from './modules/shortcuts.js';
 
+// Fetch user details from Firestore to populate profile dropdown
+const userRef = doc(db, `users/${user.uid}`);
+onSnapshot(userRef, (docSnap) => {
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        document.getElementById('header-name').innerText = data.name || "User";
+        document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${data.name || '-'}`;
+        document.getElementById('profile-email').innerHTML = `<strong>Email:</strong> ${data.email || '-'}`;
+        if (data.photoURL) {
+            document.getElementById('header-avatar').src = data.photoURL;
+        }
+    }
+});
+
+// Sign Out trigger
+document.getElementById('btn-signout').onclick = () => {
+    auth.signOut().then(() => window.location.href = "../../index.html");
+};
+
 // ==========================================
 // 1. FIREBASE SETUP & THEME SYNC
 // ==========================================
