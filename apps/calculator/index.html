@@ -4,140 +4,125 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Calculator | Aksh Studio</title>
-    <link rel="icon" type="image/png" href="../../calc-logo.png"> 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="../../calc-logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div style="width: 100%; max-width: 1000px;">
+        <a href="../../dashboard.html" class="back-link">← Back to Dashboard</a>
 
-    <div class="app-nav">
-        <a href="../../dashboard.html" class="back-btn">← Dashboard</a>
-        <div class="mode-tabs">
-            <button class="tab active" data-target="scientific">Scientific</button>
-            <button class="tab" data-target="graphing">Graphing</button>
-            <button class="tab" data-target="financial">Financial</button>
-        </div>
-        <div class="app-brand">
-            <img src="../../calc-logo.png" alt="Calculator" class="nav-logo">
-            <button id="history-toggle" class="history-btn">🕒 History</button>
-        </div>
-    </div>
-
-    <div id="history-panel" class="history-panel hidden">
-        <h3>Calculation History</h3>
-        <div id="history-list">
-            <p style="padding:10px; color:#aaa;">Loading history...</p>
-        </div>
-        <button id="clear-history" class="history-clear-btn">Clear History</button>
-    </div>
-
-    <div class="calculator-container">
-        
-        <div id="scientific" class="app-module active-module">
-            <div class="calculator-grid">
-                <div class="output">
-                    <div data-previous-operand class="previous-operand"></div>
-                    <div data-current-operand class="current-operand">0</div>
+        <div class="app-layout">
+            <div class="calc-container">
+                
+                <div class="calc-display">
+                    <div class="display-history" id="display-history"></div>
+                    <div class="display-main" id="display-main">0</div>
                 </div>
-                
-                <button data-single-op="sin" class="sci-btn">sin</button>
-                <button data-single-op="cos" class="sci-btn">cos</button>
-                <button data-single-op="tan" class="sci-btn">tan</button>
-                <button data-constant="pi" class="sci-btn">π</button>
-                <button data-constant="e" class="sci-btn">e</button>
 
-                <button data-single-op="sqrt" class="sci-btn">√</button>
-                <button data-single-op="log" class="sci-btn">log</button>
-                <button data-all-clear class="operator-btn ac-btn">AC</button>
-                <button data-delete class="operator-btn">DEL</button>
-                <button data-operation="÷" class="operator-btn">÷</button>
-                
-                <button data-single-op="square" class="sci-btn">x²</button>
-                <button data-number>7</button>
-                <button data-number>8</button>
-                <button data-number>9</button>
-                <button data-operation="×" class="operator-btn">×</button>
-                
-                <button data-single-op="ln" class="sci-btn">ln</button>
-                <button data-number>4</button>
-                <button data-number>5</button>
-                <button data-number>6</button>
-                <button data-operation="−" class="operator-btn">−</button>
-                
-                <button data-single-op="inv" class="sci-btn">1/x</button>
-                <button data-number>1</button>
-                <button data-number>2</button>
-                <button data-number>3</button>
-                <button data-operation="+" class="operator-btn">+</button>
-                
-                <button data-single-op="abs" class="sci-btn">|x|</button>
-                <button data-number class="zero-btn">0</button>
-                <button data-number>.</button>
-                <button data-equals class="equals-btn span-two">=</button>
-            </div>
-        </div>
+                <div class="calc-tabs">
+                    <button class="tab-btn active" id="tab-scientific">Scientific</button>
+                    <button class="tab-btn" id="tab-financial">Financial</button>
+                    <button class="tab-btn" id="tab-graphing">Graphing</button>
+                </div>
 
-        <div id="financial" class="app-module">
-            <div class="fin-card">
-                <div class="fin-header">
-                    <h2>Financial Engine</h2>
-                    <select id="fin-type" class="fin-select">
-                        <option value="compound">Investment (Compound Interest)</option>
-                        <option value="loan">Loan / Mortgage (EMI)</option>
+                <div id="module-scientific" class="calc-grid scientific">
+                    <button class="calc-btn func" data-val="sin">sin</button>
+                    <button class="calc-btn func" data-val="cos">cos</button>
+                    <button class="calc-btn func" data-val="tan">tan</button>
+                    <button class="calc-btn func" data-val="log">log</button>
+                    <button class="calc-btn clear" id="btn-clear">C</button>
+                    
+                    <button class="calc-btn func" data-val="pi">π</button>
+                    <button class="calc-btn num" data-val="7">7</button>
+                    <button class="calc-btn num" data-val="8">8</button>
+                    <button class="calc-btn num" data-val="9">9</button>
+                    <button class="calc-btn operator" data-val="/">÷</button>
+                    
+                    <button class="calc-btn func" data-val="e">e</button>
+                    <button class="calc-btn num" data-val="4">4</button>
+                    <button class="calc-btn num" data-val="5">5</button>
+                    <button class="calc-btn num" data-val="6">6</button>
+                    <button class="calc-btn operator" data-val="*">×</button>
+                    
+                    <button class="calc-btn func" data-val="x2">x²</button>
+                    <button class="calc-btn num" data-val="1">1</button>
+                    <button class="calc-btn num" data-val="2">2</button>
+                    <button class="calc-btn num" data-val="3">3</button>
+                    <button class="calc-btn operator" data-val="-">−</button>
+                    
+                    <button class="calc-btn func" data-val="sqrt">√</button>
+                    <button class="calc-btn num" data-val="0">0</button>
+                    <button class="calc-btn num" data-val=".">.</button>
+                    <button class="calc-btn equals" id="btn-equals">=</button>
+                    <button class="calc-btn operator" data-val="+">+</button>
+                </div>
+
+                <div id="module-financial" class="module-form" style="display: none;">
+                    <label>Calculation Type</label>
+                    <select id="fin-type">
+                        <option value="compound">Compound Interest</option>
+                        <option value="emi">Loan EMI</option>
                     </select>
+                    
+                    <label>Principal Amount (₹)</label>
+                    <input type="number" id="fin-principal" placeholder="e.g. 100000">
+                    
+                    <label>Interest Rate (%)</label>
+                    <input type="number" id="fin-rate" placeholder="e.g. 7.5">
+                    
+                    <label>Time (Years)</label>
+                    <input type="number" id="fin-time" placeholder="e.g. 5">
+                    
+                    <button id="fin-calc-btn">Calculate</button>
+                    
+                    <div id="fin-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
                 </div>
 
-                <div class="input-group">
-                    <label id="label-principal">Principal Amount ($)</label>
-                    <input type="number" id="fin-principal" placeholder="e.g., 10000">
-                </div>
-                <div class="input-group">
-                    <label>Annual Interest Rate (%)</label>
-                    <input type="number" id="fin-rate" placeholder="e.g., 5">
-                </div>
-                <div class="input-group">
-                    <label id="label-time">Time (Years)</label>
-                    <input type="number" id="fin-time" placeholder="e.g., 10">
-                </div>
-                <button id="calc-fin-btn" class="fin-btn">Calculate</button>
-                
-                <div class="fin-result" id="fin-result-box">
-                    <p id="res-line-1">Total Future Value: <span id="fin-val-1">$0.00</span></p>
-                    <p id="res-line-2">Total Interest Earned: <span id="fin-val-2">$0.00</span></p>
-                </div>
-            </div>
-        </div>
-
-        <div id="graphing" class="app-module">
-            <div class="graph-card">
-                <h2>Equation Plotter</h2>
-                
-                <div class="graph-settings">
-                    <div class="setting-box">
-                        <label>X Min / Max</label>
-                        <div class="multi-input">
+                <div id="module-graphing" class="module-form" style="display: none;">
+                    <label>Equation y = f(x)</label>
+                    <input type="text" id="graph-equation" placeholder="e.g. Math.sin(x) or x*x">
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <label>X Min</label>
                             <input type="number" id="g-xmin" value="-10">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>X Max</label>
                             <input type="number" id="g-xmax" value="10">
                         </div>
                     </div>
-                    <div class="setting-box">
-                        <label>Y Min / Max</label>
-                        <div class="multi-input">
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <label>Y Min</label>
                             <input type="number" id="g-ymin" value="-10">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Y Max</label>
                             <input type="number" id="g-ymax" value="10">
                         </div>
                     </div>
+
+                    <button id="plot-btn">Plot Graph</button>
+                    
+                    <canvas id="graph-canvas" width="400" height="300"></canvas>
                 </div>
 
-                <div class="graph-controls">
-                    <label>y = </label>
-                    <input type="text" id="graph-equation" placeholder="Math.sin(x)" value="Math.sin(x)">
-                    <button id="plot-btn" class="fin-btn">Plot Graph</button>
+            </div>
+
+            <div class="history-sidebar" id="history-panel">
+                <div class="history-header">
+                    <h3>Cloud History</h3>
+                    <button class="btn-clear-history" id="btn-clear-history">Clear</button>
                 </div>
-                <canvas id="graphCanvas" width="600" height="400"></canvas>
+                <ul class="history-list" id="history-list">
+                    <li style="color: #888; text-align: center; font-size: 13px;">Loading history...</li>
+                </ul>
             </div>
         </div>
-
     </div>
 
     <script type="module" src="calc.js"></script>
