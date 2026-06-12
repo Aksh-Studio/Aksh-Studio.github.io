@@ -8,6 +8,11 @@
     <link rel="icon" type="image/png" href="aksh-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .name-row { display: flex; gap: 5px; margin-bottom: 8px; }
+        .name-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+        .personal-label { font-size: 13px; color: #128C7E; font-weight: 600; margin-top: 10px; margin-bottom: 5px; display: block; text-align: left; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    </style>
 </head>
 <body>
     <div id="login-screen" class="screen">
@@ -19,7 +24,7 @@
             </div>
             
             <img src="aksh-logo.png" alt="Suite Logo" class="login-logo">
-            <h1>Aksh Suite</h1>
+            <h1>Web Sandbox Suite</h1>
 
             <div id="login-section">
                 <p class="subtitle" id="auth-subtitle">Sign in to access your utilities</p>
@@ -27,12 +32,24 @@
                     <input type="email" id="email-input" placeholder="Email Address">
                     <input type="password" id="password-input" placeholder="Password">
                     
-                    <div id="signup-security-fields" style="display: none; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
-                        <label style="font-size: 12px; color: #555;">Security Question 1: Date of Birth</label>
-                        <input type="date" id="signup-dob" style="margin-bottom: 8px;">
-                        <label style="font-size: 12px; color: #555;">Security Question 2: Phone Number</label>
-                        <input type="tel" id="signup-phone" placeholder="+91...">
-                        <p style="font-size: 11px; color: #128C7E; margin-top: 5px;">A verification link will be sent to your email to prevent fake accounts.</p>
+                    <div id="signup-security-fields" style="display: none; margin-top: 10px;">
+                        <label class="personal-label">Personal Details</label>
+                        <div class="name-row">
+                            <input type="text" id="signup-first-name" placeholder="First Name *" required>
+                            <input type="text" id="signup-middle-name" placeholder="Middle Name">
+                        </div>
+                        <input type="text" id="signup-last-name" placeholder="Last Name" style="width: 100%; margin-bottom: 8px; box-sizing: border-box; padding: 10px;">
+                        
+                        <div class="name-row">
+                            <input type="date" id="signup-dob" title="Date of Birth" required>
+                            <select id="signup-gender" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                                <option value="" disabled selected>Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <input type="tel" id="signup-phone" placeholder="Phone Number (+91...)" style="width: 100%; margin-bottom: 8px; box-sizing: border-box; padding: 10px;" required>
                     </div>
 
                     <button id="email-auth-btn" class="auth-btn">Sign In</button>
@@ -45,17 +62,6 @@
                     <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="18"> 
                     Continue with Google
                 </button>
-            </div>
-
-            <div id="onboarding-section" style="display: none;">
-                <p class="subtitle" style="color: #128C7E; font-weight: 600;">Complete Your Security Profile</p>
-                <div class="input-group">
-                    <label style="font-size: 12px; text-align: left; display: block; margin-bottom: 5px; color: #555;">Date of Birth (Security Q1):</label>
-                    <input type="date" id="dob-input" required>
-                    <label style="font-size: 12px; text-align: left; display: block; margin-bottom: 5px; color: #555;">Phone Number (Security Q2):</label>
-                    <input type="tel" id="phone-input" placeholder="+91..." required>
-                    <button id="btn-save-profile" class="auth-btn" style="margin-top: 10px;">Save & Continue</button>
-                </div>
             </div>
 
             <div id="forgot-password-section" style="display: none;">
