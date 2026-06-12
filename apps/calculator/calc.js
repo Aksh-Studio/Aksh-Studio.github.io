@@ -1,357 +1,300 @@
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { auth, db } from "../../auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// --- 1. TAB SWITCHING LOGIC ---
-const tabs = document.querySelectorAll('.tab');
-const modules = document.querySelectorAll('.app-module');
+const firebaseConfig = {
+    apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
+    authDomain: "aksh-studio.firebaseapp.com",
+    projectId: "aksh-studio",
+    storageBucket: "aksh-studio.firebasestorage.app",
+    messagingSenderId: "349325785973",
+    appId: "1:349325785973:web:86d5a15bcb700bfc15b13c"
+};
 
-tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        modules.forEach(m => m.classList.remove('active-module'));
-        tab.classList.add('active');
-        document.getElementById(tab.getAttribute('data-target')).classList.add('active-module');
-    });
-});
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-// --- 2. CLOUD SYNC & OPTIMISTIC HISTORY LOGIC ---
-const historyBtn = document.getElementById('history-toggle');
-const historyPanel = document.getElementById('history-panel');
-const historyList = document.getElementById('history-list');
-const clearHistoryBtn = document.getElementById('clear-history');
 let currentUser = null;
-let localHistoryQueue = []; // Holds history instantly before cloud confirms
+let currentExpression = ""; 
 
-onAuthStateChanged(auth, async (user) => {
+// DOM Elements
+const displayMain = document.getElementById('display-main');
+const displayHistory = document.getElementById('display-history');
+const historyList = document.getElementById('history-list');
+
+// Auth Listener
+onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
-        await loadCloudHistory();
+        loadCloudHistory();
     } else {
-        currentUser = null;
-        historyList.innerHTML = '<p style="padding:10px; color:#aaa;">Log in to sync history.</p>';
+        window.location.href = "../../index.html"; // Protect route
     }
 });
 
-historyBtn.addEventListener('click', () => {
-    historyPanel.classList.toggle('show');
-    historyPanel.classList.remove('hidden');
+// ==========================================
+// 1. MODULE TABS CONTROLLER
+// ==========================================
+const tabs = {
+    scientific: document.getElementById('tab-scientific'),
+    financial: document.getElementById('tab-financial'),
+    graphing: document.getElementById('tab-graphing')
+};
+const modules = {
+    scientific: document.getElementById('module-scientific'),
+    financial: document.getElementById('module-financial'),
+    graphing: document.getElementById('module-graphing')
+};
+
+function switchTab(tabName) {
+    Object.values(tabs).forEach(t => t.classList.remove('active'));
+    Object.values(modules).forEach(m => m.style.display = 'none');
+    tabs[tabName].classList.add('active');
+    modules[tabName].style.display = (tabName === 'scientific') ? 'grid' : 'flex';
+}
+
+tabs.scientific.onclick = () => switchTab('scientific');
+tabs.financial.onclick = () => switchTab('financial');
+tabs.graphing.onclick = () => switchTab('graphing');
+
+
+// ==========================================
+// 2. CORE CALCULATOR LOGIC & KEYBOARD
+// ==========================================
+function updateDisplay(mainTxt, subTxt = "") {
+    displayMain.innerText = mainTxt || "0";
+    displayHistory.innerText = subTxt;
+}
+
+function appendToExpression(val) {
+    if (currentExpression === "Error") currentExpression = "";
+    currentExpression += val;
+    updateDisplay(currentExpression);
+}
+
+function calculateResult() {
+    if (!currentExpression) return;
+    try {
+        // Safely map visual math symbols to JS executable math
+        let parseEq = currentExpression
+            .replace(/×/g, '*')
+            .replace(/÷/g, '/')
+            .replace(/−/g, '-')
+            .replace(/π/g, 'Math.PI')
+            .replace(/e/g, 'Math.E')
+            .replace(/sin\(/g, 'Math.sin(')
+            .replace(/cos\(/g, 'Math.cos(')
+            .replace(/tan\(/g, 'Math.tan(')
+            .replace(/log\(/g, 'Math.log10(')
+            .replace(/sqrt\(/g, 'Math.sqrt(')
+            .replace(/x2/g, '**2');
+
+        // Evaluate and format
+        let result = eval(parseEq);
+        
+        // Handle JS floating point weirdness (e.g. 0.1 + 0.2)
+        result = Math.round(result * 100000000) / 100000000; 
+
+        updateDisplay(result, currentExpression + " =");
+        saveToCloudHistory(currentExpression, result);
+        currentExpression = result.toString();
+        
+    } catch (error) {
+        updateDisplay("Error");
+        currentExpression = "";
+    }
+}
+
+function clearCalculator() {
+    currentExpression = "";
+    updateDisplay("0", "");
+}
+
+// Map Mouse Clicks
+document.querySelectorAll('.calc-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-val');
+        if (btn.id === 'btn-clear') return clearCalculator();
+        if (btn.id === 'btn-equals') return calculateResult();
+        
+        // Handle function parenthesis
+        if (['sin', 'cos', 'tan', 'log', 'sqrt'].includes(val)) {
+            appendToExpression(val + '(');
+        } else if (val) {
+            appendToExpression(val);
+        }
+    });
 });
 
-function renderHistoryUI(dataArray) {
-    historyList.innerHTML = '';
-    if (dataArray.length === 0) {
-        historyList.innerHTML = '<p style="padding:10px; color:#aaa;">No history recorded yet.</p>';
-        return;
+// Map PC Keyboard Typing
+window.addEventListener('keydown', (e) => {
+    if (modules.scientific.style.display === 'none') return; // Only apply if in calculator tab
+    
+    const validKeys = ['0','1','2','3','4','5','6','7','8','9','.','+','-','*','/','(',')'];
+    if (validKeys.includes(e.key)) {
+        let mappedKey = e.key;
+        if (e.key === '*') mappedKey = '×';
+        if (e.key === '/') mappedKey = '÷';
+        if (e.key === '-') mappedKey = '−';
+        appendToExpression(mappedKey);
     }
-    // Render from newest to oldest
-    [...dataArray].reverse().forEach(item => {
-        const div = document.createElement('div');
-        div.classList.add('history-item');
-        div.innerHTML = `${item.eq} <span>= ${item.res}</span>`;
-        historyList.appendChild(div);
+    
+    if (e.key === 'Enter' || e.key === '=') {
+        e.preventDefault(); // Stop forms from submitting
+        calculateResult();
+    }
+    
+    if (e.key === 'Backspace') {
+        currentExpression = currentExpression.slice(0, -1);
+        updateDisplay(currentExpression || "0");
+    }
+    
+    if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
+        clearCalculator();
+    }
+});
+
+
+// ==========================================
+// 3. FIREBASE CLOUD HISTORY
+// ==========================================
+async function saveToCloudHistory(eq, res) {
+    if (!currentUser) return;
+    try {
+        const historyRef = collection(db, `users/${currentUser.uid}/calculatorHistory`);
+        await addDoc(historyRef, {
+            equation: eq,
+            result: res,
+            timestamp: serverTimestamp()
+        });
+    } catch (error) {
+        console.error("Error saving history:", error);
+    }
+}
+
+function loadCloudHistory() {
+    if (!currentUser) return;
+    const historyRef = collection(db, `users/${currentUser.uid}/calculatorHistory`);
+    const q = query(historyRef, orderBy("timestamp", "desc"));
+
+    // Real-time listener
+    onSnapshot(q, (snapshot) => {
+        historyList.innerHTML = "";
+        if (snapshot.empty) {
+            historyList.innerHTML = '<li style="color: #888; text-align: center; font-size: 13px;">No history yet.</li>';
+            return;
+        }
+
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const li = document.createElement("li");
+            li.className = "history-item";
+            li.innerHTML = `
+                <div class="eq">${data.equation} =</div>
+                <div class="res">${data.result}</div>
+            `;
+            historyList.appendChild(li);
+        });
     });
 }
 
-async function loadCloudHistory() {
+document.getElementById('btn-clear-history').addEventListener('click', async () => {
     if (!currentUser) return;
-    try {
-        const docSnap = await getDoc(doc(db, "calculatorHistory", currentUser.uid));
-        if (docSnap.exists() && docSnap.data().calculations) {
-            localHistoryQueue = docSnap.data().calculations;
-        } else {
-            localHistoryQueue = [];
-        }
-        renderHistoryUI(localHistoryQueue);
-    } catch (error) {
-        console.error("Error loading cloud history:", error);
-    }
-}
-
-async function saveToCloud(equation, result) {
-    // 1. Optimistic UI Update: Show it immediately without waiting for Firebase
-    const newCalculation = { eq: equation, res: result, timestamp: new Date().toISOString() };
-    localHistoryQueue.push(newCalculation);
-    renderHistoryUI(localHistoryQueue);
-
-    // 2. Background Sync
-    if (!currentUser) return;
-    try {
-        const userDocRef = doc(db, "calculatorHistory", currentUser.uid);
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-            await updateDoc(userDocRef, { calculations: arrayUnion(newCalculation) });
-        } else {
-            await setDoc(userDocRef, { calculations: [newCalculation] });
-        }
-    } catch (error) {
-        console.error("Error saving to cloud:", error);
-    }
-}
-
-clearHistoryBtn.addEventListener('click', async () => {
-    if (!currentUser) return;
-    if (confirm("Permanently delete your calculation history?")) {
-        localHistoryQueue = [];
-        renderHistoryUI(localHistoryQueue);
-        await setDoc(doc(db, "calculatorHistory", currentUser.uid), { calculations: [] });
-        historyPanel.classList.remove('show');
-    }
+    if (!confirm("Are you sure you want to clear your entire history?")) return;
+    
+    const historyRef = collection(db, `users/${currentUser.uid}/calculatorHistory`);
+    const snap = await getDocs(historyRef);
+    snap.forEach(async (docSnap) => {
+        await deleteDoc(docSnap.ref);
+    });
 });
 
-// --- 3. CORE SCIENTIFIC CALCULATOR ---
-class Calculator {
-    constructor(previousText, currentText) {
-        this.previousText = previousText;
-        this.currentText = currentText;
-        this.clear();
-    }
 
-    clear() {
-        this.currentOperand = '0';
-        this.previousOperand = '';
-        this.operation = undefined;
-    }
-
-    delete() {
-        if (this.currentOperand === '0') return;
-        this.currentOperand = this.currentOperand.toString().slice(0, -1);
-        if (this.currentOperand === '') this.currentOperand = '0';
-    }
-
-    appendNumber(number) {
-        if (number === '.' && this.currentOperand.includes('.')) return;
-        if (this.currentOperand === '0' && number !== '.') {
-            this.currentOperand = number.toString();
-        } else {
-            this.currentOperand = this.currentOperand.toString() + number.toString();
-        }
-    }
-
-    appendConstant(constant) {
-        if (constant === 'pi') this.currentOperand = Math.PI.toString();
-        if (constant === 'e') this.currentOperand = Math.E.toString();
-    }
-
-    chooseOperation(operation) {
-        if (this.currentOperand === '0' && this.previousOperand === '') return;
-        if (this.previousOperand !== '') this.compute();
-        this.operation = operation;
-        this.previousOperand = this.currentOperand;
-        this.currentOperand = '0';
-    }
-
-    computeSingleOperand(operation) {
-        let current = parseFloat(this.currentOperand);
-        if (isNaN(current)) return;
-        let equationString = `${operation}(${current})`;
-
-        switch (operation) {
-            case 'sin': current = Math.sin(current); break;
-            case 'cos': current = Math.cos(current); break;
-            case 'tan': current = Math.tan(current); break;
-            case 'sqrt': current = Math.sqrt(current); break;
-            case 'log': current = Math.log10(current); break;
-            case 'ln': current = Math.log(current); break;
-            case 'inv': current = 1 / current; equationString = `1/(${this.currentOperand})`; break;
-            case 'abs': current = Math.abs(current); break;
-            case 'square': current = Math.pow(current, 2); equationString = `(${this.currentOperand})²`; break;
-        }
-        
-        current = Math.round(current * 1e10) / 1e10;
-        saveToCloud(equationString, current);
-        this.currentOperand = current.toString();
-    }
-
-    compute() {
-        let computation;
-        const prev = parseFloat(this.previousOperand);
-        const current = parseFloat(this.currentOperand);
-        if (isNaN(prev) || isNaN(current)) return;
-        
-        const equationString = `${prev} ${this.operation} ${current}`;
-
-        switch (this.operation) {
-            case '+': computation = prev + current; break;
-            case '−': computation = prev - current; break;
-            case '×': computation = prev * current; break;
-            case '÷': 
-                if (current === 0) { alert("Cannot divide by zero"); return this.clear(); }
-                computation = prev / current; break;
-            case '^': computation = Math.pow(prev, current); break;
-            default: return;
-        }
-        
-        computation = Math.round(computation * 1e10) / 1e10;
-        saveToCloud(equationString, computation);
-        
-        this.currentOperand = computation.toString();
-        this.operation = undefined;
-        this.previousOperand = '';
-    }
-
-    updateDisplay() {
-        this.currentText.innerText = this.currentOperand;
-        if (this.operation != null) {
-            this.previousText.innerText = `${this.previousOperand} ${this.operation}`;
-        } else {
-            this.previousText.innerText = '';
-        }
-    }
-}
-
-const calculator = new Calculator(
-    document.querySelector('[data-previous-operand]'),
-    document.querySelector('[data-current-operand]')
-);
-
-// Event Listeners (BUG FIX: Added Constant Listener)
-document.querySelectorAll('[data-number]').forEach(btn => btn.addEventListener('click', () => { calculator.appendNumber(btn.innerText); calculator.updateDisplay(); }));
-document.querySelectorAll('[data-operation]').forEach(btn => btn.addEventListener('click', () => { calculator.chooseOperation(btn.dataset.operation); calculator.updateDisplay(); }));
-document.querySelectorAll('[data-single-op]').forEach(btn => btn.addEventListener('click', () => { calculator.computeSingleOperand(btn.dataset.singleOp); calculator.updateDisplay(); }));
-document.querySelectorAll('[data-constant]').forEach(btn => btn.addEventListener('click', () => { calculator.appendConstant(btn.dataset.constant); calculator.updateDisplay(); }));
-document.querySelector('[data-equals]').addEventListener('click', () => { calculator.compute(); calculator.updateDisplay(); });
-document.querySelector('[data-all-clear]').addEventListener('click', () => { calculator.clear(); calculator.updateDisplay(); });
-document.querySelector('[data-delete]').addEventListener('click', () => { calculator.delete(); calculator.updateDisplay(); });
-
-// Keyboard PC Input
-document.addEventListener('keydown', e => {
-    if(!document.getElementById('scientific').classList.contains('active-module')) return;
-    if ((e.key >= '0' && e.key <= '9') || e.key === '.') calculator.appendNumber(e.key);
-    if (e.key === '=' || e.key === 'Enter') { e.preventDefault(); calculator.compute(); }
-    if (e.key === 'Backspace') calculator.delete();
-    if (e.key === 'Escape') calculator.clear();
-    if (['+', '-', '*', '/'].includes(e.key)) {
-        let op = e.key;
-        if (op === '*') op = '×';
-        if (op === '/') op = '÷';
-        if (op === '-') op = '−';
-        calculator.chooseOperation(op);
-    }
-    calculator.updateDisplay();
-});
-
-// --- 4. ADVANCED FINANCIAL MODULE ---
-const finTypeSel = document.getElementById('fin-type');
-finTypeSel.addEventListener('change', (e) => {
-    if(e.target.value === 'loan') {
-        document.getElementById('label-principal').innerText = "Total Loan Amount ($)";
-        document.getElementById('label-time').innerText = "Loan Term (Years)";
-        document.getElementById('calc-fin-btn').innerText = "Calculate Monthly EMI";
-    } else {
-        document.getElementById('label-principal').innerText = "Principal Investment ($)";
-        document.getElementById('label-time').innerText = "Time (Years)";
-        document.getElementById('calc-fin-btn').innerText = "Calculate Compound Interest";
-    }
-});
-
-document.getElementById('calc-fin-btn').addEventListener('click', () => {
+// ==========================================
+// 4. FINANCIAL CALCULATOR
+// ==========================================
+document.getElementById('fin-calc-btn').addEventListener('click', () => {
+    const type = document.getElementById('fin-type').value;
     const p = parseFloat(document.getElementById('fin-principal').value);
-    const annualRate = parseFloat(document.getElementById('fin-rate').value);
+    const r = parseFloat(document.getElementById('fin-rate').value);
     const t = parseFloat(document.getElementById('fin-time').value);
+    const resultDiv = document.getElementById('fin-result');
 
-    if (isNaN(p) || isNaN(annualRate) || isNaN(t)) {
-        alert("Please fill out all Financial fields.");
-        return;
+    if (isNaN(p) || isNaN(r) || isNaN(t)) {
+        return resultDiv.innerText = "Please fill all fields with valid numbers.";
     }
 
-    const type = finTypeSel.value;
-    
-    if(type === 'compound') {
-        const r = annualRate / 100;
-        const n = 12; // Compounded monthly
-        const amount = p * Math.pow((1 + r/n), (n*t));
-        const interest = amount - p;
-        document.getElementById('res-line-1').innerHTML = `Future Value: <span id="fin-val-1">$${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
-        document.getElementById('res-line-2').innerHTML = `Interest Earned: <span id="fin-val-2">$${interest.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
-    } 
-    else if(type === 'loan') {
-        const r = (annualRate / 100) / 12; // Monthly interest rate
-        const n = t * 12; // Total number of months
-        // EMI Formula: P x R x (1+R)^N / [(1+R)^N-1]
-        let emi = 0;
-        if(r === 0) emi = p / n;
-        else emi = p * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
-        
-        const totalPaid = emi * n;
-        const totalInterest = totalPaid - p;
-        
-        document.getElementById('res-line-1').innerHTML = `Monthly EMI Payment: <span id="fin-val-1">$${emi.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
-        document.getElementById('res-line-2').innerHTML = `Total Interest Paid: <span id="fin-val-2">$${totalInterest.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</span>`;
+    if (type === 'compound') {
+        const amount = p * Math.pow((1 + (r / 100)), t);
+        resultDiv.innerText = `Total Value: ₹${amount.toFixed(2)}`;
+    } else if (type === 'emi') {
+        const monthlyRate = r / 12 / 100;
+        const months = t * 12;
+        const emi = (p * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+        resultDiv.innerText = `Monthly EMI: ₹${emi.toFixed(2)}`;
     }
 });
 
-// --- 5. ADVANCED GRAPHING MODULE ---
-const canvas = document.getElementById('graphCanvas');
-const ctx = canvas.getContext('2d');
 
+// ==========================================
+// 5. GRAPHING CALCULATOR (CANVAS)
+// ==========================================
 function drawGraph() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const canvas = document.getElementById('graph-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     
+    // Bounds
     const xMin = parseFloat(document.getElementById('g-xmin').value) || -10;
     const xMax = parseFloat(document.getElementById('g-xmax').value) || 10;
     const yMin = parseFloat(document.getElementById('g-ymin').value) || -10;
     const yMax = parseFloat(document.getElementById('g-ymax').value) || 10;
     
-    const xRange = xMax - xMin;
-    const yRange = yMax - yMin;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Scale factors: pixels per math unit
-    const scaleX = canvas.width / xRange;
-    const scaleY = canvas.height / yRange;
-    
-    // Find origin pixel coordinates
+    const scaleX = canvas.width / (xMax - xMin);
+    const scaleY = canvas.height / (yMax - yMin);
     const originX = -xMin * scaleX;
-    const originY = canvas.height + (yMin * scaleY); // Canvas Y goes down
+    const originY = yMax * scaleY;
 
-    // Draw grid
+    // Draw Axes
     ctx.beginPath();
-    ctx.strokeStyle = "#eee";
-    for(let i=0; i<canvas.width; i+= (scaleX)) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
-    for(let i=0; i<canvas.height; i+= (scaleY)) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
-    ctx.stroke();
-
-    // Draw Axis lines
-    ctx.beginPath();
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 1.5;
-    ctx.moveTo(originX, 0); ctx.lineTo(originX, canvas.height); // Y axis
-    ctx.moveTo(0, originY); ctx.lineTo(canvas.width, originY); // X axis
+    ctx.strokeStyle = "#e1e4e8";
+    ctx.lineWidth = 1;
+    ctx.moveTo(originX, 0); ctx.lineTo(originX, canvas.height); 
+    ctx.moveTo(0, originY); ctx.lineTo(canvas.width, originY); 
     ctx.stroke();
 
     // Plot Equation
-    const eqStr = document.getElementById('graph-equation').value;
+    let eqStr = document.getElementById('graph-equation').value;
+    if (!eqStr) return;
+
+    // Auto format standard math inputs
+    eqStr = eqStr.replace(/sin/g, 'Math.sin').replace(/cos/g, 'Math.cos').replace(/tan/g, 'Math.tan');
+
     ctx.beginPath();
     ctx.strokeStyle = "#128C7E";
     ctx.lineWidth = 2.5;
 
     try {
         let firstPoint = true;
-        for(let px = 0; px < canvas.width; px += 2) {
-            // Map pixel to math X coordinate
-            let x = xMin + (px / scaleX); 
-            // Unsafe Eval for local string processing
-            let y = eval(eqStr); 
-            // Map math Y back to pixel Y coordinate
+        for (let px = 0; px < canvas.width; px += 2) {
+            let x = xMin + (px / scaleX);
+            let y = eval(eqStr); // Unsafe eval purely for local graph plotting
             let py = originY - (y * scaleY);
             
             if (isNaN(y) || !isFinite(y)) {
                 firstPoint = true;
                 continue;
             }
-            
             if (firstPoint) { ctx.moveTo(px, py); firstPoint = false; } 
             else { ctx.lineTo(px, py); }
         }
         ctx.stroke();
     } catch(e) {
-        console.error("Invalid math equation");
+        // Invalid formula typed, wait for correction
     }
 }
 
-// Initial draw and listeners
-setTimeout(drawGraph, 100); // slight delay to ensure DOM layout
 document.getElementById('plot-btn').addEventListener('click', drawGraph);
-['g-xmin', 'g-xmax', 'g-ymin', 'g-ymax'].forEach(id => {
-    document.getElementById(id).addEventListener('change', drawGraph);
-});
