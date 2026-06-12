@@ -3,19 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Math Solver Suite | Aksh Studio</title>
+    <title>Calculator | Aksh Studio</title>
     <link rel="icon" type="image/png" href="../../calc-logo.png">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
 </head>
 <body>
     <div style="width: 100%; max-width: 1100px; margin: auto;">
-        <a href="../../dashboard.html" class="back-link">← Back to Dashboard</a>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <a href="../../dashboard.html" class="back-link" style="margin-bottom: 0;">← Back to Dashboard</a>
+            <button id="theme-toggle" style="background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 6px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s;">Dark Mode</button>
+        </div>
 
         <div class="app-layout">
             <div class="calc-container">
                 
-                <div class="calc-display">
+                <div class="calc-display" id="main-display-container">
                     <div class="display-history" id="display-history"></div>
                     <div class="display-main" id="display-main"></div>
                 </div>
