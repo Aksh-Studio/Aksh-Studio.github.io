@@ -10,12 +10,18 @@
 </head>
 <body>
     <div style="width: 100%; max-width: 1100px; margin: auto;">
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <a href="../../dashboard.html" class="back-link" style="margin-bottom: 0;">← Back to Dashboard</a>
-            <button id="theme-toggle" style="background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 6px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s;">Dark Mode</button>
-        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: var(--app-bg); padding: 12px 20px; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-large);">
+            
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <a href="../../dashboard.html" class="back-link" style="margin-bottom: 0; padding-right: 20px; border-right: 2px solid var(--border);">← Dashboard</a>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="../../calc-logo.png" alt="Aksh Calculator Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h1 style="font-size: 18px; font-weight: 700; color: var(--text-main); margin: 0; letter-spacing: -0.5px;">Aksh Calculator</h1>
+                </div>
+            </div>
 
+            <button id="theme-toggle" style="background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 8px 18px; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s;">Dark Mode</button>
+        </div>
         <div class="app-layout">
             <div class="calc-container">
                 
