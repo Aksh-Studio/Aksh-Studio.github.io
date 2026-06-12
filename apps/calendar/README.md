@@ -1,3 +1,6 @@
+## 📂 Project Structure
+
+```text
 apps/calendar/
 │
 ├── index.html                        # The core entry point housing the UI shell and modal definitions
@@ -28,3 +31,4 @@ apps/calendar/
     │   └── importExport.js           # Parsers converting .ics / .csv files directly into Firestore payloads
     │
     └── shortcuts.js                  # Global event listener intercepting keyboard navigation binds
+```
