@@ -355,5 +355,6 @@ aiInput.addEventListener('keypress', function (e) {
     }
 });
 
-// Init on load if user is somewhat delayed
+// Init on load
 updateAllViews();
+initShortcuts(); // ACTIVATING THE SHORTCUTS HERE
