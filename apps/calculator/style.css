@@ -75,3 +75,47 @@ canvas { width: 100%; max-width: 600px; height: auto; background: #fff; border: 
     .graph-controls, .graph-settings { flex-direction: column; }
     .graph-controls button { width: 100%; }
 }
+
+/* =========================================
+   MOBILE RESPONSIVENESS FIX
+   ========================================= */
+@media screen and (max-width: 768px) {
+    /* Stack the Calculator and History vertically on phones */
+    .app-layout, body {
+        flex-direction: column !important;
+        overflow-y: auto;
+    }
+
+    /* Make the main calculator take up the full screen width */
+    #calculator-app, .calc-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto;
+        border-radius: 0 !important; /* Removes corners for mobile edge-to-edge look */
+    }
+
+    /* Push the history panel below the calculator */
+    #history-panel, .history-sidebar {
+        width: 100% !important;
+        max-height: 250px !important;
+        border-left: none !important;
+        border-top: 2px solid #128C7E !important;
+        margin-top: 20px;
+    }
+
+    /* Adjust button padding so they aren't crushed */
+    .calc-btn {
+        padding: 15px 5px !important;
+        font-size: 18px !important;
+    }
+
+    /* Ensure the Financial/Graphing Tabs don't overlap */
+    .calc-tabs {
+        flex-wrap: wrap !important;
+    }
+    .tab-btn {
+        flex: 1 1 30%;
+        font-size: 12px !important;
+        padding: 8px 4px !important;
+    }
+}
