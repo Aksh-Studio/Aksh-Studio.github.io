@@ -24,19 +24,25 @@
                     <div class="display-main" id="display-main"></div>
                 </div>
 
-                <div class="calc-tabs" id="tabs-container">
-                    <button class="tab-btn active" id="tab-scientific">Scientific</button>
-                    <button class="tab-btn" id="tab-algebra">Algebra</button>
-                    <button class="tab-btn" id="tab-trigonometry">Trigonometry</button>
-                    <button class="tab-btn" id="tab-calculus">Calculus</button>
-                    <button class="tab-btn" id="tab-graphing">Graphing</button>
-                    <button class="tab-btn" id="tab-financial">Financial</button>
-                    <button class="tab-btn" id="tab-currency">Currency</button>
-                    <button class="tab-btn" id="tab-unit">Unit</button>
-                    <button class="tab-btn" id="tab-age">Age</button>
-                    <button class="tab-btn" id="tab-bmi">BMI</button>
-                    <button class="tab-btn" id="tab-discount">Discount</button>
-                    <button class="tab-btn" id="tab-data">Data</button>
+                <div class="tabs-wrapper" style="display: flex; align-items: center; margin-bottom: 25px; position: relative;">
+                    <button class="scroll-arrow" id="scroll-left">‹</button>
+                    
+                    <div class="calc-tabs" id="tabs-container" style="margin-bottom: 0;">
+                        <button class="tab-btn active" id="tab-scientific">Scientific</button>
+                        <button class="tab-btn" id="tab-algebra">Algebra</button>
+                        <button class="tab-btn" id="tab-trigonometry">Trigonometry</button>
+                        <button class="tab-btn" id="tab-calculus">Calculus</button>
+                        <button class="tab-btn" id="tab-graphing">Graphing</button>
+                        <button class="tab-btn" id="tab-financial">Financial</button>
+                        <button class="tab-btn" id="tab-currency">Currency</button>
+                        <button class="tab-btn" id="tab-unit">Unit</button>
+                        <button class="tab-btn" id="tab-age">Age</button>
+                        <button class="tab-btn" id="tab-bmi">BMI</button>
+                        <button class="tab-btn" id="tab-discount">Discount</button>
+                        <button class="tab-btn" id="tab-data">Data</button>
+                    </div>
+
+                    <button class="scroll-arrow" id="scroll-right">›</button>
                 </div>
 
                 <div id="module-scientific" class="calc-grid scientific">
@@ -197,7 +203,7 @@
                     <button class="calc-btn" data-val="+">+</button>
                 </div>
 
-                <div id="module-graphing" class="module-form" style="display: none;"><label>Equation y = f(x)</label><input type="text" id="g-eq" placeholder="e.g. sin(x)"><div style="display: flex; gap:10px;"><div style="flex:1"><label>X Min</label><input type="number" id="g-min" value="-10"></div><div style="flex:1"><label>X Max</label><input type="number" id="g-max" value="10"></div></div><button id="btn-plot">Plot Graph</button><canvas id="graph-canvas" height="300" style="width:100%; border:1px solid var(--border); border-radius:12px;"></canvas></div>
+                <div id="module-graphing" class="module-form" style="display: none;"><label>Equation y = f(x)</label><input type="text" id="g-eq" placeholder="e.g. sin(x)"><div style="display: flex; gap:10px;"><div style="flex:1"><label>X Min</label><input type="number" id="g-min" value="-10"></div><div style="flex:1"><label>X Max</label><input type="number" id="g-max" value="10"></div></div><button id="btn-plot">Plot Graph</button><canvas id="graph-canvas" height="300" style="width:100%; border:1px solid var(--border); border-radius:12px; background: white;"></canvas></div>
                 <div id="module-financial" class="module-form" style="display: none;"><label>Type</label><select id="fin-t"><option value="emi">Loan EMI</option><option value="compound">Compound Interest</option></select><label>Principal (₹)</label><input type="number" id="fin-p" placeholder="100000"><label>Rate (%)</label><input type="number" id="fin-r" placeholder="7.5"><label>Time (Years)</label><input type="number" id="fin-y" placeholder="5"><button id="fin-btn">Calculate</button><div id="fin-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
                 <div id="module-currency" class="module-form" style="display: none;"><label>Amount</label><input type="number" id="cur-v" value="1"><label>From</label><select id="cur-f"><option value="USD">USD</option><option value="INR" selected>INR</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select><label>To</label><select id="cur-t"><option value="USD" selected>USD</option><option value="INR">INR</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select><button id="cur-btn">Convert Currency</button><div id="cur-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
                 <div id="module-unit" class="module-form" style="display: none;"><label>Category</label><select id="un-c"><option value="l">Length (Meters ↔ Feet)</option><option value="w">Weight (Kg ↔ Lbs)</option><option value="t">Temperature (°C ↔ °F)</option></select><label>Value</label><input type="number" id="un-v" value="1"><button id="un-btn">Convert Unit</button><div id="un-res" style="color:var(--primary); font-weight:bold; text-align:center; font-size:18px; margin-top:10px;"></div></div>
