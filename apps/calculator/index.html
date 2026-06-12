@@ -6,7 +6,6 @@
     <title>Calculator | Aksh Studio</title>
     <link rel="icon" type="image/png" href="../../calc-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,15 +15,21 @@
         <div class="app-layout">
             <div class="calc-container">
                 
-                <div class="calc-display">
+                <div class="calc-display" id="main-display-container">
                     <div class="display-history" id="display-history"></div>
                     <div class="display-main" id="display-main">0</div>
                 </div>
 
-                <div class="calc-tabs">
+                <div class="calc-tabs" style="overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;">
                     <button class="tab-btn active" id="tab-scientific">Scientific</button>
                     <button class="tab-btn" id="tab-financial">Financial</button>
                     <button class="tab-btn" id="tab-graphing">Graphing</button>
+                    <button class="tab-btn" id="tab-currency">Currency</button>
+                    <button class="tab-btn" id="tab-unit">Unit</button>
+                    <button class="tab-btn" id="tab-age">Age</button>
+                    <button class="tab-btn" id="tab-bmi">BMI</button>
+                    <button class="tab-btn" id="tab-discount">Discount</button>
+                    <button class="tab-btn" id="tab-data">Data</button>
                 </div>
 
                 <div id="module-scientific" class="calc-grid scientific">
@@ -61,54 +66,83 @@
 
                 <div id="module-financial" class="module-form" style="display: none;">
                     <label>Calculation Type</label>
-                    <select id="fin-type">
-                        <option value="compound">Compound Interest</option>
-                        <option value="emi">Loan EMI</option>
-                    </select>
-                    
-                    <label>Principal Amount (₹)</label>
-                    <input type="number" id="fin-principal" placeholder="e.g. 100000">
-                    
-                    <label>Interest Rate (%)</label>
-                    <input type="number" id="fin-rate" placeholder="e.g. 7.5">
-                    
-                    <label>Time (Years)</label>
-                    <input type="number" id="fin-time" placeholder="e.g. 5">
-                    
+                    <select id="fin-type"><option value="compound">Compound Interest</option><option value="emi">Loan EMI</option></select>
+                    <label>Principal Amount (₹)</label><input type="number" id="fin-principal" placeholder="100000">
+                    <label>Interest Rate (%)</label><input type="number" id="fin-rate" placeholder="7.5">
+                    <label>Time (Years)</label><input type="number" id="fin-time" placeholder="5">
                     <button id="fin-calc-btn">Calculate</button>
-                    
                     <div id="fin-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
                 </div>
 
                 <div id="module-graphing" class="module-form" style="display: none;">
-                    <label>Equation y = f(x)</label>
-                    <input type="text" id="graph-equation" placeholder="e.g. Math.sin(x) or x*x">
-                    
+                    <label>Equation y = f(x)</label><input type="text" id="graph-equation" placeholder="e.g. Math.sin(x)">
                     <div style="display: flex; gap: 10px;">
-                        <div style="flex: 1;">
-                            <label>X Min</label>
-                            <input type="number" id="g-xmin" value="-10">
-                        </div>
-                        <div style="flex: 1;">
-                            <label>X Max</label>
-                            <input type="number" id="g-xmax" value="10">
-                        </div>
+                        <div style="flex: 1;"><label>X Min</label><input type="number" id="g-xmin" value="-10"></div>
+                        <div style="flex: 1;"><label>X Max</label><input type="number" id="g-xmax" value="10"></div>
                     </div>
-                    
-                    <div style="display: flex; gap: 10px;">
-                        <div style="flex: 1;">
-                            <label>Y Min</label>
-                            <input type="number" id="g-ymin" value="-10">
-                        </div>
-                        <div style="flex: 1;">
-                            <label>Y Max</label>
-                            <input type="number" id="g-ymax" value="10">
-                        </div>
-                    </div>
-
                     <button id="plot-btn">Plot Graph</button>
-                    
                     <canvas id="graph-canvas" width="400" height="300"></canvas>
+                </div>
+
+                <div id="module-currency" class="module-form" style="display: none;">
+                    <label>Amount</label><input type="number" id="curr-amount" value="1">
+                    <label>From Currency</label>
+                    <select id="curr-from">
+                        <option value="USD">USD - US Dollar</option><option value="INR" selected>INR - Indian Rupee</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option><option value="JPY">JPY - Japanese Yen</option><option value="AUD">AUD - Australian Dollar</option>
+                    </select>
+                    <label>To Currency</label>
+                    <select id="curr-to">
+                        <option value="USD" selected>USD - US Dollar</option><option value="INR">INR - Indian Rupee</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option><option value="JPY">JPY - Japanese Yen</option><option value="AUD">AUD - Australian Dollar</option>
+                    </select>
+                    <button id="curr-calc-btn">Convert Currency</button>
+                    <div id="curr-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
+                </div>
+
+                <div id="module-unit" class="module-form" style="display: none;">
+                    <label>Category</label>
+                    <select id="unit-category">
+                        <option value="length">Length (Meters ↔ Feet)</option>
+                        <option value="weight">Weight (Kg ↔ Lbs)</option>
+                        <option value="temp">Temperature (°C ↔ °F)</option>
+                    </select>
+                    <label>Value</label><input type="number" id="unit-val" value="1">
+                    <button id="unit-calc-btn">Convert</button>
+                    <div id="unit-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
+                </div>
+
+                <div id="module-age" class="module-form" style="display: none;">
+                    <label>Date of Birth</label><input type="date" id="age-dob">
+                    <label>Calculate Age At</label><input type="date" id="age-target">
+                    <button id="age-calc-btn">Calculate Age</button>
+                    <div id="age-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
+                </div>
+
+                <div id="module-bmi" class="module-form" style="display: none;">
+                    <label>Height (in Centimeters)</label><input type="number" id="bmi-height" placeholder="e.g. 175">
+                    <label>Weight (in Kilograms)</label><input type="number" id="bmi-weight" placeholder="e.g. 70">
+                    <button id="bmi-calc-btn">Calculate BMI</button>
+                    <div id="bmi-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
+                </div>
+
+                <div id="module-discount" class="module-form" style="display: none;">
+                    <label>Original Price</label><input type="number" id="disc-price" placeholder="e.g. 1000">
+                    <label>Discount Percentage (%)</label><input type="number" id="disc-percent" placeholder="e.g. 20">
+                    <button id="disc-calc-btn">Calculate Final Price</button>
+                    <div id="disc-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
+                </div>
+
+                <div id="module-data" class="module-form" style="display: none;">
+                    <label>Data Amount</label><input type="number" id="data-val" value="1">
+                    <label>From</label>
+                    <select id="data-from">
+                        <option value="KB">Kilobytes (KB)</option><option value="MB" selected>Megabytes (MB)</option><option value="GB">Gigabytes (GB)</option><option value="TB">Terabytes (TB)</option>
+                    </select>
+                    <label>To</label>
+                    <select id="data-to">
+                        <option value="KB">Kilobytes (KB)</option><option value="MB">Megabytes (MB)</option><option value="GB" selected>Gigabytes (GB)</option><option value="TB">Terabytes (TB)</option>
+                    </select>
+                    <button id="data-calc-btn">Convert Data</button>
+                    <div id="data-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
                 </div>
 
             </div>
