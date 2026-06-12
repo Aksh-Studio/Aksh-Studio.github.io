@@ -91,28 +91,33 @@
     </style>
 </head>
 <body class="dashboard-body">
-    <header class="hub-header">
+  <header class="hub-header">
         <div class="brand">
             <img src="aksh-logo.png" alt="Aksh Studio Logo" class="hub-logo">
             <h2>Workspace Suite</h2>
         </div>
         
-        <div class="profile-menu">
-            <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover; border: 2px solid #128C7E;" title="Click to change picture">
-                <span id="header-name" style="font-weight: 500; font-size: 14px;">Loading...</span>
-            </div>
-            <div class="dropdown-content">
-                <p style="font-size: 12px; color: #888; text-transform: uppercase;">Personal Profile</p>
-                <p id="profile-name"><strong>Name:</strong> Loading...</p>
-                <p id="profile-email"><strong>Email:</strong> loading@example.com</p>
-                <p id="profile-gender"><strong>Gender:</strong> -</p>
-                <p id="profile-dob"><strong>DOB:</strong> -</p>
-                <p id="profile-phone"><strong>Phone:</strong> -</p>
-                <hr>
-                <button id="btn-edit-security" class="dropdown-btn outline">Edit Personal Info</button>
-                <button id="btn-bind-account" class="dropdown-btn outline">Link Account</button>
-                <button id="btn-signout" class="dropdown-btn" style="background: #ff4d4f;">Sign Out</button>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            
+            <button id="theme-toggle" class="dropdown-btn outline" style="margin-bottom: 0; padding: 6px 12px; font-size: 12px; border-radius: 20px;">Dark Mode</button>
+
+            <div class="profile-menu">
+                <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover; border: 2px solid #128C7E;" title="Click to change picture">
+                    <span id="header-name" style="font-weight: 500; font-size: 14px;">Loading...</span>
+                </div>
+                <div class="dropdown-content">
+                    <p style="font-size: 12px; color: #888; text-transform: uppercase;">Personal Profile</p>
+                    <p id="profile-name"><strong>Name:</strong> Loading...</p>
+                    <p id="profile-email"><strong>Email:</strong> loading@example.com</p>
+                    <p id="profile-gender"><strong>Gender:</strong> -</p>
+                    <p id="profile-dob"><strong>DOB:</strong> -</p>
+                    <p id="profile-phone"><strong>Phone:</strong> -</p>
+                    <hr>
+                    <button id="btn-edit-security" class="dropdown-btn outline">Edit Personal Info</button>
+                    <button id="btn-bind-account" class="dropdown-btn outline">Link Account</button>
+                    <button id="btn-signout" class="dropdown-btn" style="background: #ff4d4f;">Sign Out</button>
+                </div>
             </div>
         </div>
     </header>
@@ -208,6 +213,30 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        
+        // ==========================================
+        // DARK MODE CONTROLLER
+        // ==========================================
+        const themeBtn = document.getElementById('theme-toggle');
+        
+        // 1. Check local storage for saved theme on page load
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-theme');
+            themeBtn.innerText = 'Light Mode';
+        }
+
+        // 2. Listen for clicks to toggle
+        themeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark-theme');
+            
+            if (document.body.classList.contains('dark-theme')) {
+                localStorage.setItem('theme', 'dark');
+                themeBtn.innerText = 'Light Mode';
+            } else {
+                localStorage.setItem('theme', 'light');
+                themeBtn.innerText = 'Dark Mode';
+            }
+        });
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
