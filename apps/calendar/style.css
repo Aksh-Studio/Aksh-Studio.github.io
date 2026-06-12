@@ -256,3 +256,5 @@ body.dark-theme .mini-cal-grid div:hover { background: #27272a; }
     .view-switcher { width: 100%; display: flex; }
     .view-btn { flex: 1; text-align: center; }
 }
+
+.profile-menu:hover .dropdown-content { display: block !important; }
