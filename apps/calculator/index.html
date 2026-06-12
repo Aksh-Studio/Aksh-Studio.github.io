@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calculator | Aksh Studio</title>
+    <title>Math Solver Suite | Aksh Studio</title>
     <link rel="icon" type="image/png" href="../../calc-logo.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
 </head>
 <body>
-    <div style="width: 100%; max-width: 1000px;">
+    <div style="width: 100%; max-width: 1200px; margin: auto;">
         <a href="../../dashboard.html" class="back-link">← Back to Dashboard</a>
 
         <div class="app-layout">
             <div class="calc-container">
                 
-                <div class="calc-display" id="main-display-container">
+                <div class="calc-display">
                     <div class="display-history" id="display-history"></div>
-                    <div class="display-main" id="display-main">0</div>
+                    <div class="display-main" id="display-main"></div>
                 </div>
 
-                <div class="calc-tabs" style="overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;">
+                <div class="calc-tabs" id="tabs-container">
                     <button class="tab-btn active" id="tab-scientific">Scientific</button>
-                    <button class="tab-btn" id="tab-financial">Financial</button>
-                    <button class="tab-btn" id="tab-graphing">Graphing</button>
                     <button class="tab-btn" id="tab-algebra">Algebra</button>
                     <button class="tab-btn" id="tab-trigonometry">Trigonometry</button>
                     <button class="tab-btn" id="tab-calculus">Calculus</button>
+                    <button class="tab-btn" id="tab-graphing">Graphing</button>
+                    <button class="tab-btn" id="tab-financial">Financial</button>
                     <button class="tab-btn" id="tab-currency">Currency</button>
                     <button class="tab-btn" id="tab-unit">Unit</button>
                     <button class="tab-btn" id="tab-age">Age</button>
@@ -37,159 +37,181 @@
                 </div>
 
                 <div id="module-scientific" class="calc-grid scientific">
-                    <button class="calc-btn func" data-val="sin(">sin</button>
-                    <button class="calc-btn func" data-val="cos(">cos</button>
-                    <button class="calc-btn func" data-val="tan(">tan</button>
-                    <button class="calc-btn func" data-val="log(">log</button>
-                    <button class="calc-btn clear" id="btn-clear">AC</button>
+                    <button class="calc-btn" data-val="sin(">sin</button>
+                    <button class="calc-btn" data-val="cos(">cos</button>
+                    <button class="calc-btn" data-val="tan(">tan</button>
+                    <button class="calc-btn" data-val="log(">log</button>
+                    <button class="calc-btn btn-dark" data-val="AC">AC</button>
                     
-                    <button class="calc-btn func" data-val="pi">π</button>
-                    <button class="calc-btn num" data-val="7">7</button>
-                    <button class="calc-btn num" data-val="8">8</button>
-                    <button class="calc-btn num" data-val="9">9</button>
-                    <button class="calc-btn operator" data-val="/">÷</button>
+                    <button class="calc-btn" data-val="π">π</button>
+                    <button class="calc-btn" data-val="7">7</button>
+                    <button class="calc-btn" data-val="8">8</button>
+                    <button class="calc-btn" data-val="9">9</button>
+                    <button class="calc-btn" data-val="÷">÷</button>
                     
-                    <button class="calc-btn func" data-val="e">e</button>
-                    <button class="calc-btn num" data-val="4">4</button>
-                    <button class="calc-btn num" data-val="5">5</button>
-                    <button class="calc-btn num" data-val="6">6</button>
-                    <button class="calc-btn operator" data-val="*">×</button>
+                    <button class="calc-btn" data-val="e">e</button>
+                    <button class="calc-btn" data-val="4">4</button>
+                    <button class="calc-btn" data-val="5">5</button>
+                    <button class="calc-btn" data-val="6">6</button>
+                    <button class="calc-btn" data-val="×">×</button>
                     
-                    <button class="calc-btn func" data-val="^2">x²</button>
-                    <button class="calc-btn num" data-val="1">1</button>
-                    <button class="calc-btn num" data-val="2">2</button>
-                    <button class="calc-btn num" data-val="3">3</button>
-                    <button class="calc-btn operator" data-val="-">−</button>
+                    <button class="calc-btn" data-val="^2">x²</button>
+                    <button class="calc-btn" data-val="1">1</button>
+                    <button class="calc-btn" data-val="2">2</button>
+                    <button class="calc-btn" data-val="3">3</button>
+                    <button class="calc-btn" data-val="−">−</button>
                     
-                    <button class="calc-btn func" data-val="sqrt(">√</button>
-                    <button class="calc-btn num" data-val="0">0</button>
-                    <button class="calc-btn num" data-val=".">.</button>
-                    <button class="calc-btn equals" id="btn-equals">=</button>
-                    <button class="calc-btn operator" data-val="+">+</button>
+                    <button class="calc-btn" data-val="√(">√</button>
+                    <button class="calc-btn" data-val="0">0</button>
+                    <button class="calc-btn" data-val=".">.</button>
+                    <button class="calc-btn" data-val="=" style="background: #1a73e8; color: white;">=</button>
+                    <button class="calc-btn" data-val="+">+</button>
                 </div>
 
                 <div id="module-algebra" class="calc-grid advanced" style="display: none;">
-                    <button class="calc-btn btn-alg" data-val="^">x^y</button><button class="calc-btn btn-alg" data-val="sqrt(">√</button><button class="calc-btn btn-alg" data-val="<">&lt;</button>
-                    <button class="calc-btn" data-val="(">(</button><button class="calc-btn" data-val=")">)</button><button class="calc-btn clear" id="btn-del-alg">⌫</button><button class="calc-btn clear" id="btn-ac-alg">AC</button>
+                    <button class="calc-btn btn-alg" data-val="^2">x²</button>
+                    <button class="calc-btn btn-alg" data-val="√(">√□</button>
+                    <button class="calc-btn btn-alg" data-val="<">&lt;</button>
+                    <button class="calc-btn" data-val="(">(</button>
+                    <button class="calc-btn" data-val=")">)</button>
+                    <button class="calc-btn btn-dark" data-val="DEL">⌫</button>
+                    <button class="calc-btn btn-dark" data-val="AC">AC</button>
                     
-                    <button class="calc-btn btn-alg" data-val="|">|x|</button><button class="calc-btn btn-alg" data-val="=">=</button><button class="calc-btn btn-alg" data-val="<=">≤</button>
-                    <button class="calc-btn num" data-val="7">7</button><button class="calc-btn num" data-val="8">8</button><button class="calc-btn num" data-val="9">9</button><button class="calc-btn operator" data-val="/">÷</button>
+                    <button class="calc-btn btn-alg" data-val="^">xʸ</button>
+                    <button class="calc-btn btn-alg" data-val="abs(">|□|</button>
+                    <button class="calc-btn btn-alg" data-val="≤">≤</button>
+                    <button class="calc-btn" data-val="7">7</button>
+                    <button class="calc-btn" data-val="8">8</button>
+                    <button class="calc-btn" data-val="9">9</button>
+                    <button class="calc-btn" data-val="÷">÷</button>
                     
-                    <button class="calc-btn btn-alg" data-val="log(">log</button><button class="calc-btn btn-alg" data-val="!">n!</button><button class="calc-btn btn-alg" data-val=">">&gt;</button>
-                    <button class="calc-btn num" data-val="4">4</button><button class="calc-btn num" data-val="5">5</button><button class="calc-btn num" data-val="6">6</button><button class="calc-btn operator" data-val="*">×</button>
+                    <button class="calc-btn btn-alg" data-val="log(">log</button>
+                    <button class="calc-btn btn-alg" data-val="!">!</button>
+                    <button class="calc-btn btn-alg" data-val=">">&gt;</button>
+                    <button class="calc-btn" data-val="4">4</button>
+                    <button class="calc-btn" data-val="5">5</button>
+                    <button class="calc-btn" data-val="6">6</button>
+                    <button class="calc-btn" data-val="×">×</button>
                     
-                    <button class="calc-btn btn-alg" data-val="i">i</button><button class="calc-btn btn-alg" data-val="%">%</button><button class="calc-btn btn-alg" data-val=">=">≥</button>
-                    <button class="calc-btn num" data-val="1">1</button><button class="calc-btn num" data-val="2">2</button><button class="calc-btn num" data-val="3">3</button><button class="calc-btn operator" data-val="-">−</button>
+                    <button class="calc-btn btn-alg" data-val="i">i</button>
+                    <button class="calc-btn btn-alg" data-val="%">%</button>
+                    <button class="calc-btn btn-alg" data-val="≥">≥</button>
+                    <button class="calc-btn" data-val="1">1</button>
+                    <button class="calc-btn" data-val="2">2</button>
+                    <button class="calc-btn" data-val="3">3</button>
+                    <button class="calc-btn" data-val="−">−</button>
                     
-                    <button class="calc-btn btn-alg" data-val="x">x</button><button class="calc-btn btn-alg" data-val="y">y</button><button class="calc-btn btn-alg" data-val=",">,</button>
-                    <button class="calc-btn num" data-val="0">0</button><button class="calc-btn num" data-val=".">.</button><button class="calc-btn btn-alg-send" id="btn-send-alg">➤</button><button class="calc-btn operator" data-val="+">+</button>
+                    <button class="calc-btn btn-alg" data-val="x">x</button>
+                    <button class="calc-btn btn-alg" data-val="y">y</button>
+                    <button class="calc-btn btn-alg" data-val="=">=</button>
+                    <button class="calc-btn" data-val="0">0</button>
+                    <button class="calc-btn" data-val=".">.</button>
+                    <button class="calc-btn btn-solve-alg" data-val="SOLVE_ALG">➤</button>
+                    <button class="calc-btn" data-val="+">+</button>
                 </div>
 
                 <div id="module-trigonometry" class="calc-grid advanced" style="display: none;">
-                    <button class="calc-btn btn-trig" data-val="sin(">sin</button><button class="calc-btn btn-trig" data-val="cos(">cos</button><button class="calc-btn btn-trig" data-val="tan(">tan</button>
-                    <button class="calc-btn" data-val="(">(</button><button class="calc-btn" data-val=")">)</button><button class="calc-btn clear" id="btn-del-trig">⌫</button><button class="calc-btn clear" id="btn-ac-trig">AC</button>
+                    <button class="calc-btn btn-trig" data-val="sin(">sin</button>
+                    <button class="calc-btn btn-trig" data-val="cos(">cos</button>
+                    <button class="calc-btn btn-trig" data-val="tan(">tan</button>
+                    <button class="calc-btn" data-val="(">(</button>
+                    <button class="calc-btn" data-val=")">)</button>
+                    <button class="calc-btn btn-dark" data-val="DEL">⌫</button>
+                    <button class="calc-btn btn-dark" data-val="AC">AC</button>
                     
-                    <button class="calc-btn btn-trig" data-val="csc(">csc</button><button class="calc-btn btn-trig" data-val="sec(">sec</button><button class="calc-btn btn-trig" data-val="cot(">cot</button>
-                    <button class="calc-btn num" data-val="7">7</button><button class="calc-btn num" data-val="8">8</button><button class="calc-btn num" data-val="9">9</button><button class="calc-btn operator" data-val="/">÷</button>
+                    <button class="calc-btn btn-trig" data-val="csc(">csc</button>
+                    <button class="calc-btn btn-trig" data-val="sec(">sec</button>
+                    <button class="calc-btn btn-trig" data-val="cot(">cot</button>
+                    <button class="calc-btn" data-val="7">7</button>
+                    <button class="calc-btn" data-val="8">8</button>
+                    <button class="calc-btn" data-val="9">9</button>
+                    <button class="calc-btn" data-val="÷">÷</button>
                     
-                    <button class="calc-btn btn-trig" data-val="asin(">asin</button><button class="calc-btn btn-trig" data-val="acos(">acos</button><button class="calc-btn btn-trig" data-val="atan(">atan</button>
-                    <button class="calc-btn num" data-val="4">4</button><button class="calc-btn num" data-val="5">5</button><button class="calc-btn num" data-val="6">6</button><button class="calc-btn operator" data-val="*">×</button>
+                    <button class="calc-btn btn-trig" data-val="asin(">arcsin</button>
+                    <button class="calc-btn btn-trig" data-val="acos(">arccos</button>
+                    <button class="calc-btn btn-trig" data-val="atan(">arctan</button>
+                    <button class="calc-btn" data-val="4">4</button>
+                    <button class="calc-btn" data-val="5">5</button>
+                    <button class="calc-btn" data-val="6">6</button>
+                    <button class="calc-btn" data-val="×">×</button>
                     
-                    <button class="calc-btn btn-trig" data-val="^2">x²</button><button class="calc-btn btn-trig" data-val=" deg">°</button><button class="calc-btn btn-trig" data-val="pi">π</button>
-                    <button class="calc-btn num" data-val="1">1</button><button class="calc-btn num" data-val="2">2</button><button class="calc-btn num" data-val="3">3</button><button class="calc-btn operator" data-val="-">−</button>
+                    <button class="calc-btn btn-trig" data-val="^2">□²</button>
+                    <button class="calc-btn btn-trig" data-val="deg">°</button>
+                    <button class="calc-btn btn-trig" data-val="π">π</button>
+                    <button class="calc-btn" data-val="1">1</button>
+                    <button class="calc-btn" data-val="2">2</button>
+                    <button class="calc-btn" data-val="3">3</button>
+                    <button class="calc-btn" data-val="−">−</button>
                     
-                    <button class="calc-btn btn-trig" data-val="x">x</button><button class="calc-btn btn-trig" data-val="y">y</button><button class="calc-btn btn-trig" data-val="=">=</button>
-                    <button class="calc-btn num" data-val="0">0</button><button class="calc-btn num" data-val=".">.</button><button class="calc-btn btn-trig-send" id="btn-send-trig">➤</button><button class="calc-btn operator" data-val="+">+</button>
+                    <button class="calc-btn btn-trig" data-val="x">x</button>
+                    <button class="calc-btn btn-trig" data-val="y">y</button>
+                    <button class="calc-btn btn-trig" data-val="=">=</button>
+                    <button class="calc-btn" data-val="0">0</button>
+                    <button class="calc-btn" data-val=".">.</button>
+                    <button class="calc-btn btn-solve-trig" data-val="SOLVE_TRIG">➤</button>
+                    <button class="calc-btn" data-val="+">+</button>
                 </div>
 
                 <div id="module-calculus" class="calc-grid advanced" style="display: none;">
-                    <button class="calc-btn btn-calc" data-val="d/dx(">d/dx</button><button class="calc-btn btn-calc" data-val="Infinity">∞</button><button class="calc-btn btn-calc" data-val="sqrt(">√</button>
-                    <button class="calc-btn" data-val="(">(</button><button class="calc-btn" data-val=")">)</button><button class="calc-btn clear" id="btn-del-calc">⌫</button><button class="calc-btn clear" id="btn-ac-calc">AC</button>
+                    <button class="calc-btn btn-calc" data-val="d/dx(">d/dx</button>
+                    <button class="calc-btn btn-calc" data-val="∞">∞</button>
+                    <button class="calc-btn btn-calc" data-val="nthRoot(">ⁿ√</button>
+                    <button class="calc-btn" data-val="(">(</button>
+                    <button class="calc-btn" data-val=")">)</button>
+                    <button class="calc-btn btn-dark" data-val="DEL">⌫</button>
+                    <button class="calc-btn btn-dark" data-val="AC">AC</button>
                     
-                    <button class="calc-btn btn-calc" data-val="lim(">lim</button><button class="calc-btn btn-calc" data-val="lim+(">lim⁺</button><button class="calc-btn btn-calc" data-val="lim-(">lim⁻</button>
-                    <button class="calc-btn num" data-val="7">7</button><button class="calc-btn num" data-val="8">8</button><button class="calc-btn num" data-val="9">9</button><button class="calc-btn operator" data-val="/">÷</button>
+                    <button class="calc-btn btn-calc" data-val="lim(">lim</button>
+                    <button class="calc-btn btn-calc" data-val="lim+(">lim₊</button>
+                    <button class="calc-btn btn-calc" data-val="lim-(">lim₋</button>
+                    <button class="calc-btn" data-val="7">7</button>
+                    <button class="calc-btn" data-val="8">8</button>
+                    <button class="calc-btn" data-val="9">9</button>
+                    <button class="calc-btn" data-val="÷">÷</button>
                     
-                    <button class="calc-btn btn-calc" data-val="log(">log</button><button class="calc-btn btn-calc" data-val="nCr(">C(n,k)</button><button class="calc-btn btn-calc" data-val="nPr(">P(n,k)</button>
-                    <button class="calc-btn num" data-val="4">4</button><button class="calc-btn num" data-val="5">5</button><button class="calc-btn num" data-val="6">6</button><button class="calc-btn operator" data-val="*">×</button>
+                    <button class="calc-btn btn-calc" data-val="log(">log</button>
+                    <button class="calc-btn btn-calc" data-val="C(">C(n,k)</button>
+                    <button class="calc-btn btn-calc" data-val="P(">P(n,k)</button>
+                    <button class="calc-btn" data-val="4">4</button>
+                    <button class="calc-btn" data-val="5">5</button>
+                    <button class="calc-btn" data-val="6">6</button>
+                    <button class="calc-btn" data-val="×">×</button>
                     
-                    <button class="calc-btn btn-calc" data-val="sum(">∑</button><button class="calc-btn btn-calc" data-val="int(">∫</button><button class="calc-btn btn-calc" data-val="int(a,b,">∫ab</button>
-                    <button class="calc-btn num" data-val="1">1</button><button class="calc-btn num" data-val="2">2</button><button class="calc-btn num" data-val="3">3</button><button class="calc-btn operator" data-val="-">−</button>
+                    <button class="calc-btn btn-calc" data-val="sum(">Σ</button>
+                    <button class="calc-btn btn-calc" data-val="int(">∫</button>
+                    <button class="calc-btn btn-calc" data-val="intBounds(">∫ₐᵇ</button>
+                    <button class="calc-btn" data-val="1">1</button>
+                    <button class="calc-btn" data-val="2">2</button>
+                    <button class="calc-btn" data-val="3">3</button>
+                    <button class="calc-btn" data-val="−">−</button>
                     
-                    <button class="calc-btn btn-calc" data-val="x">x</button><button class="calc-btn btn-calc" data-val="y">y</button><button class="calc-btn btn-calc" data-val="e">e</button>
-                    <button class="calc-btn num" data-val="0">0</button><button class="calc-btn num" data-val=".">.</button><button class="calc-btn btn-calc-send" id="btn-send-calc">➤</button><button class="calc-btn operator" data-val="+">+</button>
-                </div>
-
-
-                <div id="module-financial" class="module-form" style="display: none;">
-                    <label>Calculation Type</label><select id="fin-type"><option value="compound">Compound Interest</option><option value="emi">Loan EMI</option></select>
-                    <label>Principal Amount (₹)</label><input type="number" id="fin-principal" placeholder="100000">
-                    <label>Interest Rate (%)</label><input type="number" id="fin-rate" placeholder="7.5">
-                    <label>Time (Years)</label><input type="number" id="fin-time" placeholder="5">
-                    <button id="fin-calc-btn">Calculate</button>
-                    <div id="fin-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
+                    <button class="calc-btn btn-calc" data-val="x">x</button>
+                    <button class="calc-btn btn-calc" data-val="y">y</button>
+                    <button class="calc-btn btn-calc" data-val="e">e</button>
+                    <button class="calc-btn" data-val="0">0</button>
+                    <button class="calc-btn" data-val=".">.</button>
+                    <button class="calc-btn btn-solve-calc" data-val="SOLVE_CALC">➤</button>
+                    <button class="calc-btn" data-val="+">+</button>
                 </div>
 
                 <div id="module-graphing" class="module-form" style="display: none;">
-                    <label>Equation y = f(x)</label><input type="text" id="graph-equation" placeholder="e.g. Math.sin(x)">
-                    <div style="display: flex; gap: 10px;"><div style="flex: 1;"><label>X Min</label><input type="number" id="g-xmin" value="-10"></div><div style="flex: 1;"><label>X Max</label><input type="number" id="g-xmax" value="10"></div></div>
-                    <button id="plot-btn">Plot Graph</button>
-                    <canvas id="graph-canvas" width="400" height="300"></canvas>
+                    <input type="text" id="g-eq" placeholder="e.g. sin(x)">
+                    <div style="display: flex; gap:10px;"><input type="number" id="g-min" value="-10"><input type="number" id="g-max" value="10"></div>
+                    <button id="btn-plot">Plot</button><canvas id="graph-canvas" height="300" style="width:100%; border:1px solid #ddd;"></canvas>
                 </div>
-
-                <div id="module-currency" class="module-form" style="display: none;">
-                    <label>Amount</label><input type="number" id="curr-amount" value="1">
-                    <label>From</label><select id="curr-from"><option value="USD">USD</option><option value="INR" selected>INR</option><option value="EUR">EUR</option></select>
-                    <label>To</label><select id="curr-to"><option value="USD" selected>USD</option><option value="INR">INR</option><option value="EUR">EUR</option></select>
-                    <button id="curr-calc-btn">Convert</button>
-                    <div id="curr-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
-                </div>
-
-                <div id="module-unit" class="module-form" style="display: none;">
-                    <label>Category</label><select id="unit-category"><option value="length">Length</option><option value="weight">Weight</option><option value="temp">Temp</option></select>
-                    <label>Value</label><input type="number" id="unit-val" value="1">
-                    <button id="unit-calc-btn">Convert</button>
-                    <div id="unit-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
-                </div>
-
-                <div id="module-age" class="module-form" style="display: none;">
-                    <label>DOB</label><input type="date" id="age-dob">
-                    <label>At</label><input type="date" id="age-target">
-                    <button id="age-calc-btn">Calculate Age</button>
-                    <div id="age-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
-                </div>
-
-                <div id="module-bmi" class="module-form" style="display: none;">
-                    <label>Height (cm)</label><input type="number" id="bmi-height" placeholder="175">
-                    <label>Weight (kg)</label><input type="number" id="bmi-weight" placeholder="70">
-                    <button id="bmi-calc-btn">Calculate BMI</button>
-                    <div id="bmi-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
-                </div>
-
-                <div id="module-discount" class="module-form" style="display: none;">
-                    <label>Original Price</label><input type="number" id="disc-price" placeholder="1000">
-                    <label>Discount (%)</label><input type="number" id="disc-percent" placeholder="20">
-                    <button id="disc-calc-btn">Calculate</button>
-                    <div id="disc-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
-                </div>
-
-                <div id="module-data" class="module-form" style="display: none;">
-                    <label>Amount</label><input type="number" id="data-val" value="1">
-                    <label>From</label><select id="data-from"><option value="MB" selected>MB</option><option value="GB">GB</option></select>
-                    <label>To</label><select id="data-to"><option value="MB">MB</option><option value="GB" selected>GB</option></select>
-                    <button id="data-calc-btn">Convert</button>
-                    <div id="data-result" style="margin-top: 15px; font-weight: bold; font-size: 18px; color: var(--primary-color); text-align: center;"></div>
-                </div>
+                <div id="module-financial" class="module-form" style="display: none;"><select id="fin-t"><option value="emi">EMI</option></select><input type="number" id="fin-p" placeholder="Principal"><input type="number" id="fin-r" placeholder="Rate %"><input type="number" id="fin-y" placeholder="Years"><button id="fin-btn">Calculate</button><div id="fin-res"></div></div>
+                <div id="module-currency" class="module-form" style="display: none;"><input type="number" id="cur-v" value="1"><select id="cur-f"><option value="USD">USD</option><option value="INR" selected>INR</option></select><select id="cur-t"><option value="USD" selected>USD</option><option value="INR">INR</option></select><button id="cur-btn">Convert</button><div id="cur-res"></div></div>
+                <div id="module-unit" class="module-form" style="display: none;"><select id="un-c"><option value="l">Length</option><option value="w">Weight</option></select><input type="number" id="un-v" value="1"><button id="un-btn">Convert</button><div id="un-res"></div></div>
+                <div id="module-age" class="module-form" style="display: none;"><input type="date" id="ag-d"><button id="ag-btn">Calculate Age</button><div id="ag-res"></div></div>
+                <div id="module-bmi" class="module-form" style="display: none;"><input type="number" id="bm-h" placeholder="Height cm"><input type="number" id="bm-w" placeholder="Weight kg"><button id="bm-btn">Calculate BMI</button><div id="bm-res"></div></div>
+                <div id="module-discount" class="module-form" style="display: none;"><input type="number" id="di-p" placeholder="Price"><input type="number" id="di-d" placeholder="Discount %"><button id="di-btn">Calculate</button><div id="di-res"></div></div>
+                <div id="module-data" class="module-form" style="display: none;"><input type="number" id="da-v" value="1"><select id="da-f"><option value="MB">MB</option></select><select id="da-t"><option value="GB">GB</option></select><button id="da-btn">Convert</button><div id="da-res"></div></div>
 
             </div>
 
-            <div class="history-sidebar" id="history-panel">
-                <div class="history-header">
-                    <h3>Cloud History</h3>
-                    <button class="btn-clear-history" id="btn-clear-history">Clear</button>
-                </div>
-                <ul class="history-list" id="history-list">
-                    <li style="color: #888; text-align: center; font-size: 13px;">Loading history...</li>
-                </ul>
+            <div class="history-sidebar">
+                <div class="history-header"><h3>History</h3><button id="btn-clear-history" style="background:none;border:none;color:#1a73e8;cursor:pointer;">Clear</button></div>
+                <ul class="history-list" id="history-list"></ul>
             </div>
         </div>
     </div>
