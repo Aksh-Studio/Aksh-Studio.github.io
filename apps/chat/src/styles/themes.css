@@ -1,0 +1,59 @@
+/* src/styles/themes.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Brand & Accent Colors */
+  --primary: #128C7E;
+  --primary-hover: #0d6b5f;
+  --app-bg: #f0f4f8;
+  --chat-bg: #e5ddd5;
+  --card-bg: #ffffff;
+  
+  /* Text & Borders */
+  --text-main: #102a43;
+  --text-muted: #627d98;
+  --border: #e4e7eb;
+  
+  /* Message Bubbles */
+  --msg-sent-bg: #128C7E;
+  --msg-sent-text: #ffffff;
+  --msg-received-bg: #ffffff;
+  --msg-received-text: #102a43;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+body.dark-theme {
+  --app-bg: #0b141a;
+  --card-bg: #111b21;
+  --chat-bg: #0b141a;
+  --text-main: #e9edef;
+  --text-muted: #8696a0;
+  --border: #202c33;
+  
+  --msg-sent-bg: #005c4b;
+  --msg-sent-text: #e9edef;
+  --msg-received-bg: #202c33;
+  --msg-received-text: #e9edef;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+html, body {
+  overflow-x: hidden;
+  width: 100vw;
+  max-width: 100%;
+  height: 100dvh;
+  background-color: var(--app-bg);
+  color: var(--text-main);
+  transition: background-color 0.3s ease;
+}
+
+/* Premium Scrollbars */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
