@@ -16,12 +16,12 @@
 
     <style>
         .master-layout { display: flex; justify-content: center; align-items: flex-start; gap: 30px; width: 100%; max-width: 1400px; margin: 20px auto; padding: 0 15px; }
-        .side-banner { display: none; width: 160px; height: 600px; flex-shrink: 0; position: sticky; top: 85px; }
+        .side-banner { display: none; width: 160px; flex-shrink: 0; position: sticky; top: 85px; }
         .center-content { flex: 1; max-width: 900px; width: 100%; }
         .dual-buttons { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
-        .dual-buttons button { flex: 1; min-width: 200px; display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 600; }
+        .dual-buttons a { flex: 1; min-width: 200px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; border-radius: 8px; height: 45px; color: #fff; cursor: pointer; transition: opacity 0.2s; }
+        .dual-buttons a:hover { opacity: 0.9; }
         
-        /* Show side banners ONLY on PC/Smart TV */
         @media (min-width: 1100px) { .side-banner { display: block; } }
     </style>
 </head>
@@ -59,7 +59,7 @@
 
         <div class="master-layout">
             
-            <aside class="side-banner">
+            <aside class="side-banner" style="height: 600px;">
                 <script>
                  atOptions = {
                    'key' : '1926f57777ef1e35e96ee6cf135310d1',
@@ -83,13 +83,13 @@
                         <p class="card-desc">Support us passively! View sponsor links or watch full promotional clips to earn community support tokens.</p>
                         
                         <div class="dual-buttons">
-                            <button id="btn-watch-ad" class="btn-primary" style="background: var(--primary);">
+                            <a id="btn-watch-ad" href="https://omg10.com/4/11140885" target="_blank" style="background: var(--primary);">
                                 <span class="material-symbols-rounded">open_in_new</span> Partner Link
-                            </button>
+                            </a>
                             
-                            <button id="btn-video-ad" class="btn-primary" style="background: #8b5cf6; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
+                            <a id="btn-video-ad" href="https://www.effectivecpmnetwork.com/s9m8i3khf?key=f0cad199709e55abee9c5c1c8900c0b5" target="_blank" style="background: #8b5cf6; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
                                 <span class="material-symbols-rounded">movie</span> Watch Video Ad
-                            </button>
+                            </a>
                         </div>
                         <p id="cooldown-timer" class="timer-hidden"></p>
                     </section>
@@ -112,70 +112,22 @@
                                 </div>
                                 <a href="https://youtube.com/@akfacts-124?si=vjYfxCbwn-RSg_kN" target="_blank" class="btn-outline btn-sm">Explore Content</a>
                             </div>
-
-                            <div class="promo-item dynamic-sponsor">
-                                <div class="promo-meta">
-                                    <span class="material-symbols-rounded sponsor-icon">add_to_photos</span>
-                                    <div>
-                                        <h4>Your Channel Here</h4>
-                                        <p>Reach thousands of viewers</p>
-                                    </div>
-                                </div>
-                                <button class="btn-secondary btn-sm" onclick="alert('Contact support at akshstudioofficial@gmail.com to book this premium feature card!')">Book Feature Slot</button>
-                            </div>
-                        </div>
-                    </section>
-
-                  <section class="hub-card affiliate-section">
-                        <div class="card-header">
-                            <span class="material-symbols-rounded icon-orange">shopping_bag</span>
-                            <h3>Recommended Creator Gear</h3>
-                        </div>
-                        <p class="card-desc">Products and tools we recommend for editing, long screen sessions, and running your creative workflow.</p>
-                        
-                        <div class="affiliate-list">
-                            <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border);">
-                                <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">keyboard</span>
-                                <div class="gear-info">
-                                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">iClever GK08 Wireless Combo</h5>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">Premium wireless keyboard and mouse set for sleek, quiet desktop setups.</p>
-                                    <a href="https://amzn.to/4v4YuyT" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
-                                </div>
-                            </div>
-
-                            <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border);">
-                                <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">visibility</span>
-                                <div class="gear-info">
-                                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Lenskart Blu Computer Glasses</h5>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">Zero power blue cut glasses with 100% UV protection for long editing hours.</p>
-                                    <a href="https://amzn.to/3SCPNgO" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
-                                </div>
-                            </div>
-
-                            <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px;">
-                                <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">steps</span>
-                                <div class="gear-info">
-                                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Bacca Bucci Running Shoes</h5>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">Comfortable, high-durability lace-up running shoes built for active daily wear.</p>
-                                    <a href="https://amzn.to/4atiT8w" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
-                                </div>
-                            </div>
                         </div>
                     </section>
                 </div>
             </div>
 
-            <aside class="side-banner">
+            <aside class="side-banner" style="height: 300px;">
                 <script>
                  atOptions = {
-                   'key' : '1926f57777ef1e35e96ee6cf135310d1',
+                   'key' : '872fb57ec1504e73569884a36829534c',
                    'format' : 'iframe',
-                   'height' : 600,
+                   'height' : 300,
                    'width' : 160,
                    'params' : {}
                  };
                 </script>
-                <script src="https://www.highperformanceformat.com/1926f57777ef1e35e96ee6cf135310d1/invoke.js"></script>
+                <script src="https://www.highperformanceformat.com/872fb57ec1504e73569884a36829534c/invoke.js"></script>
             </aside>
 
         </div>
