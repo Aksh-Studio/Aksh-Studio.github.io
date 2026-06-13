@@ -1,13 +1,16 @@
+// src/App.js
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
-// --- PLACEHOLDER COMPONENTS (We will replace these with real files later) ---
-const AuthScreen = () => <div style={{ padding: '50px', textAlign: 'center' }}><h2>Login Screen</h2><p>Phone/OTP Verification goes here.</p></div>;
-const ChatHubScreen = () => <div style={{ padding: '50px', textAlign: 'center' }}><h2>Main Chat Interface</h2><p>Sidebar and messaging window goes here.</p></div>;
-const SettingsScreen = () => <div style={{ padding: '50px', textAlign: 'center' }}><h2>Settings</h2><p>Privacy, Security, and Storage management.</p></div>;
+// Import the real Authentication screen
+import Auth from './pages/Auth';
+
+// Temporary placeholders for remaining panels (to be built next)
+const ChatHub = () => <div style={{ padding: '50px', textAlign: 'center' }}><h2>Chat Hub</h2><p>Main interface loading...</p></div>;
+const Settings = () => <div style={{ padding: '50px', textAlign: 'center' }}><h2>Settings</h2><p>Preferences loading...</p></div>;
 
 function App() {
-  // Global Theme Initialization
+  // Global Theme Sync Engine on app boot
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
@@ -18,14 +21,14 @@ function App() {
   return (
     <div className="aksh-chat-app">
       <Routes>
-        {/* Public Route */}
-        <Route path="/login" element={<AuthScreen />} />
+        {/* Public Routes */}
+        <Route path="/login" element={<Auth />} />
         
-        {/* Protected Routes (Will add Auth Guards later) */}
-        <Route path="/" element={<ChatHubScreen />} />
-        <Route path="/settings" element={<SettingsScreen />} />
+        {/* Protected Core Application Routes */}
+        <Route path="/" element={<ChatHub />} />
+        <Route path="/settings" element={<Settings />} />
         
-        {/* Fallback */}
+        {/* Catch-all Fallback Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
