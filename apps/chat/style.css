@@ -109,3 +109,160 @@ html, body {
     align-items: center;
     text-align: center;
 }
+
+/* --- CHAT HUB GRID --- */
+.app-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    background: var(--card-bg);
+}
+
+/* LEFT PANEL: Sidebar */
+.chat-sidebar {
+    width: 320px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    flex-shrink: 0;
+    transition: 0.3s ease;
+}
+
+.sidebar-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-bar {
+    padding: 15px;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--app-bg);
+    color: var(--text-main);
+    font-size: 14px;
+    outline: none;
+}
+
+.user-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+    margin-bottom: 5px;
+}
+
+.user-item:hover { background: var(--app-bg); }
+.user-item.active { background: var(--primary); color: white; }
+
+.user-item img, .global-icon-box {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.global-icon-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--border);
+    font-size: 24px;
+}
+
+.user-item.active .global-icon-box { background: rgba(255,255,255,0.2); }
+
+.user-info { flex: 1; overflow: hidden; }
+.user-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+.user-info p { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-item.active .user-info p { color: rgba(255,255,255,0.8); }
+
+/* RIGHT PANEL: Chat Main */
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--chat-bg);
+}
+
+.chat-header {
+    padding: 15px 25px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 25px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.chat-input-area {
+    padding: 15px 25px;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 15px;
+}
+
+.chat-input-area input {
+    flex: 1;
+    padding: 12px 20px;
+    border-radius: 25px;
+    border: none;
+    background: var(--app-bg);
+    color: var(--text-main);
+    font-size: 15px;
+    outline: none;
+}
+
+.btn-send {
+    background: var(--primary);
+    color: white;
+    border: none;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mobile Back Button - Hidden on PC */
+.mobile-back-btn { display: none; background: transparent; border: none; color: var(--primary); cursor: pointer; padding: 5px; }
+
+/* --- MOBILE SLIDING LOGIC --- */
+@media screen and (max-width: 900px) {
+    .chat-sidebar { width: 100%; border-right: none; }
+    .chat-main { display: none; width: 100%; }
+    .mobile-back-btn { display: flex; }
+
+    /* JS activates this class when a user taps a chat */
+    .app-layout.mobile-chat-active .chat-sidebar { display: none; }
+    .app-layout.mobile-chat-active .chat-main { display: flex; }
+}
