@@ -3,12 +3,12 @@ import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } f
 
 // --- 1. APPLICATION STATE ---
 let isMobileChatOpen = false;
-let activeChatId = 'ak_facts';
+let activeChatId = 'global_channel'; // Set Global Channel as the default
 let unsubscribeListener = null; 
 
+// Define our single Global Channel
 const roomsInfo = {
-    'ak_facts': { name: 'AK facts Community', icon: 'biotech' },
-    'gully_cricket': { name: 'Gully Cricket Edits', icon: 'sports_cricket' }
+    'global_channel': { name: 'Global Channel', icon: 'public' }
 };
 
 // --- 2. THEME ENGINE ---
@@ -59,8 +59,8 @@ const listenToMessages = (roomId) => {
         if (snapshot.empty) {
             container.innerHTML = `
                 <div style="margin: auto; text-align: center; color: var(--text-muted);">
-                    <span class="material-symbols-rounded" style="font-size: 48px; opacity: 0.5;">forum</span>
-                    <p style="margin-top: 10px;">Be the first to send a message!</p>
+                    <span class="material-symbols-rounded" style="font-size: 48px; opacity: 0.5;">public</span>
+                    <p style="margin-top: 10px;">Welcome to the Global Channel. Be the first to say hello!</p>
                 </div>
             `;
             return;
@@ -157,18 +157,10 @@ const renderAppShell = () => {
                     </div>
                     
                     <div class="user-list">
-                        <div class="user-item active" id="btn-ak_facts">
-                            <div class="global-icon-box"><span class="material-symbols-rounded">biotech</span></div>
+                        <div class="user-item active" id="btn-global_channel">
+                            <div class="global-icon-box"><span class="material-symbols-rounded">public</span></div>
                             <div class="user-info">
-                                <h4>AK facts Community</h4>
-                                <p>Tap to view messages</p>
-                            </div>
-                        </div>
-
-                        <div class="user-item" id="btn-gully_cricket">
-                            <div class="global-icon-box"><span class="material-symbols-rounded">sports_cricket</span></div>
-                            <div class="user-info">
-                                <h4>Gully Cricket Edits</h4>
+                                <h4>Global Channel</h4>
                                 <p>Tap to view messages</p>
                             </div>
                         </div>
@@ -182,10 +174,10 @@ const renderAppShell = () => {
                             <span class="material-symbols-rounded">arrow_back_ios_new</span>
                         </button>
                         <div class="global-icon-box" style="width:40px; height:40px; background:transparent;">
-                            <span id="active-room-icon" class="material-symbols-rounded" style="color: var(--primary);">biotech</span>
+                            <span id="active-room-icon" class="material-symbols-rounded" style="color: var(--primary);">public</span>
                         </div>
                         <div>
-                            <h3 id="active-room-name" style="font-size:16px;">AK facts Community</h3>
+                            <h3 id="active-room-name" style="font-size:16px;">Global Channel</h3>
                             <p style="font-size:12px; color:var(--primary);">Online</p>
                         </div>
                     </div>
@@ -204,8 +196,7 @@ const renderAppShell = () => {
 
     // Attach Listeners
     document.getElementById('theme-btn').addEventListener('click', toggleTheme);
-    document.getElementById('btn-ak_facts').addEventListener('click', () => switchChat('ak_facts'));
-    document.getElementById('btn-gully_cricket').addEventListener('click', () => switchChat('gully_cricket'));
+    document.getElementById('btn-global_channel').addEventListener('click', () => switchChat('global_channel'));
     
     document.getElementById('btn-mobile-back').addEventListener('click', closeMobileChat);
     document.getElementById('btn-send-msg').addEventListener('click', sendMessage);
