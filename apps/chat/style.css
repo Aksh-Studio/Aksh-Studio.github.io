@@ -15,6 +15,7 @@
     
     /* Shadows */
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+    --shadow-large: 0 10px 25px rgba(0,0,0,0.08);
 }
 
 /* OLED Dark Mode Theme */
@@ -34,13 +35,12 @@ html, body {
     overflow-x: hidden;
     width: 100vw;
     max-width: 100%;
-    height: 100dvh; /* Dynamic height for mobile browsers */
+    height: 100dvh; 
     background-color: var(--app-bg);
     color: var(--text-main);
     transition: background-color 0.3s ease;
 }
 
-/* Fixes the "Half-Screen" Cutoff Bug */
 #app-root {
     height: 100%;
     width: 100%;
@@ -59,6 +59,7 @@ html, body {
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 100%;
 }
 
 .top-nav {
@@ -72,7 +73,7 @@ html, body {
     z-index: 100;
 }
 
-.nav-left { display: flex; align-items: center; gap: 15px; }
+.nav-left, .nav-right { display: flex; align-items: center; gap: 15px; }
 
 .back-link {
     color: var(--primary);
@@ -109,14 +110,13 @@ html, body {
     color: white;
 }
 
-.app-layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-}
+/* Profile Dropdown Styling */
+.profile-menu { position: relative; display: inline-block; cursor: pointer; }
+.user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); transition: 0.2s; }
+.user-avatar:hover { transform: scale(1.05); }
+.dropdown-content { display: none; position: absolute; right: 0; top: 45px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-large); width: 220px; padding: 16px; z-index: 1000; text-align: left; }
+.profile-menu:hover .dropdown-content { display: block; }
+body.dark-theme .dropdown-content { background: #1e1e1e; border-color: #333; }
 
 /* --- CHAT HUB GRID --- */
 .app-layout {
@@ -124,6 +124,8 @@ html, body {
     flex: 1;
     overflow: hidden;
     background: var(--card-bg);
+    /* Removed the centering bug here so it stretches full screen! */
+    width: 100%;
 }
 
 /* LEFT PANEL: Sidebar */
@@ -176,6 +178,7 @@ html, body {
     cursor: pointer;
     transition: 0.2s;
     margin-bottom: 5px;
+    text-align: left;
 }
 
 .user-item:hover { background: var(--app-bg); }
@@ -196,7 +199,7 @@ html, body {
     font-size: 24px;
 }
 
-.user-item.active .global-icon-box { background: rgba(255,255,255,0.2); }
+.user-item.active .global-icon-box { background: rgba(255,255,255,0.2); color: white; }
 
 .user-info { flex: 1; overflow: hidden; }
 .user-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
@@ -218,6 +221,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 15px;
+    text-align: left;
 }
 
 .chat-messages {
