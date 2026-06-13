@@ -18,9 +18,19 @@
         .master-layout { display: flex; justify-content: center; align-items: flex-start; gap: 30px; width: 100%; max-width: 1400px; margin: 20px auto; padding: 0 15px; }
         .side-banner { display: none; width: 160px; flex-shrink: 0; position: sticky; top: 85px; }
         .center-content { flex: 1; max-width: 900px; width: 100%; }
+        
         .dual-buttons { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
-        .dual-buttons a { flex: 1; min-width: 200px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; border-radius: 8px; height: 45px; color: #fff; cursor: pointer; transition: opacity 0.2s; }
-        .dual-buttons a:hover { opacity: 0.9; }
+        .dual-buttons a, .dual-buttons button { flex: 1; min-width: 200px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; border-radius: 8px; height: 45px; color: #fff; cursor: pointer; border: none; transition: opacity 0.2s; font-size: 15px; font-family: inherit; }
+        .dual-buttons a:hover, .dual-buttons button:hover { opacity: 0.9; }
+
+        /* Custom In-Page Video Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
+        .modal-content { background: var(--bg-card, #1e293b); width: 100%; max-width: 600px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+        .modal-header { padding: 15px; background: var(--bg-main, #0f172a); text-align: center; font-weight: 700; color: #fff; border-bottom: 1px solid var(--border, #334155); }
+        .modal-body { width: 100%; height: 350px; background: #000; position: relative; }
+        .modal-footer { padding: 15px; text-align: center; background: var(--bg-card, #1e293b); }
+        .btn-claim { background: var(--primary, #3b82f6); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 700; width: 100%; font-size: 16px; transition: 0.3s; }
+        .btn-claim:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
         
         @media (min-width: 1100px) { .side-banner { display: block; } }
     </style>
@@ -74,7 +84,6 @@
 
             <div class="center-content">
                 <div class="hub-grid">
-                    
                     <section class="hub-card ad-rewards-section">
                         <div class="card-header">
                             <span class="material-symbols-rounded icon-blue">featured_video</span>
@@ -87,9 +96,9 @@
                                 <span class="material-symbols-rounded">open_in_new</span> Partner Link
                             </a>
                             
-                            <a id="btn-video-ad" href="https://www.effectivecpmnetwork.com/s9m8i3khf?key=f0cad199709e55abee9c5c1c8900c0b5" target="_blank" style="background: #8b5cf6; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
+                            <button id="btn-video-ad" style="background: #8b5cf6; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
                                 <span class="material-symbols-rounded">movie</span> Watch Video Ad
-                            </a>
+                            </button>
                         </div>
                         <p id="cooldown-timer" class="timer-hidden"></p>
                     </section>
@@ -100,7 +109,6 @@
                             <h3>Featured Creator Spotlights</h3>
                         </div>
                         <p class="card-desc">Discover outstanding content creators from our network ecosystem. Want your channel featured here? Contact our business team.</p>
-                        
                         <div class="promo-slider">
                             <div class="promo-item">
                                 <div class="promo-meta">
@@ -121,7 +129,6 @@
                             <h3>Recommended Creator Gear</h3>
                         </div>
                         <p class="card-desc">Products and tools we recommend for editing, long screen sessions, and running your creative workflow.</p>
-                        
                         <div class="affiliate-list">
                             <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border);">
                                 <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">keyboard</span>
@@ -131,7 +138,6 @@
                                     <a href="https://amzn.to/4v4YuyT" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
                                 </div>
                             </div>
-
                             <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border);">
                                 <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">visibility</span>
                                 <div class="gear-info">
@@ -140,7 +146,6 @@
                                     <a href="https://amzn.to/3SCPNgO" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
                                 </div>
                             </div>
-
                             <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px;">
                                 <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">steps</span>
                                 <div class="gear-info">
@@ -166,9 +171,20 @@
                 </script>
                 <script src="https://www.highperformanceformat.com/872fb57ec1504e73569884a36829534c/invoke.js"></script>
             </aside>
-
         </div>
     </main>
+
+    <div id="video-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">Viewing Sponsor Content</div>
+            <div class="modal-body">
+                <iframe id="ad-iframe" src="" style="width:100%; height:100%; border:none;" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-close-modal" class="btn-claim" disabled>Please wait 10s...</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="help.js"></script>
 </body>
