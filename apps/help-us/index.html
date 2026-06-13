@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Support Hub - Aksh Studio</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
@@ -13,34 +13,13 @@
     <script>(function(s){s.dataset.zone='11138903',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
     <script src="https://pl29730888.effectivecpmnetwork.com/f1/97/cd/f197cd23060c1d4a1130055450df2fc5.js"></script>
-
-    <style>
-        .master-layout { display: flex; justify-content: center; align-items: flex-start; gap: 30px; width: 100%; max-width: 1400px; margin: 20px auto; padding: 0 15px; }
-        .side-banner { display: none; width: 160px; flex-shrink: 0; position: sticky; top: 85px; }
-        .center-content { flex: 1; max-width: 900px; width: 100%; }
-        
-        .dual-buttons { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
-        .dual-buttons a, .dual-buttons button { flex: 1; min-width: 200px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; border-radius: 8px; height: 45px; color: #fff; cursor: pointer; border: none; transition: opacity 0.2s; font-size: 15px; font-family: inherit; }
-        .dual-buttons a:hover, .dual-buttons button:hover { opacity: 0.9; }
-
-        /* Custom In-Page Video Modal */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
-        .modal-content { background: var(--bg-card, #1e293b); width: 100%; max-width: 600px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
-        .modal-header { padding: 15px; background: var(--bg-main, #0f172a); text-align: center; font-weight: 700; color: #fff; border-bottom: 1px solid var(--border, #334155); }
-        .modal-body { width: 100%; height: 350px; background: #000; position: relative; }
-        .modal-footer { padding: 15px; text-align: center; background: var(--bg-card, #1e293b); }
-        .btn-claim { background: var(--primary, #3b82f6); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 700; width: 100%; font-size: 16px; transition: 0.3s; }
-        .btn-claim:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-        
-        @media (min-width: 1100px) { .side-banner { display: block; } }
-    </style>
 </head>
 <body>
     <nav class="top-nav">
         <div class="nav-left">
             <a href="../../dashboard.html" class="back-link">
                 <span class="material-symbols-rounded">arrow_back</span>
-                Dashboard
+                <span class="hide-on-mobile">Dashboard</span>
             </a>
             <div class="brand" style="display: flex; align-items: center; gap: 10px;">
                 <img src="../../support-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;">
@@ -48,8 +27,9 @@
             </div>
         </div>
         <div class="nav-right">
-            <a href="leaderboard.html" class="btn-outline" style="text-decoration: none; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 20px;">
-                <span class="material-symbols-rounded" style="font-size: 18px; margin-right: 5px;">leaderboard</span> Top Supporters
+            <a href="leaderboard.html" class="btn-outline leaderboard-btn">
+                <span class="material-symbols-rounded">leaderboard</span> 
+                <span class="hide-on-mobile">Top Supporters</span>
             </a>
             <button id="theme-toggle" class="btn-outline">
                 <span class="material-symbols-rounded" id="theme-icon">dark_mode</span>
@@ -103,41 +83,39 @@
                         <p id="cooldown-timer" class="timer-hidden"></p>
                     </section>
 
-                  <section class="hub-card promotion-section">
-    <div class="card-header">
-        <span class="material-symbols-rounded icon-purple">campaign</span>
-        <h3>Featured Creator Spotlights</h3>
-    </div>
-    <p class="card-desc">Discover outstanding content creators from our network ecosystem. Want your channel featured here? Contact our business team.</p>
-    
-    <div class="promo-slider" style="display: flex; flex-direction: column; gap: 15px;">
-        
-        <div class="promo-item">
-            <div class="promo-meta">
-                <img src="https://yt3.googleusercontent.com/sN8MYbV2mraTvAJdwia0p1WkRzoeOgarUFfujKoDdpVMyvgIJzh9m75Y2xa8uG1-UuGuyCovcC8=s160-c-k-c0x00ffffff-no-rj" alt="Creator" class="promo-avatar">
-                <div>
-                    <h4>AK facts</h4>
-                    <p>Science & Fact Shorts</p>
-                </div>
-            </div>
-            <a href="https://youtube.com/@akfacts-124?si=vjYfxCbwn-RSg_kN" target="_blank" class="btn-outline btn-sm">Explore Content</a>
-        </div>
+                    <section class="hub-card promotion-section">
+                        <div class="card-header">
+                            <span class="material-symbols-rounded icon-purple">campaign</span>
+                            <h3>Featured Creator Spotlights</h3>
+                        </div>
+                        <p class="card-desc">Discover outstanding content creators from our network ecosystem. Want your channel featured here? Contact our business team.</p>
+                        
+                        <div class="promo-slider" style="display: flex; flex-direction: column; gap: 15px;">
+                            <div class="promo-item">
+                                <div class="promo-meta">
+                                    <img src="https://yt3.googleusercontent.com/sN8MYbV2mraTvAJdwia0p1WkRzoeOgarUFfujKoDdpVMyvgIJzh9m75Y2xa8uG1-UuGuyCovcC8=s160-c-k-c0x00ffffff-no-rj" alt="Creator" class="promo-avatar">
+                                    <div>
+                                        <h4>AK facts</h4>
+                                        <p>Science & Fact Shorts</p>
+                                    </div>
+                                </div>
+                                <a href="https://youtube.com/@akfacts-124?si=vjYfxCbwn-RSg_kN" target="_blank" class="btn-outline btn-sm">Explore Content</a>
+                            </div>
 
-        <div class="promo-item" style="border: 2px dashed #475569; background: transparent;">
-            <div class="promo-meta">
-                <span class="material-symbols-rounded" style="font-size: 32px; color: #94a3b8; background: #1e293b; padding: 10px; border-radius: 50%;">add_to_photos</span>
-                <div>
-                    <h4 style="color: #cbd5e1;">Your Channel Here</h4>
-                    <p style="color: #94a3b8;">Reach thousands of viewers</p>
-                </div>
-            </div>
-            <button onclick="window.location.href='mailto:akshstudioofficial@gmail.com?subject=Inquiry: Featured Channel Spot'" style="background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: 0.2s;">
-                Contact Us:-  akshstudioofficial@gmail.com
-            </button>
-        </div>
-
-    </div>
-</section>
+                            <div class="promo-item" style="border: 2px dashed #475569; background: transparent;">
+                                <div class="promo-meta">
+                                    <span class="material-symbols-rounded" style="font-size: 32px; color: #94a3b8; background: #1e293b; padding: 10px; border-radius: 50%;">add_to_photos</span>
+                                    <div>
+                                        <h4 style="color: #cbd5e1;">Your Channel Here</h4>
+                                        <p style="color: #94a3b8;">Reach thousands of viewers</p>
+                                    </div>
+                                </div>
+                                <button onclick="window.location.href='mailto:akshstudioofficial@gmail.com?subject=Inquiry: Featured Channel Spot'" style="background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: 0.2s;">
+                                    Contact Us:-  akshstudioofficial@gmail.com
+                                </button>
+                            </div>
+                        </div>
+                    </section>
 
                     <section class="hub-card affiliate-section">
                         <div class="card-header">
@@ -146,28 +124,28 @@
                         </div>
                         <p class="card-desc">Products and tools we recommend for editing, long screen sessions, and running your creative workflow.</p>
                         <div class="affiliate-list">
-                            <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border);">
-                                <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">keyboard</span>
+                            <div class="gear-card">
+                                <span class="material-symbols-rounded gear-thumb">keyboard</span>
                                 <div class="gear-info">
-                                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">iClever GK08 Wireless Combo</h5>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">Premium wireless keyboard and mouse set for sleek, quiet desktop setups.</p>
-                                    <a href="https://amzn.to/4v4YuyT" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
+                                    <h5>iClever GK08 Wireless Combo</h5>
+                                    <p>Premium wireless keyboard and mouse set for sleek, quiet desktop setups.</p>
+                                    <a href="https://amzn.to/4v4YuyT" class="affiliate-link" target="_blank">Buy on Amazon <span class="material-symbols-rounded">open_in_new</span></a>
                                 </div>
                             </div>
-                            <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border);">
-                                <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">visibility</span>
+                            <div class="gear-card">
+                                <span class="material-symbols-rounded gear-thumb">visibility</span>
                                 <div class="gear-info">
-                                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Lenskart Blu Computer Glasses</h5>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">Zero power blue cut glasses with 100% UV protection for long editing hours.</p>
-                                    <a href="https://amzn.to/3SCPNgO" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
+                                    <h5>Lenskart Blu Computer Glasses</h5>
+                                    <p>Zero power blue cut glasses with 100% UV protection for long editing hours.</p>
+                                    <a href="https://amzn.to/3SCPNgO" class="affiliate-link" target="_blank">Buy on Amazon <span class="material-symbols-rounded">open_in_new</span></a>
                                 </div>
                             </div>
-                            <div class="gear-card" style="display: flex; align-items: flex-start; gap: 15px;">
-                                <span class="material-symbols-rounded gear-thumb" style="font-size: 28px; color: var(--orange-dark); background: var(--orange-light); padding: 12px; border-radius: 12px;">steps</span>
+                            <div class="gear-card">
+                                <span class="material-symbols-rounded gear-thumb">steps</span>
                                 <div class="gear-info">
-                                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Bacca Bucci Running Shoes</h5>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">Comfortable, high-durability lace-up running shoes built for active daily wear.</p>
-                                    <a href="https://amzn.to/4atiT8w" class="affiliate-link" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--primary); font-weight: 600; text-decoration: none;">Buy on Amazon <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span></a>
+                                    <h5>Bacca Bucci Running Shoes</h5>
+                                    <p>Comfortable, high-durability lace-up running shoes built for active daily wear.</p>
+                                    <a href="https://amzn.to/4atiT8w" class="affiliate-link" target="_blank">Buy on Amazon <span class="material-symbols-rounded">open_in_new</span></a>
                                 </div>
                             </div>
                         </div>
@@ -190,7 +168,7 @@
         </div>
     </main>
 
-   <div id="video-modal" class="modal-overlay">
+    <div id="video-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">Viewing Sponsor Content</div>
             <div class="modal-body" style="display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; text-align:center; padding: 20px;">
