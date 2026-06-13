@@ -80,7 +80,7 @@ body {
     gap: 20px;
     padding: 20px;
     flex: 1;
-    overflow: hidden; /* Prevents whole page scroll */
+    overflow: hidden; /* Prevents whole page scroll on PC */
 }
 
 /* Base Card Styling for Panels */
@@ -230,31 +230,57 @@ body.dark-theme .modern-input, body.dark-theme .modern-select { background: #0a0
 body.dark-theme .modern-input:focus { background: #1a1a1a; }
 body.dark-theme .modal-foot { background: #0a0a0a; }
 body.dark-theme .mini-cal-grid div:hover { background: #27272a; }
+.profile-menu:hover .dropdown-content { display: block !important; }
 
 /* =========================================
-   5. MOBILE RESPONSIVENESS
+   5. MOBILE RESPONSIVENESS (Stacked UI)
    ========================================= */
+/* Tablet & Small Desktop */
 @media screen and (max-width: 1024px) {
-    .app-workspace { grid-template-columns: 240px 1fr; }
-    .sidebar-right { display: none; } /* Hide AI Planner on small tablets */
-}
-
-@media screen and (max-width: 768px) {
-    body { overflow-y: auto; }
+    body { overflow-y: auto; } /* Allow scrolling on smaller screens */
+    
     .app-workspace { 
-        display: flex; flex-direction: column; 
-        padding: 10px; overflow: visible; height: auto;
+        display: flex; 
+        flex-direction: column; 
+        padding: 15px; 
+        overflow: visible; 
+        height: auto;
+        gap: 20px;
     }
     
-    .sidebar-left { order: 2; border-radius: var(--radius-md); }
-    .calendar-center { order: 1; height: 600px; border-radius: var(--radius-md); }
+    /* 1. Calendar on Top */
+    .calendar-center { 
+        order: 1; 
+        height: 600px; 
+        border-radius: var(--radius-md); 
+        flex-shrink: 0;
+    }
     
+    /* 2. AI Chatbot Rescued! Middle Placement */
+    .sidebar-right { 
+        order: 2; 
+        display: flex; /* Overrides any previous hidden states */
+        height: 500px; /* Gives it enough height to scroll chat */
+        border-radius: var(--radius-md);
+        flex-shrink: 0;
+    }
+
+    /* 3. Controls & Filters on Bottom */
+    .sidebar-left { 
+        order: 3; 
+        border-radius: var(--radius-md); 
+        flex-shrink: 0;
+    }
+}
+
+/* Mobile Phones */
+@media screen and (max-width: 768px) {
     .top-nav { padding: 12px; }
     .brand-title { display: none; } /* Save space in header */
+    
+    .calendar-center { height: 500px; } /* Slightly smaller calendar on phones */
     
     .cal-controls { flex-direction: column; align-items: flex-start; gap: 15px; padding: 15px; }
     .view-switcher { width: 100%; display: flex; }
     .view-btn { flex: 1; text-align: center; }
 }
-
-.profile-menu:hover .dropdown-content { display: block !important; }
