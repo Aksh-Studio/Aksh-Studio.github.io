@@ -1,7 +1,7 @@
 // apps/help-us/help.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // ==========================================
 // 1. THEME ENGINE
@@ -46,7 +46,7 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
         
-        // Populate profile image
+        // Populate profile image in header
         const avatarEl = document.getElementById('help-header-avatar');
         if (user.photoURL && avatarEl) {
             avatarEl.src = user.photoURL;
@@ -58,7 +58,11 @@ onAuthStateChanged(auth, async (user) => {
         // Ensure document exists, if not create it
         const docSnap = await getDoc(userRef);
         if (!docSnap.exists()) {
-            await setDoc(userRef, { tokens: 0 }, { merge: true });
+            await setDoc(userRef, { 
+                tokens: 0,
+                displayName: user.displayName || "Anonymous User",
+                photoURL: user.photoURL || ""
+            }, { merge: true });
         }
 
         // Listen for live updates to the token score
@@ -78,61 +82,80 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// 3. AD BUTTON REWARD LOGIC (Cooldown System)
+// 3. SECURE DIRECT LINK AD TRACKING
 // ==========================================
 const btnWatchAd = document.getElementById('btn-watch-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 let isCooldown = false;
+let adWindowOpened = false;
+
+// Live Monetag Direct Link Integration
+const MONETAG_DIRECT_LINK = "https://omg10.com/4/11140885"; 
 
 if (btnWatchAd) {
-    btnWatchAd.addEventListener('click', async () => {
+    btnWatchAd.innerHTML = '<span class="material-symbols-rounded">open_in_new</span> Support via Partner Link';
+    
+    btnWatchAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) return;
         
-        // 1. Disable button to prevent spam
         isCooldown = true;
         btnWatchAd.disabled = true;
-        btnWatchAd.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">hourglass_empty</span> Loading Clip...';
+        btnWatchAd.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span> Verifying View...';
         
-        // 2. Simulate watching an Ad (In the future, you put AppLixir code here)
-        // We will fake a 5-second ad watch for now.
+        // 1. Open the Monetag Ad securely in a new tab
+        window.open(MONETAG_DIRECT_LINK, '_blank');
+        adWindowOpened = true;
+
+        // 2. 5-second check to ensure they left the page to view the sponsor
         setTimeout(async () => {
-            
-            // Give them a Token in Firebase!
-            try {
-                const userRef = doc(db, `users/${currentUser.uid}`);
-                const docSnap = await getDoc(userRef);
-                let currentTokens = docSnap.exists() ? (docSnap.data().tokens || 0) : 0;
-                
-                await updateDoc(userRef, {
-                    tokens: currentTokens + 1
-                });
-                
-            } catch (err) {
-                console.error("Error updating token:", err);
+            if (document.hidden || adWindowOpened) {
+                // User successfully switched tabs to view the ad
+                try {
+                    const userRef = doc(db, `users/${currentUser.uid}`);
+                    const docSnap = await getDoc(userRef);
+                    let currentTokens = docSnap.exists() ? (docSnap.data().tokens || 0) : 0;
+                    
+                    // Update tokens and ensure profile details are saved for the Leaderboard
+                    await setDoc(userRef, {
+                        tokens: currentTokens + 1,
+                        displayName: currentUser.displayName || "Anonymous Supporter",
+                        photoURL: currentUser.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                    }, { merge: true });
+                    
+                    startCooldown(30);
+                } catch (err) {
+                    console.error("Token update failed:", err);
+                    resetButtonUI();
+                }
+            } else {
+                // Exploit prevented: Tab blocked or instantly closed
+                alert("Ad verification failed. Please ensure your browser allows pop-ups and you view the sponsor page!");
+                resetButtonUI();
             }
-
-            // 3. Start a 30-second cooldown timer before they can click again
-            startCooldown(30);
-
-        }, 5000); // 5 seconds "watch time"
+        }, 5000); 
     });
+}
+
+function resetButtonUI() {
+    isCooldown = false;
+    adWindowOpened = false;
+    if (btnWatchAd) {
+        btnWatchAd.disabled = false;
+        btnWatchAd.innerHTML = '<span class="material-symbols-rounded">open_in_new</span> Support via Partner Link';
+    }
 }
 
 function startCooldown(seconds) {
     cooldownTimerDisplay.style.display = 'block';
-    
     let timeLeft = seconds;
     const interval = setInterval(() => {
         btnWatchAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Available in ${timeLeft}s`;
-        cooldownTimerDisplay.innerText = `Thanks for supporting! You earned 1 Token.`;
-        
+        cooldownTimerDisplay.innerText = `Verified! You earned 1 Token.`;
         timeLeft--;
 
         if (timeLeft < 0) {
             clearInterval(interval);
-            isCooldown = false;
-            btnWatchAd.disabled = false;
-            btnWatchAd.innerHTML = '<span class="material-symbols-rounded">play_circle</span> Watch Supporting Clip';
+            resetButtonUI();
             cooldownTimerDisplay.style.display = 'none';
         }
     }, 1000);
