@@ -169,16 +169,68 @@ body.dark-theme .module-form input, body.dark-theme .module-form select { backgr
 body.dark-theme .btn-dark { background-color: #2b2b2b; }
 body.dark-theme .scroll-arrow { background-color: #1a1a1a; color: white; border-color: #333; }
 
-/* Mobile Optimization */
+/* =========================================
+   MOBILE OPTIMIZATION (100% Width & Scaling)
+   ========================================= */
 @media screen and (max-width: 900px) {
-    body { padding: 0; }
+    body { 
+        padding: 0; 
+        background: var(--app-bg); /* Seamless background on mobile */
+    }
+    
     .scroll-arrow { display: none; } /* Hide PC arrows on mobile */
-    .app-layout { border-radius: 0; border: none; min-height: 100dvh; }
-    .calc-container { padding: 15px; }
-    .calc-display { padding: 15px; min-height: 90px; }
-    .display-main { font-size: 36px; }
+    
+    /* Force main containers to 100% screen size */
+    .app-layout, .calc-wrapper, .calculator { 
+        width: 100%; 
+        border-radius: 0; 
+        border: none; 
+        min-height: 100dvh; 
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        box-shadow: none;
+    }
+    
+    .calc-container { 
+        padding: 15px; 
+        flex: 1; 
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Screen formatting for smaller displays */
+    .calc-screen, .calc-display { 
+        padding: 20px; 
+        min-height: 100px; 
+        margin-bottom: 15px; 
+        border-radius: 12px; 
+    }
+    .display-main { font-size: 38px; }
+    
+    /* Stretch grid to fill bottom of screen */
+    .calc-grid { 
+        gap: 8px; 
+        flex: 1; /* Pushes buttons to fill available vertical space */
+    }
     .calc-grid.advanced { gap: 5px; }
-    .calc-btn { min-height: 48px; font-size: 16px; border-radius: 12px; }
-    .calc-grid.advanced .calc-btn { font-size: 14px; padding: 0; }
-    .history-sidebar { width: 100%; border-top: 1px solid var(--border); border-left: none; min-height: 400px; }
+    
+    /* Thumb-friendly giant buttons */
+    .calc-btn { 
+        min-height: 75px; /* Taller touch targets */
+        font-size: 24px; /* Larger numbers */
+        border-radius: 16px; 
+    }
+    .calc-grid.advanced .calc-btn { 
+        font-size: 15px; 
+        padding: 0; 
+        min-height: 55px; 
+    }
+    
+    .history-sidebar { 
+        width: 100%; 
+        border-top: 1px solid var(--border); 
+        border-left: none; 
+        min-height: 400px; 
+    }
 }
