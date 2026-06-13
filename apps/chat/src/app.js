@@ -4,7 +4,7 @@ import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } f
 // --- 1. APPLICATION STATE ---
 let isMobileChatOpen = false;
 let activeChatId = 'ak_facts';
-let unsubscribeListener = null; // Stops the app from listening to multiple rooms at once
+let unsubscribeListener = null; 
 
 const roomsInfo = {
     'ak_facts': { name: 'AK facts Community', icon: 'biotech' },
@@ -29,16 +29,13 @@ const switchChat = (chatId) => {
     activeChatId = chatId;
     isMobileChatOpen = true; 
     
-    // Update the UI highlights and Room Title
     document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
     document.getElementById(`btn-${chatId}`).classList.add('active');
     document.getElementById('active-room-name').innerText = roomsInfo[chatId].name;
     document.getElementById('active-room-icon').innerText = roomsInfo[chatId].icon;
 
-    // Load Live Messages from Firebase
     listenToMessages(chatId);
     
-    // Slide layout for mobile
     const layout = document.getElementById('main-layout');
     if (layout) layout.className = 'app-layout mobile-chat-active';
 };
@@ -54,13 +51,10 @@ const listenToMessages = (roomId) => {
     const container = document.getElementById('chat-messages-container');
     container.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin-top: 20px;">Syncing secure connection...</div>`;
 
-    // Stop listening to the old room
     if (unsubscribeListener) unsubscribeListener();
 
-    // Query Firestore for messages in this specific room, sorted by time
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
-    // Real-Time Listener
     unsubscribeListener = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             container.innerHTML = `
@@ -75,10 +69,8 @@ const listenToMessages = (roomId) => {
         let messagesHTML = '';
         snapshot.forEach((doc) => {
             const msg = doc.data();
-            // Since we aren't using login yet, we treat all messages from 'aksh_guest' as "Me"
-            const isMe = msg.senderId === 'aksh_guest';
+            const isMe = msg.senderId === 'aksh_guest'; 
             
-            // Safely format time
             let timeString = "Just now";
             if (msg.timestamp) {
                 const date = msg.timestamp.toDate();
@@ -96,7 +88,7 @@ const listenToMessages = (roomId) => {
         });
 
         container.innerHTML = messagesHTML;
-        container.scrollTop = container.scrollHeight; // Auto-scroll to bottom
+        container.scrollTop = container.scrollHeight; 
     });
 };
 
@@ -105,14 +97,12 @@ const sendMessage = async () => {
     const text = inputField.value.trim();
     if (!text) return; 
 
-    // Instantly clear input for snappy UI
     inputField.value = '';
 
     try {
-        // Save to Firebase Cloud
         await addDoc(collection(db, `chats/${activeChatId}/messages`), {
             text: text,
-            senderId: 'aksh_guest', // Hardcoded for Phase 3 testing
+            senderId: 'aksh_guest', 
             timestamp: serverTimestamp()
         });
     } catch (error) {
@@ -137,10 +127,21 @@ const renderAppShell = () => {
                         Aksh Chat
                     </div>
                 </div>
-                <div>
+                
+                <div class="nav-right">
                     <button id="theme-btn" class="btn-outline">
                         ${isDark ? 'Light Mode' : 'Dark Mode'}
                     </button>
+                    
+                    <div class="profile-menu">
+                        <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar">
+                        <div class="dropdown-content">
+                            <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Personal Profile</p>
+                            <p style="font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-main);">Aksh Guest</p>
+                            <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
+                            <button style="width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;">Settings</button>
+                        </div>
+                    </div>
                 </div>
             </nav>
 
@@ -216,7 +217,6 @@ const renderAppShell = () => {
         }
     });
 
-    // Start listening to default room
     listenToMessages(activeChatId);
 };
 
