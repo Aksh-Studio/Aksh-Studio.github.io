@@ -3,10 +3,9 @@ import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } f
 
 // --- 1. APPLICATION STATE ---
 let isMobileChatOpen = false;
-let activeChatId = 'global_channel'; // Set Global Channel as the default
+let activeChatId = 'global_channel'; 
 let unsubscribeListener = null; 
 
-// Define our single Global Channel
 const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public' }
 };
@@ -55,6 +54,7 @@ const listenToMessages = (roomId) => {
 
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
+    // Real-Time Listener with Error Handling Added
     unsubscribeListener = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             container.innerHTML = `
@@ -69,7 +69,7 @@ const listenToMessages = (roomId) => {
         let messagesHTML = '';
         snapshot.forEach((doc) => {
             const msg = doc.data();
-            const isMe = msg.senderId === 'aksh_guest'; 
+            const isMe = msg.senderId === 'akshat124'; 
             
             let timeString = "Just now";
             if (msg.timestamp) {
@@ -89,6 +89,18 @@ const listenToMessages = (roomId) => {
 
         container.innerHTML = messagesHTML;
         container.scrollTop = container.scrollHeight; 
+    }, 
+    
+    // ERROR HANDLER: If Firebase blocks the connection, show this instead of spinning forever.
+    (error) => {
+        console.error("Firebase Sync Error:", error);
+        container.innerHTML = `
+            <div style="margin: auto; text-align: center; color: #dc2626; padding: 20px; background: #fee2e2; border-radius: 12px;">
+                <span class="material-symbols-rounded" style="font-size: 48px;">gpp_bad</span>
+                <p style="margin-top: 10px; font-weight: 600;">Connection Blocked by Firebase Rules</p>
+                <p style="font-size: 13px; margin-top: 5px; color: #991b1b;">Your Firebase Database requires you to update the Security Rules to allow access.</p>
+            </div>
+        `;
     });
 };
 
@@ -102,12 +114,12 @@ const sendMessage = async () => {
     try {
         await addDoc(collection(db, `chats/${activeChatId}/messages`), {
             text: text,
-            senderId: 'aksh_guest', 
+            senderId: 'akshat124', 
             timestamp: serverTimestamp()
         });
     } catch (error) {
         console.error("Error sending message:", error);
-        alert("Check your connection. Message failed to send.");
+        alert("Action blocked by Firebase Security Rules. Please check your Firestore rules.");
     }
 };
 
@@ -136,10 +148,11 @@ const renderAppShell = () => {
                     <div class="profile-menu">
                         <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar">
                         <div class="dropdown-content">
-                            <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Personal Profile</p>
-                            <p style="font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-main);">Aksh Guest</p>
+                            <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600; letter-spacing: 0.5px;">Personal Profile</p>
+                            <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);">Name: Akshat</p>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; word-break: break-all;">Email: akshat124am.12@gmail.com</p>
                             <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
-                            <button style="width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;">Settings</button>
+                            <a href="/dashboard.html" style="display: block; width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-align: center; text-decoration: none; transition: 0.2s;">Sign Out</a>
                         </div>
                     </div>
                 </div>
@@ -194,7 +207,6 @@ const renderAppShell = () => {
         </div>
     `;
 
-    // Attach Listeners
     document.getElementById('theme-btn').addEventListener('click', toggleTheme);
     document.getElementById('btn-global_channel').addEventListener('click', () => switchChat('global_channel'));
     
