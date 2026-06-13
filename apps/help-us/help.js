@@ -121,9 +121,12 @@ if (btnVideoAd) {
 }
 
 function openVideoModal() {
-    // Show Modal and load Adsterra Ad
+    // Show the Support Hub Modal UI
     videoModal.style.display = 'flex';
-    adIframe.src = ADSTERRA_URL;
+    
+    // Open Adsterra in a floating popup window (Width 800px, Height 600px)
+    // Because this happens exactly on a click, popup blockers will allow it!
+    const adWindow = window.open(ADSTERRA_URL, 'SponsorAd', 'width=800,height=600,top=100,left=100,scrollbars=yes');
     
     // 10 Second Required Watch Time
     let timeLeft = 10;
