@@ -82,34 +82,82 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// 3. POPUP-SAFE DUAL AD BUTTON TRACKING
+// 3. IN-PAGE MODAL & AD BUTTON TRACKING
 // ==========================================
 const btnWatchAd = document.getElementById('btn-watch-ad');
 const btnVideoAd = document.getElementById('btn-video-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
+const videoModal = document.getElementById('video-modal');
+const adIframe = document.getElementById('ad-iframe');
+const btnCloseModal = document.getElementById('btn-close-modal');
+
 let isCooldown = false;
+let rewardTimer;
 
+// Adsterra Smartlink (Used in iframe)
+const ADSTERRA_URL = "https://www.effectivecpmnetwork.com/s9m8i3khf?key=f0cad199709e55abee9c5c1c8900c0b5";
+
+// Partner Link Logic (Direct Link)
 if (btnWatchAd) {
-    btnWatchAd.addEventListener('click', (e) => handleDirectLinkClick(e, btnWatchAd, 'Partner Link'));
+    btnWatchAd.addEventListener('click', (e) => {
+        if (isCooldown || !currentUser) {
+            e.preventDefault();
+            if (!currentUser) alert("Please sign in to earn tokens!");
+            return;
+        }
+        processTokenReward('Partner Link');
+    });
 }
 
+// In-Page Video Modal Logic
 if (btnVideoAd) {
-    btnVideoAd.addEventListener('click', (e) => handleDirectLinkClick(e, btnVideoAd, 'Watch Video Ad'));
+    btnVideoAd.addEventListener('click', () => {
+        if (isCooldown || !currentUser) {
+            if (!currentUser) alert("Please sign in to earn tokens!");
+            return;
+        }
+        openVideoModal();
+    });
 }
 
-function handleDirectLinkClick(event, element, originalText) {
-    // Block the link opening if on cooldown or not logged in
-    if (isCooldown || !currentUser) {
-        event.preventDefault(); // Stops the new tab from opening
-        if (!currentUser) alert("Please sign in to earn tokens!");
-        return;
-    }
+function openVideoModal() {
+    // Show Modal and load Adsterra Ad
+    videoModal.style.display = 'flex';
+    adIframe.src = ADSTERRA_URL;
+    
+    // 10 Second Required Watch Time
+    let timeLeft = 10;
+    btnCloseModal.disabled = true;
+    btnCloseModal.style.background = "#475569";
+    btnCloseModal.innerText = `Please wait ${timeLeft}s to claim token...`;
 
-    // Lock UI immediately
+    rewardTimer = setInterval(() => {
+        timeLeft--;
+        btnCloseModal.innerText = `Please wait ${timeLeft}s to claim token...`;
+        
+        if (timeLeft <= 0) {
+            clearInterval(rewardTimer);
+            btnCloseModal.disabled = false;
+            btnCloseModal.style.background = "#10b981"; // Turns green
+            btnCloseModal.innerText = "Close Video & Claim Token";
+        }
+    }, 1000);
+}
+
+// Claim Reward Button inside the Modal
+btnCloseModal.addEventListener('click', () => {
+    // Hide Modal & Clear Iframe
+    videoModal.style.display = 'none';
+    adIframe.src = "";
+    
+    // Process Token
+    processTokenReward('Watch Video Ad');
+});
+
+function processTokenReward(originalText) {
     isCooldown = true;
     disableAdButtons();
     
-    // Give token after a 4-second delay while user views the ad
     setTimeout(async () => {
         try {
             const userRef = doc(db, `users/${currentUser.uid}`);
@@ -127,7 +175,7 @@ function handleDirectLinkClick(event, element, originalText) {
             console.error("Token assignment failed:", err);
             resetButtonUI();
         }
-    }, 4000);
+    }, 1000);
 }
 
 function disableAdButtons() {
