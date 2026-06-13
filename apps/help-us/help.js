@@ -82,58 +82,65 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// 3. SECURE DIRECT LINK AD TRACKING
+// 3. DUAL AD BUTTON TRACKING (Monetag + Adsterra)
 // ==========================================
 const btnWatchAd = document.getElementById('btn-watch-ad');
+const btnVideoAd = document.getElementById('btn-video-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 let isCooldown = false;
 let adWindowOpened = false;
 
-// Live Monetag Direct Link Integration
+// The Live Ad Network Links
 const MONETAG_DIRECT_LINK = "https://omg10.com/4/11140885"; 
+const ADSTERRA_SMART_LINK = "https://www.effectivecpmnetwork.com/s9m8i3khf?key=f0cad199709e55abee9c5c1c8900c0b5";
 
+// Logic for Button 1 (Partner Link)
 if (btnWatchAd) {
-    btnWatchAd.innerHTML = '<span class="material-symbols-rounded">open_in_new</span> Support via Partner Link';
-    
-    btnWatchAd.addEventListener('click', () => {
-        if (isCooldown || !currentUser) return;
-        
-        isCooldown = true;
-        btnWatchAd.disabled = true;
-        btnWatchAd.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span> Verifying View...';
-        
-        // 1. Open the Monetag Ad securely in a new tab
-        window.open(MONETAG_DIRECT_LINK, '_blank');
-        adWindowOpened = true;
+    btnWatchAd.addEventListener('click', () => handleAdClick(btnWatchAd, MONETAG_DIRECT_LINK, 'Partner Link'));
+}
 
-        // 2. 5-second check to ensure they left the page to view the sponsor
-        setTimeout(async () => {
-            if (document.hidden || adWindowOpened) {
-                // User successfully switched tabs to view the ad
-                try {
-                    const userRef = doc(db, `users/${currentUser.uid}`);
-                    const docSnap = await getDoc(userRef);
-                    let currentTokens = docSnap.exists() ? (docSnap.data().tokens || 0) : 0;
-                    
-                    // Update tokens and ensure profile details are saved for the Leaderboard
-                    await setDoc(userRef, {
-                        tokens: currentTokens + 1,
-                        displayName: currentUser.displayName || "Anonymous Supporter",
-                        photoURL: currentUser.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                    }, { merge: true });
-                    
-                    startCooldown(30);
-                } catch (err) {
-                    console.error("Token update failed:", err);
-                    resetButtonUI();
-                }
-            } else {
-                // Exploit prevented: Tab blocked or instantly closed
-                alert("Ad verification failed. Please ensure your browser allows pop-ups and you view the sponsor page!");
+// Logic for Button 2 (Video Ad)
+if (btnVideoAd) {
+    btnVideoAd.addEventListener('click', () => handleAdClick(btnVideoAd, ADSTERRA_SMART_LINK, 'Watch Video Ad'));
+}
+
+function handleAdClick(buttonElement, adUrl, buttonOriginalText) {
+    if (isCooldown || !currentUser) return;
+    
+    isCooldown = true;
+    if (btnWatchAd) btnWatchAd.disabled = true;
+    if (btnVideoAd) btnVideoAd.disabled = true;
+    
+    buttonElement.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span> Verifying...';
+    
+    // 1. Open the selected Ad
+    window.open(adUrl, '_blank');
+    adWindowOpened = true;
+
+    // 2. 5-second verification
+    setTimeout(async () => {
+        if (document.hidden || adWindowOpened) {
+            try {
+                const userRef = doc(db, `users/${currentUser.uid}`);
+                const docSnap = await getDoc(userRef);
+                let currentTokens = docSnap.exists() ? (docSnap.data().tokens || 0) : 0;
+                
+                await setDoc(userRef, {
+                    tokens: currentTokens + 1,
+                    displayName: currentUser.displayName || "Anonymous Supporter",
+                    photoURL: currentUser.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                }, { merge: true });
+                
+                startCooldown(30, buttonOriginalText);
+            } catch (err) {
+                console.error("Token update failed:", err);
                 resetButtonUI();
             }
-        }, 5000); 
-    });
+        } else {
+            alert("Ad verification failed. Please view the sponsor page to earn tokens.");
+            resetButtonUI();
+        }
+    }, 5000);
 }
 
 function resetButtonUI() {
@@ -141,16 +148,22 @@ function resetButtonUI() {
     adWindowOpened = false;
     if (btnWatchAd) {
         btnWatchAd.disabled = false;
-        btnWatchAd.innerHTML = '<span class="material-symbols-rounded">open_in_new</span> Support via Partner Link';
+        btnWatchAd.innerHTML = '<span class="material-symbols-rounded">open_in_new</span> Partner Link';
+    }
+    if (btnVideoAd) {
+        btnVideoAd.disabled = false;
+        btnVideoAd.innerHTML = '<span class="material-symbols-rounded">movie</span> Watch Video Ad';
     }
 }
 
-function startCooldown(seconds) {
+function startCooldown(seconds, buttonUsed) {
     cooldownTimerDisplay.style.display = 'block';
     let timeLeft = seconds;
     const interval = setInterval(() => {
-        btnWatchAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Available in ${timeLeft}s`;
-        cooldownTimerDisplay.innerText = `Verified! You earned 1 Token.`;
+        if (btnWatchAd) btnWatchAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Wait ${timeLeft}s`;
+        if (btnVideoAd) btnVideoAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Wait ${timeLeft}s`;
+        
+        cooldownTimerDisplay.innerText = `Verified ${buttonUsed}! You earned 1 Token.`;
         timeLeft--;
 
         if (timeLeft < 0) {
