@@ -1,39 +1,110 @@
-# Real-time Web Chat Application 💬
+# 💬 Aksh Chat Ecosystem (`aksh-chat-ecosystem/`)
 
-A modern, mobile-scalable chat interface powered by **Firebase** and styled with premium **Aksh Studio** designs.
+A secure, real-time multimedia communication ecosystem built with React, WebRTC, and Firebase. This platform features end-to-end encrypted messaging, high-fidelity audio/video calling, client-side media optimization, and integrated AI-assisted utilities.
 
-## Project Structure 📁
+---
+
+## 🏗️ Architecture Overview
+
+The codebase uses a feature-based structure separating presentational components, application screens, external core services, and client-side processing utilities.
 
 ```text
-root_folder/
-├── chat-logo.png              # Your main app icon
-└── apps/
-    └── chat/
-        ├── index.html         # Structural UI (Sidebar, Chat window, Modals)
-        ├── style.css          # Premium Aksh Studio styling & Mobile scaling
-        └── chat.js            # Firebase Auth & Real-time Firestore logic
+chat/
+├── public/                 # Static assets
+│   ├── chat-logo.png       # Application brand icon
+│   └── index.html          # Core DOM injection target
+├── src/                    # Application source code
+│   ├── assets/             # Icons, standard avatars, and notification chimes
+│   ├── components/         # Atomic and reusable UI building blocks
+│   │   ├── layout/         # Shell framing: Sidebars, dynamic modals, nav blocks
+│   │   ├── chat/           # Reactive bubbles, dynamic fields, file menus
+│   │   ├── calls/          # Stream panels, PiP canvas overlays, mute toggles
+│   │   └── media/          # Lightbox view engines, voice note waveform runners
+│   ├── pages/              # Routed view targets
+│   │   ├── Auth.js         # Phone verification gateways, OTP verification, recovery
+│   │   ├── ChatHub.js      # Main viewport orchestration engine
+│   │   ├── Settings.js     # Client toggles (Privacy configurations, cache, themes)
+│   │   └── Admin.js        # Moderation metrics and analytics panels
+│   ├── services/           # The business logic orchestration layer
+│   │   ├── authConfig.js   # Phone, OTP, and JWT token refresh layers
+│   │   ├── firestore.js    # Document sync: /rooms/{id}/messages pipeline
+│   │   ├── webrtc.js       # Mesh/SFU connection signals, ICE handshakes
+│   │   └── aiAgent.js      # Context translation engines, predictive micro-replies
+│   ├── utils/              # Pure utility functions
+│   │   ├── encryption.js   # AES-GCM / E2EE cryptographic actions
+│   │   ├── timeFormat.js   # Chronological displays, localization, last-seen parsing
+│   │   └── mediaCompress.js# In-flight resolution degradation pipelines
+│   ├── styles/             # Application visual foundations
+│   │   ├── themes.css      # Custom property tokens (Light, Dark, High-Contrast)
+│   │   └── mobile.css      # Viewport query structures for adaptive designs
+│   └── App.js              # Application entry point, global context providers, routers
+├── package.json            # Project manifest, operational scripts, dependencies
+└── firebase.json           # Hosting configurations, indexing patterns, security definitions
 ```
 
-## Features ✨
+---
 
-* **Secure Authentication:** User signup, login, and session management.
-* **Real-time Messaging:** Instant message delivery and synchronization using Firestore.
-* **Premium Styling:** Custom UI elements and layouts crafted by Aksh Studio.
-* **Fully Responsive:** Mobile scaling ensures a seamless experience on all screens.
+## 🚀 Getting Started
 
-## Requirements & Setup ⚙️
+### 1. Installation
+Clone the repository and install the project dependencies:
+```bash
+cd aksh-chat-ecosystem
+npm install
+```
 
-1. Clone or download this repository.
-2. Add your **Firebase SDK configuration** details inside `apps/chat/chat.js`.
-3. Open `apps/chat/index.html` in any modern web browser to run the app locally.
+### 2. Environment Setup
+Create a `.env` file in the root directory and populate your Firebase and API configurations:
+```env
+REACT_APP_FIREBASE_API_KEY=your_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+REACT_APP_AI_GATEWAY_URL=your_llm_proxy_endpoint
+```
 
-## Technologies Used 🛠️
+### 3. Local Development Run
+Spin up the hot-reloading development server:
+```bash
+npm start
+```
+The application will open automatically at `http://localhost:3000`.
 
-* **HTML5:** Semantic markup defining the application UI components.
-* **CSS3:** Premium styling, layout management, and mobile responsiveness.
-* **JavaScript:** Dynamic logic, event handling, and DOM manipulation.
-* **Firebase:** Backend services for user authentication and real-time database updates.
+---
 
-## License 📄
+## 🛠️ Engine Implementations & Core Mechanics
 
-This project is proprietary and confidential. © Aksh Studio.
+### 🔐 Security & Encryption (`utils/encryption.js`)
+*   **End-to-End Encryption (E2EE)**: Messages are encrypted client-side before transmission using the AES-GCM standard.
+*   **Key Exchange**: Unique cryptographic keys are established securely per room, ensuring that Firestore nodes handle only ciphertext payloads.
+
+### 📞 Audio/Video Pipeline (`services/webrtc.js`)
+*   **Signaling Engine**: Leverages Firestore collection streams (`/calls/{callId}/signaling`) to exchange SDP offers, answers, and ICE candidate parameters.
+*   **Stream Optimization**: Monitors network bitrate drop-offs to adapt resolution metrics automatically, triggering Picture-in-Picture (PiP) mode gracefully when the viewport shifts.
+
+### 📉 Smart Media Handling (`utils/mediaCompress.js`)
+*   **Client-Side Processing**: Before uploading files to storage, raw images and video tracks pass through worker loops to reduce dimensions and adjust compression qualities. This reduces user bandwidth usage and lowers server storage costs.
+
+### 🤖 AI Utilities (`services/aiAgent.js`)
+*   **Smart Replies**: Evaluates the text content of incoming messages locally to generate immediate contextual reply chips.
+*   **Inline Translation**: Connects directly with linguistic LLMs to translate message streams instantly across multiple languages.
+
+---
+
+## 📦 Deployment
+
+### Firestore & Security Configuration
+To deploy changes made to security parameters, rate limits, or deployment settings hosted inside `firebase.json`:
+```bash
+# Install Firebase CLI globally if you haven't already
+npm install -g firebase-tools
+
+# Authenticate and select your active project target
+firebase login
+firebase use --add
+
+# Deploy security rules and configuration definitions
+firebase deploy --only firestore:rules,hosting
+```
