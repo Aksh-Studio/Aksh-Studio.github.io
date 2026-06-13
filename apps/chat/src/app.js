@@ -1,9 +1,7 @@
 // src/app.js
 
-// State variables to manage the mobile layout
 let isMobileChatOpen = false;
 
-// 1. Global Theme Engine
 const initializeTheme = () => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
@@ -18,7 +16,6 @@ const toggleTheme = () => {
     renderApp(); 
 };
 
-// Toggle the mobile view when a chat is clicked
 const openMobileChat = () => {
     isMobileChatOpen = true;
     renderApp();
@@ -29,12 +26,10 @@ const closeMobileChat = () => {
     renderApp();
 };
 
-// 2. The Main UI Render Function
 const renderApp = () => {
     const root = document.getElementById('app-root');
     const isDark = document.body.classList.contains('dark-theme');
 
-    // Check if we need to apply the mobile sliding class
     const layoutClass = isMobileChatOpen ? 'app-layout mobile-chat-active' : 'app-layout';
 
     root.innerHTML = `
@@ -42,9 +37,9 @@ const renderApp = () => {
             
             <nav class="top-nav">
                 <div class="nav-left">
-                    <a href="../../dashboard.html" class="back-link">← Dashboard</a>
+                    <a href="/dashboard.html" class="back-link">← Dashboard</a>
                     <div class="brand-title">
-                        <img src="../../chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;">
+                        <img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;">
                         Aksh Chat
                     </div>
                 </div>
@@ -117,21 +112,17 @@ const renderApp = () => {
         </div>
     `;
 
-    // 3. Attach Event Listeners
     document.getElementById('theme-btn').addEventListener('click', toggleTheme);
     
-    // Attach slide logic to the dummy chat buttons
     document.getElementById('btn-open-chat').addEventListener('click', openMobileChat);
     document.getElementById('btn-open-chat-2').addEventListener('click', openMobileChat);
     
-    // Attach close logic to the mobile back arrow
     const backBtn = document.getElementById('btn-mobile-back');
     if (backBtn) {
         backBtn.addEventListener('click', closeMobileChat);
     }
 };
 
-// Boot Up the Application
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
     renderApp();
