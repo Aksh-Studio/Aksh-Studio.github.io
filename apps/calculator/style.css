@@ -29,11 +29,19 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 
+/* THE WOBBLE LOCK */
+html {
+    overflow-x: hidden;
+}
+
 body {
     background: var(--bg-gradient);
     color: var(--text-main);
     display: flex; justify-content: center; align-items: center;
     min-height: 100vh; padding: 20px;
+    width: 100vw;
+    max-width: 100%;
+    overflow-x: hidden; /* Stops horizontal scrolling */
 }
 
 /* Top Navigation Bar Styling (Light Mode Default) */
