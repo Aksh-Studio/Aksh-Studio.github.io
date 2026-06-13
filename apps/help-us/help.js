@@ -82,76 +82,75 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// 3. DUAL AD BUTTON TRACKING (Monetag + Adsterra)
+// 3. POPUP-SAFE DUAL AD BUTTON TRACKING
 // ==========================================
 const btnWatchAd = document.getElementById('btn-watch-ad');
 const btnVideoAd = document.getElementById('btn-video-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 let isCooldown = false;
-let adWindowOpened = false;
 
-// The Live Ad Network Links
-const MONETAG_DIRECT_LINK = "https://omg10.com/4/11140885"; 
-const ADSTERRA_SMART_LINK = "https://www.effectivecpmnetwork.com/s9m8i3khf?key=f0cad199709e55abee9c5c1c8900c0b5";
-
-// Logic for Button 1 (Partner Link)
 if (btnWatchAd) {
-    btnWatchAd.addEventListener('click', () => handleAdClick(btnWatchAd, MONETAG_DIRECT_LINK, 'Partner Link'));
+    btnWatchAd.addEventListener('click', (e) => handleDirectLinkClick(e, btnWatchAd, 'Partner Link'));
 }
 
-// Logic for Button 2 (Video Ad)
 if (btnVideoAd) {
-    btnVideoAd.addEventListener('click', () => handleAdClick(btnVideoAd, ADSTERRA_SMART_LINK, 'Watch Video Ad'));
+    btnVideoAd.addEventListener('click', (e) => handleDirectLinkClick(e, btnVideoAd, 'Watch Video Ad'));
 }
 
-function handleAdClick(buttonElement, adUrl, buttonOriginalText) {
-    if (isCooldown || !currentUser) return;
-    
-    isCooldown = true;
-    if (btnWatchAd) btnWatchAd.disabled = true;
-    if (btnVideoAd) btnVideoAd.disabled = true;
-    
-    buttonElement.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span> Verifying...';
-    
-    // 1. Open the selected Ad
-    window.open(adUrl, '_blank');
-    adWindowOpened = true;
+function handleDirectLinkClick(event, element, originalText) {
+    // Block the link opening if on cooldown or not logged in
+    if (isCooldown || !currentUser) {
+        event.preventDefault(); // Stops the new tab from opening
+        if (!currentUser) alert("Please sign in to earn tokens!");
+        return;
+    }
 
-    // 2. 5-second verification
+    // Lock UI immediately
+    isCooldown = true;
+    disableAdButtons();
+    
+    // Give token after a 4-second delay while user views the ad
     setTimeout(async () => {
-        if (document.hidden || adWindowOpened) {
-            try {
-                const userRef = doc(db, `users/${currentUser.uid}`);
-                const docSnap = await getDoc(userRef);
-                let currentTokens = docSnap.exists() ? (docSnap.data().tokens || 0) : 0;
-                
-                await setDoc(userRef, {
-                    tokens: currentTokens + 1,
-                    displayName: currentUser.displayName || "Anonymous Supporter",
-                    photoURL: currentUser.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                }, { merge: true });
-                
-                startCooldown(30, buttonOriginalText);
-            } catch (err) {
-                console.error("Token update failed:", err);
-                resetButtonUI();
-            }
-        } else {
-            alert("Ad verification failed. Please view the sponsor page to earn tokens.");
+        try {
+            const userRef = doc(db, `users/${currentUser.uid}`);
+            const docSnap = await getDoc(userRef);
+            let currentTokens = docSnap.exists() ? (docSnap.data().tokens || 0) : 0;
+            
+            await setDoc(userRef, {
+                tokens: currentTokens + 1,
+                displayName: currentUser.displayName || "Anonymous Supporter",
+                photoURL: currentUser.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            }, { merge: true });
+            
+            startCooldown(30, originalText);
+        } catch (err) {
+            console.error("Token assignment failed:", err);
             resetButtonUI();
         }
-    }, 5000);
+    }, 4000);
+}
+
+function disableAdButtons() {
+    if (btnWatchAd) {
+        btnWatchAd.style.pointerEvents = 'none';
+        btnWatchAd.style.opacity = '0.5';
+    }
+    if (btnVideoAd) {
+        btnVideoAd.style.pointerEvents = 'none';
+        btnVideoAd.style.opacity = '0.5';
+    }
 }
 
 function resetButtonUI() {
     isCooldown = false;
-    adWindowOpened = false;
     if (btnWatchAd) {
-        btnWatchAd.disabled = false;
+        btnWatchAd.style.pointerEvents = 'auto';
+        btnWatchAd.style.opacity = '1';
         btnWatchAd.innerHTML = '<span class="material-symbols-rounded">open_in_new</span> Partner Link';
     }
     if (btnVideoAd) {
-        btnVideoAd.disabled = false;
+        btnVideoAd.style.pointerEvents = 'auto';
+        btnVideoAd.style.opacity = '1';
         btnVideoAd.innerHTML = '<span class="material-symbols-rounded">movie</span> Watch Video Ad';
     }
 }
@@ -159,11 +158,12 @@ function resetButtonUI() {
 function startCooldown(seconds, buttonUsed) {
     cooldownTimerDisplay.style.display = 'block';
     let timeLeft = seconds;
+    
     const interval = setInterval(() => {
-        if (btnWatchAd) btnWatchAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Wait ${timeLeft}s`;
-        if (btnVideoAd) btnVideoAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Wait ${timeLeft}s`;
+        if (btnWatchAd) btnWatchAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Lock (${timeLeft}s)`;
+        if (btnVideoAd) btnVideoAd.innerHTML = `<span class="material-symbols-rounded">lock_clock</span> Lock (${timeLeft}s)`;
         
-        cooldownTimerDisplay.innerText = `Verified ${buttonUsed}! You earned 1 Token.`;
+        cooldownTimerDisplay.innerText = `Tokens updated successfully via ${buttonUsed}!`;
         timeLeft--;
 
         if (timeLeft < 0) {
