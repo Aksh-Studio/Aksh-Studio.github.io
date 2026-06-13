@@ -40,6 +40,14 @@ html, body {
     transition: background-color 0.3s ease;
 }
 
+/* Fixes the "Half-Screen" Cutoff Bug */
+#app-root {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
