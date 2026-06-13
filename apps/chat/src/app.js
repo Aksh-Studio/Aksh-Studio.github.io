@@ -1,26 +1,14 @@
 // src/app.js
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from './firebase.js';
 
-// --- 1. APPLICATION STATE (The Brain) ---
+// --- 1. APPLICATION STATE ---
 let isMobileChatOpen = false;
 let activeChatId = 'ak_facts';
+let unsubscribeListener = null; // Stops the app from listening to multiple rooms at once
 
-// A temporary "database" to hold messages until we connect Firebase
-const chatDatabase = {
-    'ak_facts': {
-        name: 'AK facts Community',
-        icon: 'biotech',
-        messages: [
-            { text: "Welcome to the AK facts Community!", sender: "system", time: "10:00 AM" },
-            { text: "New 9:16 short just dropped!", sender: "system", time: "10:05 AM" }
-        ]
-    },
-    'gully_cricket': {
-        name: 'Gully Cricket Edits',
-        icon: 'sports_cricket',
-        messages: [
-            { text: "Render finished for the slow-mo shot.", sender: "system", time: "11:30 AM" }
-        ]
-    }
+const roomsInfo = {
+    'ak_facts': { name: 'AK facts Community', icon: 'biotech' },
+    'gully_cricket': { name: 'Gully Cricket Edits', icon: 'sports_cricket' }
 };
 
 // --- 2. THEME ENGINE ---
@@ -39,85 +27,104 @@ const toggleTheme = () => {
 // --- 3. CHAT ACTIONS ---
 const switchChat = (chatId) => {
     activeChatId = chatId;
-    isMobileChatOpen = true; // Slides open on phones
-    renderApp(); // Re-render to show the new chat room name
-    scrollToBottom();
+    isMobileChatOpen = true; 
+    
+    // Update the UI highlights and Room Title
+    document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`btn-${chatId}`).classList.add('active');
+    document.getElementById('active-room-name').innerText = roomsInfo[chatId].name;
+    document.getElementById('active-room-icon').innerText = roomsInfo[chatId].icon;
+
+    // Load Live Messages from Firebase
+    listenToMessages(chatId);
+    
+    // Slide layout for mobile
+    const layout = document.getElementById('main-layout');
+    if (layout) layout.className = 'app-layout mobile-chat-active';
 };
 
 const closeMobileChat = () => {
     isMobileChatOpen = false;
-    renderApp();
+    const layout = document.getElementById('main-layout');
+    if (layout) layout.className = 'app-layout';
 };
 
-const sendMessage = () => {
+// --- 4. FIREBASE REAL-TIME ENGINE ---
+const listenToMessages = (roomId) => {
+    const container = document.getElementById('chat-messages-container');
+    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin-top: 20px;">Syncing secure connection...</div>`;
+
+    // Stop listening to the old room
+    if (unsubscribeListener) unsubscribeListener();
+
+    // Query Firestore for messages in this specific room, sorted by time
+    const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
+
+    // Real-Time Listener
+    unsubscribeListener = onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            container.innerHTML = `
+                <div style="margin: auto; text-align: center; color: var(--text-muted);">
+                    <span class="material-symbols-rounded" style="font-size: 48px; opacity: 0.5;">forum</span>
+                    <p style="margin-top: 10px;">Be the first to send a message!</p>
+                </div>
+            `;
+            return;
+        }
+
+        let messagesHTML = '';
+        snapshot.forEach((doc) => {
+            const msg = doc.data();
+            // Since we aren't using login yet, we treat all messages from 'aksh_guest' as "Me"
+            const isMe = msg.senderId === 'aksh_guest';
+            
+            // Safely format time
+            let timeString = "Just now";
+            if (msg.timestamp) {
+                const date = msg.timestamp.toDate();
+                timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            messagesHTML += `
+                <div style="display: flex; flex-direction: column; align-items: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 15px;">
+                    <div style="background: ${isMe ? 'var(--primary)' : 'var(--card-bg)'}; color: ${isMe ? '#fff' : 'var(--text-main)'}; padding: 10px 15px; border-radius: 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14.5px; line-height: 1.4;">
+                        ${msg.text}
+                    </div>
+                    <span style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">${timeString}</span>
+                </div>
+            `;
+        });
+
+        container.innerHTML = messagesHTML;
+        container.scrollTop = container.scrollHeight; // Auto-scroll to bottom
+    });
+};
+
+const sendMessage = async () => {
     const inputField = document.getElementById('chat-input');
     const text = inputField.value.trim();
-    
-    // Do nothing if the user tries to send an empty message
     if (!text) return; 
 
-    // Get the current time (e.g., "10:45 PM")
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    // Push the new message to our database
-    chatDatabase[activeChatId].messages.push({
-        text: text,
-        sender: "me",
-        time: timeString
-    });
-
-    // Instantly clear the input box
+    // Instantly clear input for snappy UI
     inputField.value = '';
 
-    // Re-draw the messages and scroll to the bottom
-    renderMessagesOnly();
-    scrollToBottom();
-};
-
-const scrollToBottom = () => {
-    const container = document.getElementById('chat-messages-container');
-    if (container) {
-        container.scrollTop = container.scrollHeight;
+    try {
+        // Save to Firebase Cloud
+        await addDoc(collection(db, `chats/${activeChatId}/messages`), {
+            text: text,
+            senderId: 'aksh_guest', // Hardcoded for Phase 3 testing
+            timestamp: serverTimestamp()
+        });
+    } catch (error) {
+        console.error("Error sending message:", error);
+        alert("Check your connection. Message failed to send.");
     }
 };
 
-// --- 4. RENDER ENGINES ---
-const renderMessagesOnly = () => {
-    const container = document.getElementById('chat-messages-container');
-    if (!container) return;
-
-    const messages = chatDatabase[activeChatId].messages;
-    
-    if (messages.length === 0) {
-        container.innerHTML = `
-            <div style="margin: auto; text-align: center; color: var(--text-muted);">
-                <span class="material-symbols-rounded" style="font-size: 48px; opacity: 0.5;">forum</span>
-                <p style="margin-top: 10px;">Send a message to start chatting</p>
-            </div>
-        `;
-        return;
-    }
-
-    // Loop through the messages and build premium chat bubbles
-    container.innerHTML = messages.map(msg => {
-        const isMe = msg.sender === 'me';
-        return `
-            <div style="display: flex; flex-direction: column; align-items: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 15px;">
-                <div style="background: ${isMe ? 'var(--primary)' : 'var(--card-bg)'}; color: ${isMe ? '#fff' : 'var(--text-main)'}; padding: 10px 15px; border-radius: 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14.5px; line-height: 1.4;">
-                    ${msg.text}
-                </div>
-                <span style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">${msg.time}</span>
-            </div>
-        `;
-    }).join('');
-};
-
-const renderApp = () => {
+// --- 5. INITIAL SHELL RENDER ---
+const renderAppShell = () => {
     const root = document.getElementById('app-root');
     const isDark = document.body.classList.contains('dark-theme');
-    const layoutClass = isMobileChatOpen ? 'app-layout mobile-chat-active' : 'app-layout';
-    const activeChat = chatDatabase[activeChatId];
 
     root.innerHTML = `
         <div class="aksh-chat-app">
@@ -137,7 +144,7 @@ const renderApp = () => {
                 </div>
             </nav>
 
-            <div class="${layoutClass}">
+            <div id="main-layout" class="app-layout">
                 
                 <aside class="chat-sidebar">
                     <div class="sidebar-header">
@@ -149,7 +156,7 @@ const renderApp = () => {
                     </div>
                     
                     <div class="user-list">
-                        <div class="user-item ${activeChatId === 'ak_facts' ? 'active' : ''}" id="btn-ak-facts">
+                        <div class="user-item active" id="btn-ak_facts">
                             <div class="global-icon-box"><span class="material-symbols-rounded">biotech</span></div>
                             <div class="user-info">
                                 <h4>AK facts Community</h4>
@@ -157,7 +164,7 @@ const renderApp = () => {
                             </div>
                         </div>
 
-                        <div class="user-item ${activeChatId === 'gully_cricket' ? 'active' : ''}" id="btn-gully-cricket">
+                        <div class="user-item" id="btn-gully_cricket">
                             <div class="global-icon-box"><span class="material-symbols-rounded">sports_cricket</span></div>
                             <div class="user-info">
                                 <h4>Gully Cricket Edits</h4>
@@ -173,9 +180,11 @@ const renderApp = () => {
                         <button id="btn-mobile-back" class="mobile-back-btn">
                             <span class="material-symbols-rounded">arrow_back_ios_new</span>
                         </button>
-                        <div class="global-icon-box" style="width:40px; height:40px; background:transparent;"><span class="material-symbols-rounded" style="color: var(--primary);">${activeChat.icon}</span></div>
+                        <div class="global-icon-box" style="width:40px; height:40px; background:transparent;">
+                            <span id="active-room-icon" class="material-symbols-rounded" style="color: var(--primary);">biotech</span>
+                        </div>
                         <div>
-                            <h3 style="font-size:16px;">${activeChat.name}</h3>
+                            <h3 id="active-room-name" style="font-size:16px;">AK facts Community</h3>
                             <p style="font-size:12px; color:var(--primary);">Online</p>
                         </div>
                     </div>
@@ -192,37 +201,27 @@ const renderApp = () => {
         </div>
     `;
 
-    // --- 5. ATTACH EVENT LISTENERS (Making Buttons Work) ---
+    // Attach Listeners
     document.getElementById('theme-btn').addEventListener('click', toggleTheme);
-    document.getElementById('btn-ak-facts').addEventListener('click', () => switchChat('ak_facts'));
-    document.getElementById('btn-gully-cricket').addEventListener('click', () => switchChat('gully_cricket'));
+    document.getElementById('btn-ak_facts').addEventListener('click', () => switchChat('ak_facts'));
+    document.getElementById('btn-gully_cricket').addEventListener('click', () => switchChat('gully_cricket'));
     
-    // Mobile Back Button
-    const backBtn = document.getElementById('btn-mobile-back');
-    if (backBtn) backBtn.addEventListener('click', closeMobileChat);
+    document.getElementById('btn-mobile-back').addEventListener('click', closeMobileChat);
+    document.getElementById('btn-send-msg').addEventListener('click', sendMessage);
 
-    // Send Button Click
-    const sendBtn = document.getElementById('btn-send-msg');
-    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
 
-    // Pressing 'Enter' on Keyboard
-    const inputField = document.getElementById('chat-input');
-    if (inputField) {
-        inputField.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault(); // Stop standard form submission
-                sendMessage();
-            }
-        });
-    }
-
-    // Render the messages for whatever chat is currently active
-    renderMessagesOnly();
-    scrollToBottom();
+    // Start listening to default room
+    listenToMessages(activeChatId);
 };
 
 // --- 6. BOOT APP ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
-    renderApp();
+    renderAppShell();
 });
