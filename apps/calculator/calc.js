@@ -6,29 +6,29 @@ import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTim
 // UNIVERSAL THEME SYNC ENGINE
 // ==========================================
 const themeBtn = document.getElementById('theme-toggle');
-const themeIcon = document.getElementById('theme-icon'); // Target the icon specifically
 
-// 1. Check local storage on page load
+// 1. Apply theme on load
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-theme');
-    if (themeIcon) themeIcon.innerText = 'light_mode'; // Change icon, not button text
+    if (themeBtn) themeBtn.innerText = 'Light Mode';
+} else {
+    if (themeBtn) themeBtn.innerText = 'Dark Mode';
 }
 
-// 2. Toggle button logic
+// 2. Toggle button click logic
 if (themeBtn) {
     themeBtn.onclick = () => {
         document.body.classList.toggle('dark-theme');
         
         if (document.body.classList.contains('dark-theme')) {
             localStorage.setItem('theme', 'dark');
-            if (themeIcon) themeIcon.innerText = 'light_mode';
+            themeBtn.innerText = 'Light Mode';
         } else {
             localStorage.setItem('theme', 'light');
-            if (themeIcon) themeIcon.innerText = 'dark_mode';
+            themeBtn.innerText = 'Dark Mode';
         }
     };
 }
-
 const firebaseConfig = {
     apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
     authDomain: "aksh-studio.firebaseapp.com",
