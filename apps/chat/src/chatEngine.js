@@ -1,5 +1,5 @@
 // src/chatEngine.js
-import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, setDoc, getDocs } from './firebase.js';
 import { currentUser } from './auth.js';
 import { roomsInfo } from './app.js';
 
@@ -9,11 +9,9 @@ export let currentRoomId = null;
 let replyContext = null; 
 let messageToPin = null; 
 
-// --- 1. ROOM ROUTING & RESTRICTIONS ---
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     
-    // Disable Call Buttons in Public Groups
     const isPublic = roomId === 'global_channel' || roomId === 'aksh_help';
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
@@ -25,9 +23,8 @@ export const switchChatRoom = (roomId) => {
     listenToMessages(roomId);
 };
 
-// --- 2. GLOBAL FIREBASE PINNING ---
 const listenToGlobalPin = (roomId) => {
-    if (pinListener) pinListener(); // Clear old listener
+    if (pinListener) pinListener();
     
     pinListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         const data = documentObj.data();
@@ -35,11 +32,8 @@ const listenToGlobalPin = (roomId) => {
         
         if (banner && data && data.pinnedMessage && Date.now() < data.pinExpiry) {
             document.getElementById('pinned-message-text').innerText = data.pinnedMessage;
-            
-            // Dynamically strip out the hardcoded "(Private)" text from the HTML
             const titleEl = banner.querySelector('p');
-            if (titleEl) titleEl.innerText = "Pinned Message"; 
-            
+            if (titleEl) titleEl.innerText = "Pinned Message";
             banner.style.display = 'flex';
         } else if (banner) {
             banner.style.display = 'none';
@@ -47,10 +41,9 @@ const listenToGlobalPin = (roomId) => {
     });
 };
 
-// --- 3. MESSAGE STREAM ---
 export const listenToMessages = (roomId) => {
     const container = document.getElementById('chat-messages-container');
-    const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || []; // For "Delete For Me" tracking
+    const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
 
     const disclaimerHTML = `
         <div class="chat-disclaimer-wrapper">
@@ -60,7 +53,6 @@ export const listenToMessages = (roomId) => {
             </div>
         </div>
     `;
-
     container.innerHTML = disclaimerHTML;
 
     if (unsubscribeListener) unsubscribeListener();
@@ -72,13 +64,12 @@ export const listenToMessages = (roomId) => {
 
         snapshot.forEach((documentObj) => {
             const msgId = documentObj.id;
-            
-            // Skip rendering if user chose "Delete for Me"
             if (hiddenMsgs.includes(msgId)) return;
 
             const msg = documentObj.data();
-            const isMe = msg.senderId === currentUser.id; 
-            const isAdminMessage = currentUser.isAdmin && msg.senderId === currentUser.id && roomId === 'aksh_help';
+            const curId = currentUser?.id || currentUser?.uid;
+            const isMe = msg.senderId === curId; 
+            const isAdminMessage = currentUser?.isAdmin && msg.senderId === curId && roomId === 'aksh_help';
             const isFirstInGroup = previousSenderId !== msg.senderId;
 
             let timeString = msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending...";
@@ -99,7 +90,6 @@ export const listenToMessages = (roomId) => {
                 </div>
             `;
 
-            // Embeds actual sender ID into the checkbox for security validation!
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
             const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
             const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
@@ -125,13 +115,14 @@ export const listenToMessages = (roomId) => {
 };
 
 export const sendMessage = async () => {
-    if (currentUser.isGuest) return;
+    if (currentUser?.isGuest) return;
     const inputField = document.getElementById('chat-input');
     const text = inputField.value.trim();
     if (!text || !currentRoomId) return; 
 
     inputField.value = ''; 
-    const payload = { text, senderId: currentUser.id, senderName: currentUser.name, timestamp: serverTimestamp() };
+    const curId = currentUser?.id || currentUser?.uid;
+    const payload = { text, senderId: curId, senderName: currentUser?.name || 'User', timestamp: serverTimestamp() };
 
     if (replyContext) {
         payload.replyToText = replyContext.text;
@@ -143,38 +134,63 @@ export const sendMessage = async () => {
     catch (error) { console.error("Send Error:", error); }
 };
 
-// --- 4. SECURE UI ACTIONS & MODALS ---
+// --- SECURE SYSTEM OPERATIONS & LIFECYCLES ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // DELETE LOGIC
+    // Chat History Native PlainText Downloader
+    document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
+        if (!currentRoomId) return;
+        try {
+            const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
+            const snapshot = await getDocs(q);
+            let log = `=== Aksh Studio Chat History Export [Room ID: ${currentRoomId}] ===\n\n`;
+            
+            snapshot.forEach(doc => {
+                const m = doc.data();
+                const ts = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Pending";
+                log += `[${ts}] ${m.senderName || 'System User'}: ${m.text}\n`;
+            });
+            
+            const blob = new Blob([log], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.href = url;
+            downloadAnchor.download = `chat_history_${currentRoomId}.txt`;
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            document.body.removeChild(downloadAnchor);
+            URL.revokeObjectURL(url);
+        } catch(err) {
+            alert("Export failed. Validate network conditions.");
+        }
+    });
+
+    // Delete Operations
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
 
-        // Security Check: Make sure they only selected their own messages OR they are the Admin
         let hasUnauthorizedMessage = false;
+        const curId = currentUser?.id || currentUser?.uid;
         selected.forEach(box => {
-            if (box.getAttribute('data-sender') !== currentUser.id && !currentUser.isAdmin) {
+            if (box.getAttribute('data-sender') !== curId && !currentUser?.isAdmin) {
                 hasUnauthorizedMessage = true;
             }
         });
 
         const deleteEveryoneBtn = document.getElementById('btn-delete-everyone');
-        if (hasUnauthorizedMessage) {
-            deleteEveryoneBtn.style.display = 'none'; // Lock out normal users
-        } else {
-            deleteEveryoneBtn.style.display = 'block'; // Grant access
+        if (deleteEveryoneBtn) {
+            deleteEveryoneBtn.style.display = hasUnauthorizedMessage ? 'none' : 'block';
         }
-        
         document.getElementById('delete-modal').style.display = 'flex';
     });
 
     document.getElementById('btn-delete-me')?.addEventListener('click', () => {
         let hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
         document.querySelectorAll('.msg-checkbox:checked').forEach(box => {
-            hiddenMsgs.push(box.value); // Save to local storage cache to hide
+            hiddenMsgs.push(box.value);
             const container = document.getElementById(`container-${box.value}`);
             if (container) container.style.display = 'none';
         });
@@ -191,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
-    // FIREBASE PIN MODAL LOGIC
+    // Pinning Operations (Fixed to use setDoc with merge tracking)
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
@@ -201,15 +217,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const hours = parseInt(e.target.getAttribute('data-hours'));
             const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
             
-            // Save globally to Firestore Room Document
             try {
-                await updateDoc(doc(db, "chats", currentRoomId), {
+                await setDoc(doc(db, "chats", currentRoomId), {
                     pinnedMessage: textEl.innerText,
                     pinExpiry: expiryTime
-                });
+                }, { merge: true });
             } catch (err) {
                 console.error("Firebase Pin Error:", err);
-                alert("Ensure your Firestore Rules allow writes to /chats/{chatId}");
             }
             
             document.getElementById('pin-modal').style.display = 'none';
@@ -217,16 +231,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Cleanup Modals
     document.getElementById('btn-cancel-delete')?.addEventListener('click', () => document.getElementById('delete-modal').style.display = 'none');
     document.getElementById('btn-cancel-pin')?.addEventListener('click', () => document.getElementById('pin-modal').style.display = 'none');
     
     document.getElementById('btn-unpin')?.addEventListener('click', async () => {
-        try { await updateDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }); } catch (err) {}
+        try { await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }, { merge: true }); } catch (err) {}
     });
 });
 
-// --- 5. GLOBAL UI HELPERS ---
+// --- GLOBAL WINDOW HOOKS ---
 window.triggerPinModal = (msgId) => {
     messageToPin = msgId;
     window.toggleActionMenu(msgId);
