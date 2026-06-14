@@ -109,8 +109,10 @@ export const renderSidebarList = () => {
 };
 
 // --- BOOT SEQUENCE ---
-document.addEventListener('DOMContentLoaded', () => {
-    initAuth();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Await the Firebase Auth check before loading the chat UI
+    await initAuth();
+    
     if (!currentUser.isGuest) {
         initTheme();
         initNavigation();
