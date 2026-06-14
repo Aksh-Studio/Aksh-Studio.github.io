@@ -1,22 +1,21 @@
 // src/chatEngine.js
-import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc } from './firebase.js';
 import { currentUser } from './auth.js';
+import { roomsInfo } from './app.js';
 
 let unsubscribeListener = null;
-let currentRoomId = null;
+export let currentRoomId = null;
+let replyContext = null; // Stores data when you click "Reply"
 
-// --- 1. REAL-TIME LISTENER (Phase 3 & 4) ---
+// --- 1. REAL-TIME LISTENER ---
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     listenToMessages(roomId);
 };
 
 export const listenToMessages = (roomId) => {
-    if (currentUser.isGuest) return; 
-
     const container = document.getElementById('chat-messages-container');
     
-    // The Phase 3 Permanent Disclaimers
     const disclaimerHTML = `
         <div class="chat-disclaimer-wrapper">
             <div class="chat-disclaimer">
@@ -38,17 +37,15 @@ export const listenToMessages = (roomId) => {
         let messagesHTML = disclaimerHTML; 
         let previousSenderId = null; 
 
-        snapshot.forEach((doc) => {
-            const msg = doc.data();
-            const msgId = doc.id;
+        snapshot.forEach((document) => {
+            const msg = document.data();
+            const msgId = document.id;
             const isMe = msg.senderId === currentUser.id; 
             const isAdminMessage = msg.senderId === 'akshat124.am12@gmail.com' && roomId === 'aksh_help';
             
-            // SMART GROUPING
             const isFirstInGroup = previousSenderId !== msg.senderId;
             const bubbleShapeClass = isFirstInGroup ? '' : 'grouped';
 
-            // TIME & STATUS TICKS
             let timeString = "Sending...";
             let tickHTML = "";
             
@@ -58,27 +55,31 @@ export const listenToMessages = (roomId) => {
                 if (isMe) tickHTML = `<span class="material-symbols-rounded tick-icon tick-read">done_all</span>`;
             }
 
-            // SENDER NAME INJECTION
             const senderNameHTML = (!isMe && isFirstInGroup && !isAdminMessage) 
                 ? `<div class="msg-sender-name">${msg.senderName || 'Network User'}</div>` : '';
 
-            // PHASE 4: THE 'v' ACTION MENU TRIGGER
+            // Reply Context Injection
+            const replyHTML = msg.replyToText ? `
+                <div class="quoted-reply">
+                    <div class="quoted-name">${msg.replyToName}</div>
+                    <div class="quoted-text">${msg.replyToText}</div>
+                </div>
+            ` : '';
+
             const actionMenuHTML = `
                 <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
                     <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
                 </div>
                 <div class="msg-action-menu" id="menu-${msgId}">
-                    <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}', '${msg.text}', '${msg.senderName}')">Reply</button>
-                    <button class="msg-action-btn" onclick="window.enableSelectionMode()">Forward</button>
-                    <button class="msg-action-btn" onclick="window.enableSelectionMode()">Delete</button>
+                    <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
+                    <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
+                    <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Delete</button>
                     <button class="msg-action-btn" onclick="window.pinMessage('${msgId}')">Pin Message</button>
                 </div>
             `;
 
-            // SELECTION MODE CHECKBOX (Phase 4)
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}"></div>`;
 
-            // ALIGNMENT LOGIC (Including Super Admin Center Alignment)
             let alignmentClass = isMe ? 'me' : 'other';
             let bubbleClass = isMe ? 'msg-me' : 'msg-other';
             
@@ -93,7 +94,8 @@ export const listenToMessages = (roomId) => {
                     <div class="msg-bubble ${bubbleClass} ${bubbleShapeClass}">
                         ${actionMenuHTML}
                         ${senderNameHTML}
-                        <span>${msg.text}</span>
+                        ${replyHTML}
+                        <span id="text-${msgId}">${msg.text}</span>
                         <div class="msg-meta">
                             <span>${timeString}</span>
                             ${tickHTML}
@@ -112,65 +114,136 @@ export const listenToMessages = (roomId) => {
 
 // --- 2. SEND MESSAGE ENGINE ---
 export const sendMessage = async () => {
-    if (currentUser.isGuest) return;
-
     const inputField = document.getElementById('chat-input');
     const text = inputField.value.trim();
     if (!text || !currentRoomId) return; 
 
-    inputField.value = ''; // Instant UI clear
+    inputField.value = ''; 
+
+    // Build Payload
+    const payload = {
+        text: text,
+        senderId: currentUser.id,
+        senderName: currentUser.name,
+        timestamp: serverTimestamp()
+    };
+
+    // Attach Reply Data if active
+    if (replyContext) {
+        payload.replyToText = replyContext.text;
+        payload.replyToName = replyContext.senderName;
+        window.cancelReply(); // Clear UI
+    }
 
     try {
-        await addDoc(collection(db, `chats/${currentRoomId}/messages`), {
-            text: text,
-            senderId: currentUser.id,
-            senderName: currentUser.name, // Save name for proper rendering
-            timestamp: serverTimestamp()
-        });
-    } catch (error) {
-        console.error("Error sending message:", error);
-    }
+        await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload);
+    } catch (error) { console.error("Error sending message:", error); }
 };
 
-// Attach standard sending events
 document.addEventListener('DOMContentLoaded', () => {
-    const sendBtn = document.getElementById('btn-send-msg');
-    const chatInput = document.getElementById('chat-input');
-    
-    if(sendBtn) sendBtn.addEventListener('click', sendMessage);
-    if(chatInput) {
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
-        });
-    }
+    document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
+    document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
+    });
 });
 
-// --- 3. PHASE 4 UI HELPERS (Action Menus & Selection Mode) ---
+// --- 3. PHASE 4 ACTION LOGIC (Reply, Delete, Forward, Pin) ---
+
+// UI Toggle for Dropdown Menu
 window.toggleActionMenu = (msgId) => {
-    // Close all other menus first
     document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active'));
-    // Open the clicked one
     document.getElementById(`menu-${msgId}`).classList.toggle('active');
 };
-
-// Close menus when clicking outside
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.msg-bubble')) {
-        document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active'));
+    if (!e.target.closest('.msg-bubble')) document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
+});
+
+// Reply
+window.replyToMessage = (msgId) => {
+    const text = document.getElementById(`text-${msgId}`).innerText;
+    const senderNameEl = document.getElementById(`container-${msgId}`).querySelector('.msg-sender-name');
+    const senderName = senderNameEl ? senderNameEl.innerText : 'User';
+
+    replyContext = { msgId, text, senderName };
+    document.getElementById('reply-preview-name').innerText = `Replying to ${senderName}`;
+    document.getElementById('reply-preview-text').innerText = text;
+    document.getElementById('reply-preview-banner').style.display = 'block';
+    window.toggleActionMenu(msgId);
+};
+
+window.cancelReply = () => {
+    replyContext = null;
+    document.getElementById('reply-preview-banner').style.display = 'none';
+};
+document.getElementById('btn-cancel-reply')?.addEventListener('click', window.cancelReply);
+
+// Pin
+window.pinMessage = (msgId) => {
+    const text = document.getElementById(`text-${msgId}`).innerText;
+    document.getElementById('pinned-message-text').innerText = text;
+    document.getElementById('pinned-message-banner').style.display = 'flex';
+    window.toggleActionMenu(msgId);
+};
+document.getElementById('pinned-message-banner')?.addEventListener('click', () => {
+    document.getElementById('pinned-message-banner').style.display = 'none';
+});
+
+// Selection Mode (Toggle Checkboxes)
+window.enableSelectionMode = (enable = true) => {
+    if (enable) {
+        document.getElementById('chat-messages-container').classList.add('selection-mode');
+        document.getElementById('standard-chat-header').style.display = 'none';
+        document.getElementById('selection-chat-header').style.display = 'flex';
+        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
+    } else {
+        document.getElementById('chat-messages-container').classList.remove('selection-mode');
+        document.getElementById('standard-chat-header').style.display = 'flex';
+        document.getElementById('selection-chat-header').style.display = 'none';
+        document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
+    }
+};
+
+// Update Selection Count
+document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('msg-checkbox')) {
+        const count = document.querySelectorAll('.msg-checkbox:checked').length;
+        document.getElementById('selection-count').innerText = `${count} Selected`;
     }
 });
 
-window.enableSelectionMode = () => {
-    document.getElementById('chat-messages-container').classList.add('selection-mode');
-    document.getElementById('standard-chat-header').style.display = 'none';
-    document.getElementById('selection-chat-header').style.display = 'flex';
-};
-
-document.getElementById('btn-cancel-selection')?.addEventListener('click', () => {
-    document.getElementById('chat-messages-container').classList.remove('selection-mode');
-    document.getElementById('standard-chat-header').style.display = 'flex';
-    document.getElementById('selection-chat-header').style.display = 'none';
+// Delete Logic (Removes from Firebase)
+document.getElementById('btn-action-delete')?.addEventListener('click', async () => {
+    const selected = document.querySelectorAll('.msg-checkbox:checked');
+    if (selected.length === 0) return alert("Select messages to delete.");
     
-    // Uncheck all boxes
-    document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
+    if (!confirm(`Delete ${selected.length} message(s) for everyone?`)) return;
+
+    for (let box of selected) {
+        try { await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, box.value)); } 
+        catch(e) { console.error("Delete failed:", e); }
+    }
+    window.enableSelectionMode(false);
+});
+
+// Forward Logic (Copies to another room)
+document.getElementById('btn-action-forward')?.addEventListener('click', async () => {
+    const selected = document.querySelectorAll('.msg-checkbox:checked');
+    if (selected.length === 0) return alert("Select messages to forward.");
+
+    const targetRoom = prompt("Enter the exact Room ID to forward to (e.g., global_channel or aksh_help):");
+    if (!targetRoom || !roomsInfo[targetRoom]) return alert("Invalid room ID.");
+
+    for (let box of selected) {
+        const text = document.getElementById(`text-${box.value}`).innerText;
+        try {
+            await addDoc(collection(db, `chats/${targetRoom}/messages`), {
+                text: `[Forwarded] ${text}`,
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                timestamp: serverTimestamp()
+            });
+        } catch(e) { console.error("Forward failed:", e); }
+    }
+    window.enableSelectionMode(false);
+    alert("Messages forwarded successfully!");
 });
