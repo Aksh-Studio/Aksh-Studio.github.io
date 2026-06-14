@@ -1,17 +1,13 @@
 // src/auth.js
 
-// --- 1. THE MAGIC URL OVERRIDE (For testing multiple accounts) ---
-// If you put ?email=...&name=... in the URL, this grabs it and forces the login!
+// --- 1. MAGIC URL OVERRIDE ---
 const urlParams = new URLSearchParams(window.location.search);
 const magicEmail = urlParams.get('email');
 const magicName = urlParams.get('name');
 
 if (magicEmail) {
-    // Forcefully save the new user to this Chrome profile's memory
     localStorage.setItem('aksh_user_email', magicEmail);
     localStorage.setItem('aksh_user_name', magicName || magicEmail.split('@')[0]);
-    
-    // Clean up the URL bar so it looks professional
     window.history.replaceState({}, document.title, window.location.pathname);
 }
 
@@ -87,3 +83,18 @@ export const initAuth = () => {
     if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
     if (picEl) picEl.src = currentUser.photoURL;
 };
+
+// --- 5. SECRET DEVELOPER BACKDOOR (God Mode) ---
+document.addEventListener('keydown', (e) => {
+    // Press Ctrl + Shift + U to instantly bypass the lock screen as Admin
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        console.warn("DEVELOPER OVERRIDE INITIATED");
+        
+        localStorage.setItem('aksh_user_email', 'akshat124.am12@gmail.com');
+        localStorage.setItem('aksh_user_name', 'Akshat');
+        
+        alert("Developer Override Activated. Welcome back, Admin. Reloading...");
+        window.location.reload();
+    }
+});
