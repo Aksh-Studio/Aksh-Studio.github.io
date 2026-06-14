@@ -1,5 +1,5 @@
 // src/app.js
-import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc, deleteDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom } from './chatEngine.js';
 
@@ -19,12 +19,12 @@ const listenToCloudDMs = () => {
     const q = query(collection(db, "chats"), where("participants", "array-contains", curId));
     
     onSnapshot(q, (snapshot) => {
+        dynamicDMs = {}; // CLEAR CACHE: Prevents deleted ghost chats from sticking around!
+        
         snapshot.forEach(docObj => {
             const data = docObj.data();
             if (data.type === 'dm') {
                 const otherId = data.participants.find(id => id !== curId);
-                
-                // NUCLEAR FILTER: Block self-chats if they slipped into the database
                 if (!otherId || otherId === curId) return; 
                 
                 const otherName = data.names[otherId] || 'User';
@@ -96,7 +96,6 @@ export const renderCallLogs = () => {
             <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
                 <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">call_log</span>
                 <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs Available</p>
-                <p style="font-size: 12px; max-width: 220px; margin: 0 auto;">Your incoming and outgoing WebRTC logs will appear here.</p>
             </div>`;
     } else {
         listContainer.innerHTML = '';
@@ -174,7 +173,7 @@ const initNavigation = () => {
 const fetchNetworkUsers = async () => {
     const listContainer = document.getElementById('dynamic-user-list');
     if (!listContainer) return;
-    listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">Scanning Network Architecture...</p>';
+    listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">Scanning Network...</p>';
     
     try {
         const querySnapshot = await getDocs(collection(db, "users"));
@@ -188,11 +187,9 @@ const fetchNetworkUsers = async () => {
             const targetUid = String(docObj.id).trim();
             const targetEmail = String(u.email || "").toLowerCase().trim();
             
-            // NUCLEAR DOUBLE-FILTER: Blocks your exact UID AND your exact Email from appearing
             if (targetUid === myUid || (targetEmail === myEmail && myEmail !== "")) return; 
             
             const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
-            // Generates a clean profile picture initial badge if they don't have a custom photo
             const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00a884&color=fff`;
             
             const item = document.createElement('div');
@@ -211,12 +208,11 @@ const fetchNetworkUsers = async () => {
                 
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
-                        type: 'dm',
-                        participants: [myUid, targetUid],
+                        type: 'dm', participants: [myUid, targetUid],
                         names: { [myUid]: currentUser.name, [targetUid]: name },
                         avatars: { [myUid]: myPic, [targetUid]: pic }
                     }, { merge: true });
-                } catch(e) { console.error("Cloud Handshake Failed:", e); }
+                } catch(e) {}
 
                 appState.activeChatId = deterministicId;
                 document.getElementById('active-room-name').innerText = name;
@@ -224,19 +220,27 @@ const fetchNetworkUsers = async () => {
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
-                
-                const allTabBtn = document.querySelector('[data-tab="all"]');
-                if (allTabBtn) {
-                    document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
-                    allTabBtn.classList.add('active');
-                }
-                appState.activeTab = 'all';
                 switchChatRoom(deterministicId);
             });
             listContainer.appendChild(item);
         });
     } catch (e) {
-        listContainer.innerHTML = '<p style="text-align: center; color: red; font-size: 13px; padding: 20px;">Network Directory Error. Validate database configurations.</p>';
+        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>';
+    }
+};
+
+// GLOBAL DELETE CHAT FUNCTION
+window.deleteSidebarChat = async (roomId) => {
+    if (confirm("Permanently delete this chat history for everyone?")) {
+        try {
+            await deleteDoc(doc(db, "chats", roomId)); // Wipes the room from Firestore
+            if (appState.activeChatId === roomId) {
+                appState.activeChatId = null;
+                document.getElementById('chat-messages-container').innerHTML = '';
+                document.getElementById('active-room-name').innerText = 'Select a chat';
+                document.getElementById('active-room-icon').innerText = 'chat';
+            }
+        } catch(e) { alert("Delete failed. Check permissions."); }
     }
 };
 
@@ -253,9 +257,6 @@ export const renderSidebarList = () => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
-        // Ensure leftover self-chats in cache are permanently hidden
-        if (room.type === 'dm' && (room.name === currentUser.name || room.name === currentUser.email.split('@')[0])) return;
-
         if (appState.activeTab === 'all') displayQualifies = true;
         if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
         if (appState.activeTab === 'unread' && room.unread) displayQualifies = true;
@@ -265,11 +266,20 @@ export const renderSidebarList = () => {
             const item = document.createElement('div');
             item.className = `user-item ${isActive}`;
             item.id = `btn-room-${id}`;
+            item.style.position = 'relative'; // Required for absolute positioning of dropdown
             
+            // INJECTS DROPDOWN ARROW FOR DIRECT MESSAGES
+            const deleteActionHTML = room.type === 'dm' ? `
+                <div class="chat-menu-trigger" onclick="event.stopPropagation(); window.deleteSidebarChat('${id}')" style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); display: none; z-index: 10;" title="Delete Chat">
+                    <span class="material-symbols-rounded">keyboard_arrow_down</span>
+                </div>
+            ` : '';
+
             if (room.isImage) {
                 item.innerHTML = `
                     <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
                     <div class="user-info"><h4>${room.name}</h4><p>Direct Message</p></div>
+                    ${deleteActionHTML}
                 `;
             } else {
                 item.innerHTML = `
@@ -277,6 +287,10 @@ export const renderSidebarList = () => {
                     <div class="user-info"><h4>${room.name}</h4><p>Tap to view messages</p></div>
                 `;
             }
+
+            // HOVER EVENTS FOR THE DELETE ARROW
+            item.addEventListener('mouseenter', () => { const trigger = item.querySelector('.chat-menu-trigger'); if(trigger) trigger.style.display = 'block'; });
+            item.addEventListener('mouseleave', () => { const trigger = item.querySelector('.chat-menu-trigger'); if(trigger) trigger.style.display = 'none'; });
 
             item.addEventListener('click', () => {
                 document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
@@ -297,14 +311,17 @@ export const renderSidebarList = () => {
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
         if (currentUser) {
+            const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            const navAvatar = document.getElementById('nav-profile-pic');
+            if (navAvatar) { navAvatar.src = myPic; navAvatar.style.display = "block"; }
+            
+            const navName = document.getElementById('nav-profile-name');
+            if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "User");
+            
             listenToCloudDMs(); 
         }
-        
         initSettingsAndTheme();
         initNavigation();
         renderSidebarList();
-        
-        const defaultBtn = document.getElementById(`btn-room-global_channel`);
-        if(defaultBtn) defaultBtn.click();
     });
 });
