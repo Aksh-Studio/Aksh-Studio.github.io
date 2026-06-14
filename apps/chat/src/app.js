@@ -8,6 +8,7 @@ import { initCallEngine } from './callEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
+// Fixed Unread False flag as requested
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group', unread: false, fav: false, network: false },
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group', unread: false, fav: true, network: false }
@@ -27,16 +28,15 @@ const initSettingsAndTheme = () => {
 
     // Load Wallpaper
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
-    if (savedWallpaper) document.getElementById('chat-main-panel').style.backgroundImage = `url(${savedWallpaper})`;
+    if (savedWallpaper) {
+        document.getElementById('chat-main-panel').style.backgroundImage = `url(${savedWallpaper})`;
+        document.getElementById('chat-main-panel').style.backgroundSize = 'cover';
+    }
 
-    // Inject Settings Gear dynamically
-    const rail = document.querySelector('.side-rail');
-    if (rail) {
-        rail.innerHTML += `
-            <div style="flex:1;"></div>
-            <button class="rail-item" id="btn-settings" title="Settings"><span class="material-symbols-rounded">settings</span></button>
-        `;
-        document.getElementById('btn-settings').addEventListener('click', () => {
+    // Bind your new Settings Icon from HTML
+    const settingsBtn = document.getElementById('rail-settings');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
             const bgUrl = prompt("Enter an Image URL to set as your Chat Wallpaper:");
             if (bgUrl) {
                 localStorage.setItem('chat_wallpaper', bgUrl);
@@ -98,7 +98,7 @@ const fetchNetworkUsers = async () => {
             listContainer.appendChild(item);
         });
     } catch (e) {
-        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Error</p>';
+        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Error. Check rules.</p>';
     }
 };
 
