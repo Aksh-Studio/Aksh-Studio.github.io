@@ -5,9 +5,17 @@ import { switchChatRoom } from './chatEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
+// Base systemic rooms
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group' },
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group' }
+};
+
+// Tracks active peer-to-peer direct messages generated during session runtime
+export const dynamicDMs = JSON.parse(localStorage.getItem('active_dynamic_dms')) || {};
+
+const saveDynamicDMs = () => {
+    localStorage.setItem('active_dynamic_dms', JSON.stringify(dynamicDMs));
 };
 
 const initSettingsAndTheme = () => {
@@ -24,26 +32,38 @@ const initSettingsAndTheme = () => {
 
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
     if (savedWallpaper) {
-        document.getElementById('chat-main-panel').style.backgroundImage = `url(${savedWallpaper})`;
-        document.getElementById('chat-main-panel').style.backgroundSize = 'cover';
+        const targetPanel = document.getElementById('chat-main-panel');
+        if (targetPanel) {
+            targetPanel.style.backgroundImage = `url(${savedWallpaper})`;
+            targetPanel.style.backgroundSize = 'cover';
+            targetPanel.style.backgroundPosition = 'center';
+        }
     }
 
-    // Interactive Wallpaper Config & Removal Dialog
+    // High-fidelity WhatsApp-style integrated Wallpaper Management
     document.getElementById('btn-settings')?.addEventListener('click', () => {
-        const activeWallpaper = localStorage.getItem('chat_wallpaper');
-        if (activeWallpaper) {
-            const action = confirm("Custom wallpaper is active.\n\nClick [OK] to change the image URL.\nClick [Cancel] to completely REMOVE the wallpaper.");
-            if (!action) {
-                localStorage.removeItem('chat_wallpaper');
-                document.getElementById('chat-main-panel').style.backgroundImage = 'none';
-                return;
-            }
+        const hasWallpaper = !!localStorage.getItem('chat_wallpaper');
+        let optionsMsg = "Settings Menu:\n\nEnter a direct image URL to set a new chat background.";
+        if (hasWallpaper) {
+            optionsMsg += "\n\nType the word 'REMOVE' in the box below to wipe out your custom wallpaper.";
         }
-        const bgUrl = prompt("Enter a image URL to assign as your Chat Background:");
-        if (bgUrl) {
-            localStorage.setItem('chat_wallpaper', bgUrl);
-            document.getElementById('chat-main-panel').style.backgroundImage = `url(${bgUrl})`;
-            document.getElementById('chat-main-panel').style.backgroundSize = 'cover';
+        
+        const userInput = prompt(optionsMsg);
+        if (userInput === null) return; 
+        
+        const targetPanel = document.getElementById('chat-main-panel');
+        if (userInput.trim().toUpperCase() === 'REMOVE') {
+            localStorage.removeItem('chat_wallpaper');
+            if (targetPanel) targetPanel.style.backgroundImage = 'none';
+            alert("Wallpaper successfully restored to factory defaults.");
+        } else if (userInput.trim() !== '') {
+            localStorage.setItem('chat_wallpaper', userInput.trim());
+            if (targetPanel) {
+                targetPanel.style.backgroundImage = `url(${userInput.trim()})`;
+                targetPanel.style.backgroundSize = 'cover';
+                targetPanel.style.backgroundPosition = 'center';
+            }
+            alert("New custom wallpaper assigned successfully.");
         }
     });
 };
@@ -51,7 +71,6 @@ const initSettingsAndTheme = () => {
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
-    // Left Side Rail Call Tab Controller
     document.getElementById('rail-calls')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.remove('active');
         document.getElementById('rail-calls')?.classList.add('active');
@@ -61,11 +80,12 @@ const initNavigation = () => {
         const tabs = document.querySelector('.chat-tabs');
         if (tabs) tabs.style.display = 'none';
         
+        // Isolate layout strictly from chat items
         document.getElementById('dynamic-user-list').innerHTML = `
-            <div style="padding: 30px 20px; text-align: center; color: var(--text-muted);">
-                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 10px;">call_log</span>
-                <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs</p>
-                <p style="font-size: 12px; max-width: 200px; margin: 0 auto;">Voice and video call history configurations will render here.</p>
+            <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">call_log</span>
+                <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs Available</p>
+                <p style="font-size: 12px; max-width: 220px; margin: 0 auto;">End-to-end encrypted direct cellular calls are tracked cleanly inside this layout view.</p>
             </div>
         `;
     });
@@ -106,17 +126,18 @@ const initNavigation = () => {
 const fetchNetworkUsers = async () => {
     const listContainer = document.getElementById('dynamic-user-list');
     if (!listContainer) return;
-    listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">Scanning Network...</p>';
+    listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">Scanning Network Architecture...</p>';
     
     try {
         const querySnapshot = await getDocs(collection(db, "users"));
         listContainer.innerHTML = '';
-        querySnapshot.forEach((doc) => {
-            const u = doc.data();
+        const myUid = currentUser?.id || currentUser?.uid;
+
+        querySnapshot.forEach((docObj) => {
+            const u = docObj.data();
+            const targetUid = docObj.id;
             
-            // Protected check prevents execution breakages if schema ids are mixed
-            const curId = currentUser?.id || currentUser?.uid;
-            if (doc.id === curId) return; 
+            if (targetUid === myUid) return; 
             
             const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
             const pic = u.customProfilePic || u.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
@@ -124,14 +145,50 @@ const fetchNetworkUsers = async () => {
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${pic}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
-                <div class="user-info"><h4>${name}</h4><p style="font-size:12px; color: var(--text-muted);">Network Member</p></div>
+                <img src="${pic}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
+                <div class="user-info">
+                    <h4>${name}</h4>
+                    <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
+                </div>
             `;
+
+            // CRITICAL FIX: Generate 1:1 workspace dynamically when clicking network directory item
+            item.addEventListener('click', () => {
+                const deterministicId = myUid < targetUid ? `dm_${myUid}_${targetUid}` : `dm_${targetUid}_${myUid}`;
+                
+                // Mount new room profile to runtime engine state
+                dynamicDMs[deterministicId] = {
+                    name: name,
+                    icon: 'person',
+                    type: 'chat'
+                };
+                saveDynamicDMs();
+
+                // Swap views to newly activated chat workspace smoothly
+                appState.activeChatId = deterministicId;
+                document.getElementById('active-room-name').innerText = name;
+                document.getElementById('active-room-icon').innerText = 'person';
+                
+                appState.isMobileChatOpen = true;
+                document.getElementById('main-layout').classList.add('mobile-chat-active');
+                
+                // Return perspective to "All Chats" list layout view
+                const allTabBtn = document.querySelector('[data-tab="all"]');
+                if (allTabBtn) {
+                    document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
+                    allTabBtn.classList.add('active');
+                }
+                appState.activeTab = 'all';
+                
+                renderSidebarList();
+                switchChatRoom(deterministicId);
+            });
+
             listContainer.appendChild(item);
         });
     } catch (e) {
         console.error(e);
-        listContainer.innerHTML = '<p style="text-align: center; color: red; font-size: 13px; padding: 20px;">Network Error. Check Database Rules.</p>';
+        listContainer.innerHTML = '<p style="text-align: center; color: red; font-size: 13px; padding: 20px;">Network Directory Error. Validate database configurations.</p>';
     }
 };
 
@@ -140,27 +197,42 @@ export const renderSidebarList = () => {
     if (!listContainer) return;
     listContainer.innerHTML = '';
 
-    Object.keys(roomsInfo).forEach(id => {
-        const room = roomsInfo[id];
-        let show = false;
+    // Merge static core engine channels with newly discovered 1:1 workspace targets
+    const combinedRooms = { ...roomsInfo, ...dynamicDMs };
 
-        if (appState.activeTab === 'all') show = true;
-        if (appState.activeTab === 'groups' && room.type === 'group') show = true;
+    Object.keys(combinedRooms).forEach(id => {
+        const room = combinedRooms[id];
+        let displayQualifies = false;
 
-        if (show) {
+        if (appState.activeTab === 'all') displayQualifies = true;
+        if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
+
+        if (displayQualifies) {
             const isActive = appState.activeChatId === id ? 'active' : '';
             const item = document.createElement('div');
             item.className = `user-item ${isActive}`;
             item.id = `btn-room-${id}`;
-            item.innerHTML = `
-                <div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div>
-                <div class="user-info"><h4>${room.name}</h4><p>Tap to view messages</p></div>
-            `;
+            
+            // Build visual component matching WhatsApp spec
+            if (room.type === 'group') {
+                item.innerHTML = `
+                    <div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div>
+                    <div class="user-info"><h4>${room.name}</h4><p>Tap to view messages</p></div>
+                `;
+            } else {
+                item.innerHTML = `
+                    <div class="global-icon-box" style="background: var(--primary-light, #00a88422); color: var(--primary, #00a884);"><span class="material-symbols-rounded">person</span></div>
+                    <div class="user-info"><h4>${room.name}</h4><p>Direct Message</p></div>
+                `;
+            }
+
             item.addEventListener('click', () => {
                 document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
+                appState.activeChatId = id;
                 document.getElementById('active-room-name').innerText = room.name;
-                document.getElementById('active-room-icon').innerText = room.icon;
+                document.getElementById('active-room-icon').innerText = room.type === 'group' ? room.icon : 'person';
+                
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 switchChatRoom(id);
@@ -172,22 +244,27 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
-        // Safe Check: Bind User Profile elements explicitly upon successfully pulling Auth payload
         if (currentUser) {
+            const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            
+            // Sync user avatar seamlessly across all DOM containers
             const navAvatar = document.getElementById('nav-profile-pic');
             if (navAvatar) {
-                navAvatar.src = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                navAvatar.src = myPic;
+                navAvatar.style.display = "block"; 
             }
+            
             const navName = document.getElementById('nav-profile-name');
-            if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "Loading");
+            if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "Authenticated User");
             
             const navEmail = document.getElementById('nav-profile-email');
-            if (navEmail) navEmail.innerText = "Email: " + (currentUser.email || "");
+            if (navEmail) navEmail.innerText = "Email: " + (currentUser.email || "No Email Bound");
         }
         
         initSettingsAndTheme();
         initNavigation();
         renderSidebarList();
+        
         const defaultBtn = document.getElementById(`btn-room-global_channel`);
         if(defaultBtn) defaultBtn.click();
     });
