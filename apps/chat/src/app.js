@@ -10,31 +10,46 @@ export const roomsInfo = {
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group' }
 };
 
-export let dynamicDMs = {}; 
+export let dynamicRooms = {}; 
 
-const listenToCloudDMs = () => {
+const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
     const q = query(collection(db, "chats"), where("participants", "array-contains", curId));
     
     onSnapshot(q, (snapshot) => {
-        dynamicDMs = {}; // CLEAR CACHE: Prevents deleted ghost chats from sticking around!
+        dynamicRooms = {}; 
         
         snapshot.forEach(docObj => {
             const data = docObj.data();
-            if (data.type === 'dm') {
+            
+            // Allows Owner/Admins to visually edit System Channels
+            if (docObj.id === 'global_channel' || docObj.id === 'aksh_help') {
+                if(data.name) roomsInfo[docObj.id].name = data.name;
+                if(data.icon) roomsInfo[docObj.id].icon = data.icon;
+            } 
+            else if (data.type === 'dm') {
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
                 
                 const otherName = data.names[otherId] || 'User';
                 if (otherName === currentUser.name || otherName === currentUser.email.split('@')[0]) return;
                 
-                dynamicDMs[docObj.id] = {
+                dynamicRooms[docObj.id] = {
                     name: otherName,
                     icon: data.avatars[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherName)}&background=00a884&color=fff`,
                     type: 'dm',
                     isImage: true 
+                };
+            }
+            // INJECT CUSTOM GROUPS INTO SIDEBAR
+            else if (data.type === 'group') {
+                dynamicRooms[docObj.id] = {
+                    name: data.name || 'Custom Group',
+                    icon: data.icon || 'groups',
+                    type: 'group',
+                    isImage: !!(data.icon && data.icon.startsWith('http'))
                 };
             }
         });
@@ -87,63 +102,17 @@ const initSettingsAndTheme = () => {
     });
 };
 
-export const renderCallLogs = () => {
-    const logs = JSON.parse(localStorage.getItem('call_logs')) || [];
-    const listContainer = document.getElementById('dynamic-user-list');
-    
-    if (logs.length === 0) {
-        listContainer.innerHTML = `
-            <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
-                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">call_log</span>
-                <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs Available</p>
-            </div>`;
-    } else {
-        listContainer.innerHTML = '';
-        logs.reverse().forEach(log => {
-            const icon = log.type === 'Video' ? 'videocam' : 'call';
-            const color = log.status === 'Outgoing' ? '#00a884' : '#ea0038';
-            listContainer.innerHTML += `
-                <div class="user-item">
-                    <div class="global-icon-box" style="background: transparent; color: ${color};"><span class="material-symbols-rounded">${icon}</span></div>
-                    <div class="user-info">
-                        <h4>${log.target}</h4>
-                        <p style="font-size: 12px;">${log.date} • ${log.status}</p>
-                    </div>
-                </div>`;
-        });
-    }
-};
-
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
-    document.getElementById('rail-calls')?.addEventListener('click', () => {
-        document.getElementById('rail-chats')?.classList.remove('active');
-        document.getElementById('rail-calls')?.classList.add('active');
-        const headerTitle = document.getElementById('sidebar-chats')?.querySelector('h2');
-        if (headerTitle) headerTitle.innerText = "Calls";
-        
-        const tabs = document.querySelector('.chat-tabs');
-        if (tabs) tabs.style.display = 'none';
-        
-        appState.activeTab = 'calls';
-        renderCallLogs();
-    });
+    // PURGE CALL FEATURES: Force hide the call rail button
+    const callRailBtn = document.getElementById('rail-calls');
+    if (callRailBtn) callRailBtn.style.display = 'none';
 
     document.getElementById('rail-chats')?.addEventListener('click', () => {
-        document.getElementById('rail-calls')?.classList.remove('active');
         document.getElementById('rail-chats')?.classList.add('active');
-        const headerTitle = document.getElementById('sidebar-chats')?.querySelector('h2');
-        if (headerTitle) headerTitle.innerText = "Chats";
-        
         const tabs = document.querySelector('.chat-tabs');
         if (tabs) tabs.style.display = 'flex';
-        
-        const allTabBtn = document.querySelector('[data-tab="all"]');
-        if (allTabBtn) {
-            document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
-            allTabBtn.classList.add('active');
-        }
         appState.activeTab = 'all';
         renderSidebarList();
     });
@@ -167,6 +136,33 @@ const initNavigation = () => {
     document.getElementById('btn-mobile-back')?.addEventListener('click', () => {
         appState.isMobileChatOpen = false;
         document.getElementById('main-layout').classList.remove('mobile-chat-active');
+    });
+
+    // --- CREATE NEW GROUP ---
+    document.getElementById('btn-create-group')?.addEventListener('click', async () => {
+        const groupName = prompt("Enter new Group Name:");
+        if (!groupName) return;
+        const curId = currentUser?.id || currentUser?.uid;
+        const newGroupId = `group_${Date.now()}`;
+        
+        try {
+            await setDoc(doc(db, "chats", newGroupId), {
+                type: 'group',
+                name: groupName,
+                icon: 'groups',
+                participants: [curId],
+                admins: [curId], // Creator gets specific Group Admin privileges
+                createdBy: curId,
+                createdAt: Date.now()
+            });
+            
+            // Auto-Switch to new group
+            appState.activeChatId = newGroupId;
+            document.getElementById('active-room-name').innerText = groupName;
+            document.getElementById('active-room-icon').innerText = 'groups';
+            switchChatRoom(newGroupId);
+            alert("Group created! Click the Gear icon next to the Group Name to add members.");
+        } catch(e) { console.error(e); alert("Database Permission Error."); }
     });
 };
 
@@ -229,11 +225,10 @@ const fetchNetworkUsers = async () => {
     }
 };
 
-// GLOBAL DELETE CHAT FUNCTION
 window.deleteSidebarChat = async (roomId) => {
     if (confirm("Permanently delete this chat history for everyone?")) {
         try {
-            await deleteDoc(doc(db, "chats", roomId)); // Wipes the room from Firestore
+            await deleteDoc(doc(db, "chats", roomId));
             if (appState.activeChatId === roomId) {
                 appState.activeChatId = null;
                 document.getElementById('chat-messages-container').innerHTML = '';
@@ -245,17 +240,17 @@ window.deleteSidebarChat = async (roomId) => {
 };
 
 export const renderSidebarList = () => {
-    if (appState.activeTab === 'calls') return renderCallLogs();
-
     const listContainer = document.getElementById('dynamic-user-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
 
-    const combinedRooms = { ...roomsInfo, ...dynamicDMs };
+    const combinedRooms = { ...roomsInfo, ...dynamicRooms };
 
     Object.keys(combinedRooms).forEach(id => {
         const room = combinedRooms[id];
         let displayQualifies = false;
+
+        if (room.type === 'dm' && (room.name === currentUser.name || room.name === currentUser.email.split('@')[0])) return;
 
         if (appState.activeTab === 'all') displayQualifies = true;
         if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
@@ -266,9 +261,8 @@ export const renderSidebarList = () => {
             const item = document.createElement('div');
             item.className = `user-item ${isActive}`;
             item.id = `btn-room-${id}`;
-            item.style.position = 'relative'; // Required for absolute positioning of dropdown
+            item.style.position = 'relative'; 
             
-            // INJECTS DROPDOWN ARROW FOR DIRECT MESSAGES
             const deleteActionHTML = room.type === 'dm' ? `
                 <div class="chat-menu-trigger" onclick="event.stopPropagation(); window.deleteSidebarChat('${id}')" style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); display: none; z-index: 10;" title="Delete Chat">
                     <span class="material-symbols-rounded">keyboard_arrow_down</span>
@@ -288,7 +282,6 @@ export const renderSidebarList = () => {
                 `;
             }
 
-            // HOVER EVENTS FOR THE DELETE ARROW
             item.addEventListener('mouseenter', () => { const trigger = item.querySelector('.chat-menu-trigger'); if(trigger) trigger.style.display = 'block'; });
             item.addEventListener('mouseleave', () => { const trigger = item.querySelector('.chat-menu-trigger'); if(trigger) trigger.style.display = 'none'; });
 
@@ -318,10 +311,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const navName = document.getElementById('nav-profile-name');
             if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "User");
             
-            listenToCloudDMs(); 
+            listenToCloudRooms(); 
         }
         initSettingsAndTheme();
         initNavigation();
         renderSidebarList();
+        
+        const defaultBtn = document.getElementById(`btn-room-global_channel`);
+        if(defaultBtn) defaultBtn.click();
     });
 });
