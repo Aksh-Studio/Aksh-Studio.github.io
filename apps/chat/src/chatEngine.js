@@ -1,14 +1,13 @@
 // src/chatEngine.js
-import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, setDoc, getDocs } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, setDoc, getDocs, getDoc, updateDoc, where } from './firebase.js';
 import { currentUser } from './auth.js';
 
 let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
+export let currentRoomData = null; // Exposes room state to allow Admin checks
 let replyContext = null; 
 let messageToPin = null; 
-
-let localStream = null;
 
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
@@ -21,100 +20,119 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- TWO-WAY CALLING SYNCHRONIZATION ---
-const startLocalMedia = async (isVideo) => {
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
-        if (isVideo) {
-            const videoContainer = document.getElementById('video-container');
-            let videoEl = document.getElementById('local-video-stream');
-            if (!videoEl) {
-                videoEl = document.createElement('video');
-                videoEl.id = 'local-video-stream';
-                videoEl.autoplay = true; videoEl.playsInline = true; videoEl.muted = true; 
-                videoEl.style = 'width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; border-radius: 16px;';
-                videoContainer.appendChild(videoEl);
-            }
-            videoEl.srcObject = localStream;
-            videoEl.style.display = 'block';
-        }
-    } catch(e) { console.error("Hardware Blocked", e); }
-};
+// --- DYNAMIC GROUP ADMIN MODAL BUILDER ---
+const injectGroupAdminModal = () => {
+    if (document.getElementById('group-admin-modal')) return;
+    const modalHTML = `
+        <div id="group-admin-modal" class="guest-overlay" style="display: none; z-index: 10002;">
+            <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 350px;">
+                <h3 style="margin-bottom: 15px; color: var(--primary);">Group Settings</h3>
+                
+                <input type="text" id="edit-group-name" placeholder="Group Name" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                <input type="text" id="edit-group-icon" placeholder="Image URL for Icon" style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                
+                <button id="btn-add-group-member" style="width: 100%; padding: 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); border-radius: 8px; margin-bottom: 15px; cursor: pointer; font-weight: 600;">+ Add Member by Email</button>
 
-const startCallUI = async (type) => {
-    const targetName = document.getElementById('active-room-name').innerText;
-    const overlay = document.getElementById('call-overlay');
-    
-    // Logs outbound call locally
-    let logs = JSON.parse(localStorage.getItem('call_logs')) || [];
-    logs.push({ target: targetName, type: type, status: 'Outgoing', date: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) });
-    localStorage.setItem('call_logs', JSON.stringify(logs));
+                <h4 style="font-size: 12px; text-align: left; margin-bottom: 5px; color: var(--text-muted); text-transform: uppercase;">Transfer Admin Ownership</h4>
+                <select id="transfer-admin-select" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                    <option value="">Select a member...</option>
+                </select>
 
-    // Signalling Firestore to ring the RECIPIENT'S device!
-    try {
-        await setDoc(doc(db, "chats", currentRoomId), {
-            callState: { callerId: currentUser.id || currentUser.uid, callerName: currentUser.name, type: type, status: 'ringing', timestamp: Date.now() }
-        }, { merge: true });
+                <button id="btn-save-group" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Save Changes</button>
+                <button id="btn-cancel-group" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-        if (overlay) {
-            document.getElementById('call-target-name').innerText = targetName;
-            document.getElementById('call-status-text').innerText = 'Calling...';
-            document.getElementById('call-center-icon').innerText = type === 'Video' ? 'videocam' : 'person';
+    document.getElementById('btn-cancel-group').addEventListener('click', () => {
+        document.getElementById('group-admin-modal').style.display = 'none';
+    });
+
+    // Add Member Execution
+    document.getElementById('btn-add-group-member').addEventListener('click', async () => {
+        const email = prompt("Enter the exact email of the user you want to add to this group:");
+        if (!email) return;
+        
+        try {
+            const q = query(collection(db, "users"), where("email", "==", email.toLowerCase().trim()));
+            const snap = await getDocs(q);
+            if (snap.empty) return alert("User not found in network directory.");
             
-            // Reset Call Answer Button to normal End state for caller
-            document.getElementById('btn-call-record').style.display = 'block';
-            const micBtn = document.getElementById('btn-call-mic');
-            micBtn.innerHTML = `<span class="material-symbols-rounded">mic</span>`;
-            micBtn.style.background = '#202c33';
-            micBtn.onclick = null; // Clear incoming hack
+            const newMemberId = snap.docs[0].id;
+            const currentParticipants = currentRoomData?.participants || [];
+            
+            if (currentParticipants.includes(newMemberId)) return alert("User is already in this group.");
 
-            overlay.style.display = 'flex';
-            startLocalMedia(type === 'Video');
+            const updatedParticipants = [...currentParticipants, newMemberId];
+            await setDoc(doc(db, "chats", currentRoomId), { participants: updatedParticipants }, { merge: true });
+            
+            alert("Member added successfully!");
+            populateAdminDropdown(updatedParticipants); // Refresh the dropdown
+        } catch(e) { console.error(e); alert("Failed to add member."); }
+    });
+
+    // Save Changes Execution
+    document.getElementById('btn-save-group').addEventListener('click', async () => {
+        const newName = document.getElementById('edit-group-name').value.trim();
+        const newIcon = document.getElementById('edit-group-icon').value.trim();
+        const newAdminId = document.getElementById('transfer-admin-select').value;
+        
+        const updates = {};
+        if (newName) updates.name = newName;
+        if (newIcon) updates.icon = newIcon;
+        if (newAdminId) updates.admins = [newAdminId]; // Transfers admin rights permanently to chosen user
+        
+        if (Object.keys(updates).length > 0) {
+            try {
+                await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true });
+                alert("Group settings saved.");
+            } catch(e) { console.error(e); alert("Error saving settings."); }
         }
-    } catch(e) { console.error(e); }
+        document.getElementById('group-admin-modal').style.display = 'none';
+    });
 };
 
-const endCallUI = async (updateDB = true) => {
-    const overlay = document.getElementById('call-overlay');
-    document.getElementById('call-status-text').innerText = 'Call Ended';
+const populateAdminDropdown = async (participants) => {
+    const select = document.getElementById('transfer-admin-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">Select a member to make Admin...</option>';
     
-    // Signal Firestore to terminate call on BOTH devices
-    if (updateDB && currentRoomId) {
-        try { await setDoc(doc(db, "chats", currentRoomId), { callState: { status: 'ended' } }, { merge: true }); } catch(e){}
+    for (const uid of participants) {
+        try {
+            const userDoc = await getDoc(doc(db, "users", uid));
+            if (userDoc.exists()) {
+                const u = userDoc.data();
+                const name = u.fullName || u.firstName || u.email.split('@')[0];
+                select.innerHTML += `<option value="${uid}">${name}</option>`;
+            }
+        } catch(e) {}
     }
-
-    if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
-    const videoEl = document.getElementById('local-video-stream');
-    if (videoEl) videoEl.style.display = 'none';
-
-    setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 800);
 };
 
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
-    const isPublicGroup = roomId === 'global_channel' || roomId === 'aksh_help';
+    
+    // PERMANENTLY HIDE CALL BUTTONS
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
-    
-    if (audioBtn) audioBtn.style.display = isPublicGroup ? 'none' : 'block';
-    if (videoBtn) videoBtn.style.display = isPublicGroup ? 'none' : 'block';
+    if (audioBtn) audioBtn.style.display = 'none';
+    if (videoBtn) videoBtn.style.display = 'none';
 
-    listenToRoomState(roomId); // Handles both Pins and Incoming Calls!
+    listenToRoomState(roomId); 
     listenToMessages(roomId);
 };
 
-// COMBINED LISTENER: Pins & Incoming Calls
 const listenToRoomState = (roomId) => {
     if (roomStateListener) roomStateListener();
     
     roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
-        const data = documentObj.data();
-        if (!data) return;
-
-        // 1. PINNED MESSAGE RENDERER
+        currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
+        
+        // 1. PIN RENDERER
         const banner = document.getElementById('pinned-message-banner');
-        if (banner && data.pinnedMessage && Date.now() < data.pinExpiry) {
-            document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(data.pinnedMessage);
+        if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
+            document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(currentRoomData.pinnedMessage);
             const titleEl = banner.querySelector('p');
             if (titleEl) titleEl.innerText = "Pinned Message";
             banner.style.display = 'flex';
@@ -122,42 +140,39 @@ const listenToRoomState = (roomId) => {
             banner.style.display = 'none';
         }
 
-        // 2. INCOMING CALL RENDERER
+        // 2. INJECT GROUP ADMIN/OWNER GEAR
         const curId = currentUser?.id || currentUser?.uid;
-        const overlay = document.getElementById('call-overlay');
+        const isOwner = currentUser?.isOwner;
+        const isGroupAdmin = currentRoomData?.admins?.includes(curId);
+        const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
         
-        if (data.callState && data.callState.status === 'ringing' && data.callState.callerId !== curId) {
-            // RECIEVER SEES INCOMING CALL!
-            if (overlay && overlay.style.display !== 'flex') {
-                document.getElementById('call-target-name').innerText = data.callState.callerName;
-                document.getElementById('call-status-text').innerText = `Incoming ${data.callState.type} Call...`;
-                document.getElementById('call-center-icon').innerText = data.callState.type === 'Video' ? 'videocam' : 'call';
-                
-                // Hijack the middle button to act as a green 'Answer' button
-                document.getElementById('btn-call-record').style.display = 'none'; 
-                const answerBtn = document.getElementById('btn-call-mic');
-                answerBtn.innerHTML = `<span class="material-symbols-rounded">call</span>`;
-                answerBtn.style.background = '#00a884'; // Green Accept
-                
-                answerBtn.onclick = async () => {
-                    await setDoc(doc(db, "chats", currentRoomId), { callState: { ...data.callState, status: 'answered' } }, { merge: true });
-                    document.getElementById('call-status-text').innerText = 'Connected';
-                    answerBtn.style.background = '#202c33';
-                    answerBtn.innerHTML = `<span class="material-symbols-rounded">mic</span>`;
-                    startLocalMedia(data.callState.type === 'Video');
-                };
-                
-                overlay.style.display = 'flex';
+        const existingGear = document.getElementById('group-settings-btn');
+        if (existingGear) existingGear.remove();
+
+        const titleEl = document.getElementById('active-room-name');
+        
+        // Grants access if they created the group, or are the universal Owner
+        if ((currentRoomData.type === 'group' || isSystemGroup) && (isGroupAdmin || isOwner)) {
+            const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
+            
+            // Replaces text and adds gear
+            const baseName = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Group');
+            titleEl.innerHTML = `${baseName} ${gearHTML}`;
+            
+            // Build logic for Settings Modal
+            document.getElementById('group-settings-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                injectGroupAdminModal(); // Creates modal if missing
+                document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                populateAdminDropdown(currentRoomData.participants || []);
+                document.getElementById('group-admin-modal').style.display = 'flex';
+            });
+        } else {
+            // Standard user just sees the text
+            if (titleEl && titleEl.innerHTML.includes('group-settings-btn')) {
+                titleEl.innerHTML = currentRoomData.name || 'Chat';
             }
-        } else if (data.callState && data.callState.status === 'ended') {
-            // Call terminated remotely
-            if (overlay && overlay.style.display === 'flex') {
-                document.getElementById('call-status-text').innerText = 'Call Ended';
-                setTimeout(() => endCallUI(false), 800); 
-            }
-        } else if (data.callState && data.callState.status === 'answered' && data.callState.callerId === curId) {
-            // Caller sees that the receiver accepted!
-            document.getElementById('call-status-text').innerText = 'Connected';
         }
     });
 };
@@ -183,7 +198,9 @@ export const listenToMessages = (roomId) => {
             const msg = documentObj.data();
             const curId = currentUser?.id || currentUser?.uid;
             const isMe = msg.senderId === curId; 
-            const isAdminMessage = currentUser?.isAdmin && msg.senderId === curId && roomId === 'aksh_help';
+            
+            // Universal Owner override check for system messages
+            const isAdminMessage = currentUser?.isOwner && msg.senderId === curId && roomId === 'aksh_help';
             const isFirstInGroup = previousSenderId !== msg.senderId;
 
             let timeString = msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending...";
@@ -269,16 +286,15 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = async () => {
-                    // Compress Image via Canvas to bypass Firebase size limits!
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // Resize to perfect chat-width
+                    const MAX_WIDTH = 800;
                     const scaleSize = MAX_WIDTH / img.width;
                     canvas.width = MAX_WIDTH;
                     canvas.height = img.height * scaleSize;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // Compress to 60% quality (~100kb)
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
 
                     const curId = currentUser?.id || currentUser?.uid;
                     const payload = { text: "📷 Image Attached", imageUrl: compressedBase64, senderId: curId, senderName: currentUser?.name || 'User', timestamp: serverTimestamp() };
@@ -290,11 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsDataURL(file); 
         });
     }
-
-    // Call Buttons
-    document.getElementById('btn-start-audio-call')?.addEventListener('click', () => startCallUI('Voice'));
-    document.getElementById('btn-start-video-call')?.addEventListener('click', () => startCallUI('Video'));
-    document.getElementById('btn-call-end')?.addEventListener('click', () => endCallUI(true)); // update db on end
 
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
@@ -319,12 +330,24 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(err) { alert("Export operational processing failure."); }
     });
 
+    // --- OWNER / ADMIN SECURE DELETION LOGIC ---
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
+        
         let hasUnauthorizedMessage = false;
         const curId = currentUser?.id || currentUser?.uid;
-        selected.forEach(box => { if (box.getAttribute('data-sender') !== curId && !currentUser?.isAdmin) { hasUnauthorizedMessage = true; } });
+        const amIOwner = currentUser?.isOwner;
+        const amIGroupAdmin = currentRoomData?.admins?.includes(curId);
+
+        selected.forEach(box => { 
+            const senderId = box.getAttribute('data-sender');
+            // If it's not my message, and I'm not the universal Owner, and I'm not the Group Admin... deny.
+            if (senderId !== curId && !amIOwner && !amIGroupAdmin) { 
+                hasUnauthorizedMessage = true; 
+            } 
+        });
+        
         const deleteEveryoneBtn = document.getElementById('btn-delete-everyone');
         if (deleteEveryoneBtn) { deleteEveryoneBtn.style.display = hasUnauthorizedMessage ? 'none' : 'block'; }
         document.getElementById('delete-modal').style.display = 'flex';
