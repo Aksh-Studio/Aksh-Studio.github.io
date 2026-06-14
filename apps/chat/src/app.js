@@ -12,20 +12,20 @@ export const roomsInfo = {
 
 export let dynamicDMs = {}; 
 
-// --- REAL-TIME CLOUD DM SYNCHRONIZATION ---
 const listenToCloudDMs = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
-    // Listen to Firebase for any chat where you are listed as a participant
     const q = query(collection(db, "chats"), where("participants", "array-contains", curId));
     
     onSnapshot(q, (snapshot) => {
         snapshot.forEach(docObj => {
             const data = docObj.data();
             if (data.type === 'dm') {
-                // Find the other person's ID to display THEIR name and photo to YOU
                 const otherId = data.participants.find(id => id !== curId) || curId;
+                // STRICT DUPLICATE FILTER: Do not render a DM if it's pointing to yourself
+                if (data.names[otherId] === currentUser.name || data.names[otherId] === currentUser.email.split('@')[0]) return;
+                
                 dynamicDMs[docObj.id] = {
                     name: data.names[otherId] || 'User',
                     icon: data.avatars[otherId] || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
@@ -34,7 +34,7 @@ const listenToCloudDMs = () => {
                 };
             }
         });
-        renderSidebarList(); // Instantly updates the UI when a new DM arrives!
+        renderSidebarList(); 
     });
 };
 
@@ -83,7 +83,6 @@ const initSettingsAndTheme = () => {
     });
 };
 
-// --- CALL LOG RENDERER ---
 export const renderCallLogs = () => {
     const logs = JSON.parse(localStorage.getItem('call_logs')) || [];
     const listContainer = document.getElementById('dynamic-user-list');
@@ -177,11 +176,14 @@ const fetchNetworkUsers = async () => {
         const querySnapshot = await getDocs(collection(db, "users"));
         listContainer.innerHTML = '';
         const myUid = currentUser?.id || currentUser?.uid;
+        const myEmail = currentUser?.email;
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = docObj.id;
-            if (targetUid === myUid) return; 
+            
+            // STRICT DOUBLE CHECK: Stops your own profile from generating in the network scan
+            if (targetUid === myUid || u.email === myEmail) return; 
             
             const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
             const pic = u.customProfilePic || u.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
@@ -196,7 +198,6 @@ const fetchNetworkUsers = async () => {
                 </div>
             `;
 
-            // CLOUD HANDSHAKE: Register the room in Firestore so the recipient wakes up!
             item.addEventListener('click', async () => {
                 const deterministicId = myUid < targetUid ? `dm_${myUid}_${targetUid}` : `dm_${targetUid}_${myUid}`;
                 const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
@@ -245,6 +246,9 @@ export const renderSidebarList = () => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
+        // Skip rendering any DM room that was accidentally made pointing to yourself
+        if (room.type === 'dm' && (room.name === currentUser.name || room.name === currentUser.email.split('@')[0])) return;
+
         if (appState.activeTab === 'all') displayQualifies = true;
         if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
         if (appState.activeTab === 'unread' && room.unread) displayQualifies = true;
@@ -255,7 +259,6 @@ export const renderSidebarList = () => {
             item.className = `user-item ${isActive}`;
             item.id = `btn-room-${id}`;
             
-            // PROFILE PICTURE FIX: Renders the dynamic avatar instead of a generic icon
             if (room.isImage) {
                 item.innerHTML = `
                     <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
@@ -286,19 +289,9 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
+        // Redundant top-right UI assignments were removed here because auth.js already handles them perfectly.
         if (currentUser) {
-            const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-            const navAvatar = document.getElementById('nav-profile-pic');
-            if (navAvatar) { navAvatar.src = myPic; navAvatar.style.display = "block"; }
-            
-            const navName = document.getElementById('nav-profile-name');
-            if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "Authenticated User");
-            
-            const navEmail = document.getElementById('nav-profile-email');
-            if (navEmail) navEmail.innerText = "Email: " + (currentUser.email || "No Email Bound");
-            
-            // Trigger the Cloud Listener!
-            listenToCloudDMs();
+            listenToCloudDMs(); // Mounts the real-time listener for incoming messages
         }
         
         initSettingsAndTheme();
