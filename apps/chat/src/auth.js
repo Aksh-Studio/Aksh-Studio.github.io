@@ -1,100 +1,82 @@
 // src/auth.js
+import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
 
-// --- 1. MAGIC URL OVERRIDE ---
-const urlParams = new URLSearchParams(window.location.search);
-const magicEmail = urlParams.get('email');
-const magicName = urlParams.get('name');
-
-if (magicEmail) {
-    localStorage.setItem('aksh_user_email', magicEmail);
-    localStorage.setItem('aksh_user_name', magicName || magicEmail.split('@')[0]);
-    window.history.replaceState({}, document.title, window.location.pathname);
-}
-
-// --- 2. DEEP STORAGE SCANNER ---
-const scanForUserIdentity = () => {
-    let identity = { id: null, name: null, email: null, photoURL: null };
-
-    try {
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            const value = localStorage.getItem(key);
-
-            if (key.startsWith('firebase:authUser')) {
-                const userData = JSON.parse(value);
-                if (userData) {
-                    identity.id = userData.uid;
-                    identity.email = userData.email;
-                    identity.name = userData.displayName || userData.screenName;
-                    identity.photoURL = userData.photoURL;
-                    return identity;
-                }
-            }
-
-            if (key.toLowerCase().includes('email') && value.includes('@')) identity.email = value;
-            if (key.toLowerCase().includes('uid') || key.toLowerCase().includes('userid')) identity.id = value;
-            if (key.toLowerCase().includes('name') && !value.includes('@')) identity.name = value;
-            if (key.toLowerCase().includes('photo') || key.toLowerCase().includes('avatar')) identity.photoURL = value;
-        }
-    } catch (e) { console.error("Storage scan interrupted:", e); }
-
-    if (identity.email && !identity.name) identity.name = identity.email.split('@')[0];
-    return identity;
-};
-
-const detectedUser = scanForUserIdentity();
-
-// --- 3. SECURE ROLE MANAGEMENT ---
 export const currentUser = {
-    id: detectedUser.id || detectedUser.email || 'guest_secure_link',
-    name: detectedUser.name || 'Network Guest',
-    email: detectedUser.email || 'guest@akshstudio.com',
-    photoURL: detectedUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(detectedUser.name || 'Network Guest')}&background=00a884&color=fff&bold=true`,
+    id: null, 
+    name: 'Loading...',
+    email: null,
+    photoURL: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
     
     get isAdmin() {
         return this.email === 'akshat124.am12@gmail.com' || this.email === 'akshat124am.12@gmail.com'; 
     },
-    
-    get isGuest() {
-        return this.email === 'guest@akshstudio.com';
+    get isGuest() { 
+        return !this.id; 
     }
 };
 
-// --- 4. UI RENDERING ---
 export const initAuth = () => {
-    const overlay = document.getElementById('guest-overlay');
-    const root = document.getElementById('app-root');
-    
-    if (currentUser.isGuest) {
-        if (overlay) overlay.style.display = 'flex';
-        if (root) root.classList.add('guest-blur');
-    } else {
-        if (overlay) overlay.style.display = 'none';
-        if (root) root.classList.remove('guest-blur');
-    }
+    // We wrap this in a Promise so the Chat App waits for Firebase to check your login status before loading
+    return new Promise((resolve) => {
+        onAuthStateChanged(auth, async (user) => {
+            const overlay = document.getElementById('guest-overlay');
+            const root = document.getElementById('app-root');
 
-    const nameEl = document.getElementById('nav-profile-name');
-    const emailEl = document.getElementById('nav-profile-email');
-    const picEl = document.getElementById('nav-profile-pic');
+            if (user) {
+                // 1. Grab Base Firebase Auth Data
+                let displayName = user.displayName;
+                let photoURL = user.photoURL;
 
-    const displayRole = currentUser.isAdmin ? ' (Admin)' : '';
+                // 2. Fetch specific Dashboard Data from Firestore (Mirroring your dashboard exactly)
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        
+                        if (!displayName && userData.firstName) {
+                            displayName = `${userData.firstName} ${userData.lastName || ""}`.trim();
+                        }
+                        if (userData.customProfilePic) {
+                            photoURL = userData.customProfilePic;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching Dashboard profile:", error);
+                }
 
-    if (nameEl) nameEl.innerText = `Name: ${currentUser.name}${displayRole}`;
-    if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
-    if (picEl) picEl.src = currentUser.photoURL;
+                // 3. Populate Chat Identity
+                currentUser.id = user.uid;
+                currentUser.email = user.email;
+                currentUser.name = displayName || user.email.split('@')[0];
+                currentUser.photoURL = photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff&bold=true`;
+
+                // 4. Unlock UI
+                if (overlay) overlay.style.display = 'none';
+                if (root) root.classList.remove('guest-blur');
+
+                // 5. Render Profile Menu
+                const nameEl = document.getElementById('nav-profile-name');
+                const emailEl = document.getElementById('nav-profile-email');
+                const picEl = document.getElementById('nav-profile-pic');
+                const displayRole = currentUser.isAdmin ? ' (Admin)' : '';
+
+                if (nameEl) nameEl.innerText = `Name: ${currentUser.name}${displayRole}`;
+                if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
+                if (picEl) picEl.src = currentUser.photoURL;
+
+                resolve(true); // Tell the app to boot
+            } else {
+                // USER IS LOGGED OUT OF DASHBOARD - LOCK THEM OUT OF CHAT
+                currentUser.id = null;
+                if (overlay) overlay.style.display = 'flex';
+                if (root) root.classList.add('guest-blur');
+                
+                const guestBtn = overlay.querySelector('a');
+                if (guestBtn) guestBtn.href = '../../dashboard.html';
+                
+                resolve(false); // Stop app boot
+            }
+        });
+    });
 };
-
-// --- 5. SECRET DEVELOPER BACKDOOR (God Mode) ---
-document.addEventListener('keydown', (e) => {
-    // Press Ctrl + Shift + U to instantly bypass the lock screen as Admin
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'u') {
-        e.preventDefault();
-        console.warn("DEVELOPER OVERRIDE INITIATED");
-        
-        localStorage.setItem('aksh_user_email', 'akshat124.am12@gmail.com');
-        localStorage.setItem('aksh_user_name', 'Akshat');
-        
-        alert("Developer Override Activated. Welcome back, Admin. Reloading...");
-        window.location.reload();
-    }
-});
