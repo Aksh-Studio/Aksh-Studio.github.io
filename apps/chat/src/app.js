@@ -6,14 +6,13 @@ let isMobileChatOpen = false;
 let activeChatId = 'global_channel'; 
 let unsubscribeListener = null; 
 
-// Simulated User Authentication State (Will be replaced by real Auth later)
+// Pulls the custom avatar uploaded from the Aksh Dashboard / Login page
 const currentUser = {
     id: 'akshat124',
     name: 'Akshat',
     email: 'akshat124.am12@gmail.com',
-    // Dynamic Avatar generation based on user's name
-    photoURL: 'https://ui-avatars.com/api/?name=Akshat&background=128C7E&color=fff&bold=true',
-    isGuest: false // CHANGE THIS TO 'true' TO TEST THE GUEST RESTRICTION BLUR!
+    photoURL: localStorage.getItem('aksh_photo_url') || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+    isGuest: false 
 };
 
 const roomsInfo = {
@@ -59,7 +58,6 @@ const closeMobileChat = () => {
 
 // --- 4. FIREBASE REAL-TIME ENGINE ---
 const listenToMessages = (roomId) => {
-    // If user is guest, don't even bother fetching messages
     if (currentUser.isGuest) return; 
 
     const container = document.getElementById('chat-messages-container');
@@ -110,7 +108,7 @@ const listenToMessages = (roomId) => {
 };
 
 const sendMessage = async () => {
-    if (currentUser.isGuest) return; // Prevent guests from sending
+    if (currentUser.isGuest) return;
 
     const inputField = document.getElementById('chat-input');
     const text = inputField.value.trim();
@@ -135,10 +133,8 @@ const renderAppShell = () => {
     const root = document.getElementById('app-root');
     const isDark = document.body.classList.contains('dark-theme');
     
-    // Check if the user is a guest to apply the blur effect
     const blurClass = currentUser.isGuest ? 'guest-blur' : '';
 
-    // The restricted overlay HTML (Only shows if isGuest is true)
     const guestOverlayHTML = currentUser.isGuest ? `
         <div class="guest-overlay">
             <div class="guest-modal">
@@ -232,7 +228,6 @@ const renderAppShell = () => {
         ${guestOverlayHTML}
     `;
 
-    // Only attach functional listeners if the user is NOT a guest
     if (!currentUser.isGuest) {
         document.getElementById('theme-btn').addEventListener('click', toggleTheme);
         document.getElementById('btn-global_channel').addEventListener('click', () => switchChat('global_channel'));
@@ -251,7 +246,6 @@ const renderAppShell = () => {
 
         listenToMessages(activeChatId);
     } else {
-        // Allow theme toggling even if blurred
         document.getElementById('theme-btn').addEventListener('click', toggleTheme);
     }
 };
