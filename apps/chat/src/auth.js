@@ -3,7 +3,8 @@ import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
 
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
-    get isAdmin() { return this.email === 'akshat124.am12@gmail.com' || this.email === 'akshat124am.12@gmail.com'; },
+    // UPGRADED TO GLOBAL OWNER STATUS
+    get isOwner() { return this.email === 'akshat124.am12@gmail.com' || this.email === 'akshat124am.12@gmail.com'; },
     get isGuest() { return !this.id; }
 };
 
@@ -12,7 +13,6 @@ export const initAuth = (onSuccessBoot) => {
     const root = document.getElementById('app-root');
     let isBooted = false;
 
-    // The Failsafe Boot Function
     const forceBoot = (uid, email, name, photo) => {
         if (isBooted) return;
         isBooted = true;
@@ -26,14 +26,18 @@ export const initAuth = (onSuccessBoot) => {
         if (root) root.classList.remove('guest-blur');
 
         const nameEl = document.getElementById('nav-profile-name');
-        if (nameEl) nameEl.innerText = `Name: ${currentUser.name}${currentUser.isAdmin ? ' (Admin)' : ''}`;
-        document.getElementById('nav-profile-email').innerText = `Email: ${currentUser.email}`;
-        document.getElementById('nav-profile-pic').src = currentUser.photoURL;
+        // TAG UPDATED TO OWNER
+        if (nameEl) nameEl.innerText = `Name: ${currentUser.name}${currentUser.isOwner ? ' (Owner)' : ''}`;
+        
+        const emailEl = document.getElementById('nav-profile-email');
+        if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
+        
+        const picEl = document.getElementById('nav-profile-pic');
+        if (picEl) picEl.src = currentUser.photoURL;
 
         if (onSuccessBoot) onSuccessBoot();
     };
 
-    // 1. Primary Check: Official Firebase Sync
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             let dName = user.displayName;
@@ -47,7 +51,6 @@ export const initAuth = (onSuccessBoot) => {
             } catch (error) {}
             forceBoot(user.uid, user.email, dName, pUrl);
         } else {
-            // 2. Secondary Check: If Firebase says logged out, check Local Storage as a backup
             const localEmail = localStorage.getItem('aksh_user_email') || localStorage.getItem('email');
             if (localEmail) {
                 const localId = localStorage.getItem('aksh_user_id') || localStorage.getItem('uid') || localEmail;
@@ -55,7 +58,6 @@ export const initAuth = (onSuccessBoot) => {
                 const localPhoto = localStorage.getItem('aksh_photo_url');
                 forceBoot(localId, localEmail, localName, localPhoto);
             } else {
-                // Completely logged out
                 currentUser.id = null;
                 if (overlay) overlay.style.display = 'flex';
                 if (root) root.classList.add('guest-blur');
@@ -63,13 +65,10 @@ export const initAuth = (onSuccessBoot) => {
         }
     });
 
-    // 3. The 1.5 Second Nuclear Fallback
     setTimeout(() => {
         if (!isBooted) {
             const backupEmail = localStorage.getItem('aksh_user_email') || localStorage.getItem('email');
-            if (backupEmail) {
-                forceBoot(backupEmail, backupEmail, localStorage.getItem('aksh_user_name'), null);
-            }
+            if (backupEmail) forceBoot(backupEmail, backupEmail, localStorage.getItem('aksh_user_name'), null);
         }
     }, 1500);
 };
