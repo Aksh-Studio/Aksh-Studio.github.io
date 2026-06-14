@@ -83,13 +83,12 @@ const injectGroupAdminModal = () => {
         document.getElementById('group-admin-modal').style.display = 'none';
     });
 
-    // DELETE GROUP LOGIC
     document.getElementById('btn-delete-group').addEventListener('click', async () => {
         if (confirm("WARNING: This will permanently destroy this group and all messages for everyone. Proceed?")) {
             try {
                 await deleteDoc(doc(db, "chats", currentRoomId));
                 document.getElementById('group-admin-modal').style.display = 'none';
-                window.location.reload(); // Refresh to resync state cleanly
+                window.location.reload(); 
             } catch(e) { alert("Insufficient Permissions to delete group."); }
         }
     });
@@ -111,10 +110,8 @@ const populateGroupManagement = async (participants, admins) => {
                 const name = u.fullName || u.firstName || u.email.split('@')[0];
                 const isAdmin = admins?.includes(uid);
                 
-                // Add to Transfer Dropdown
                 if (!isAdmin) selectEl.innerHTML += `<option value="${uid}">${name}</option>`;
 
-                // Render Member List with Kick Button
                 const myId = currentUser?.id || currentUser?.uid;
                 const kickBtnHTML = (uid !== myId) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Kick</button>` : '';
 
@@ -141,7 +138,6 @@ window.kickUser = async (targetUid) => {
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     
-    // PERMANENTLY HIDE CALL BUTTONS
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
     if (audioBtn) audioBtn.style.display = 'none';
@@ -150,7 +146,6 @@ export const switchChatRoom = (roomId) => {
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
-    // READ RECEIPT TRIGGER: Tell the room you have opened it
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
@@ -163,7 +158,6 @@ const listenToRoomState = (roomId) => {
     roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
         
-        // 1. PIN RENDERER
         const banner = document.getElementById('pinned-message-banner');
         if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
             document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(currentRoomData.pinnedMessage);
@@ -174,7 +168,6 @@ const listenToRoomState = (roomId) => {
             banner.style.display = 'none';
         }
 
-        // 2. INJECT GROUP ADMIN/OWNER GEAR
         const curId = currentUser?.id || currentUser?.uid;
         const isOwner = currentUser?.isOwner;
         const isGroupAdmin = currentRoomData?.admins?.includes(curId);
@@ -195,7 +188,6 @@ const listenToRoomState = (roomId) => {
                 e.stopPropagation();
                 injectGroupAdminModal(); 
                 
-                // Hide Delete button on Global/Help rooms
                 const delBtn = document.getElementById('btn-delete-group');
                 if (delBtn) delBtn.style.display = isSystemGroup ? 'none' : 'block';
 
@@ -227,12 +219,10 @@ export const listenToMessages = (roomId) => {
         let messagesHTML = disclaimerHTML; 
         let previousSenderId = null; 
         
-        // Dynamic Read Receipt Data
         const readReceipts = currentRoomData?.readReceipts || {};
         const curId = currentUser?.id || currentUser?.uid;
         const otherParticipants = (currentRoomData?.participants || []).filter(id => id !== curId);
 
-        // Update my own read receipt if the newest message isn't mine
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             if (lastMsg.senderId !== curId) {
@@ -248,7 +238,10 @@ export const listenToMessages = (roomId) => {
             const isMe = msg.senderId === curId; 
             const isFirstInGroup = previousSenderId !== msg.senderId;
 
-            // WHATSAPP READ RECEIPTS MATRIX (BLUE TICKS)
+            // --- THE FIX: Owner Global Center Alignment Logic ---
+            // Forces the message to the center of everyone's screen if it was sent by the Owner in a system room.
+            const isSystemAdminMsg = msg.isOwner === true && (roomId === 'global_channel' || roomId === 'aksh_help');
+
             let timeString = "Sending...";
             let tickHTML = "";
             
@@ -257,22 +250,29 @@ export const listenToMessages = (roomId) => {
                 timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
                 if (isMe) {
-                    // Check if ALL OTHER participants have read this message
                     let allRead = false;
                     if (otherParticipants.length > 0) {
                         allRead = otherParticipants.every(pid => readReceipts[pid] >= msgTime);
                     }
-                    const tickColor = allRead ? "#53bdeb" : "#8696a0"; // Blue vs Grey
+                    const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
                     tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
                 }
             }
 
-            // ROLE BADGES (Owner / Admin)
+            // --- THE FIX: Owner & Admin Badges ---
+            // Reads from the MESSAGE payload so everyone sees the correct badge, not just you.
             let roleBadge = '';
-            if (msg.isOwner) roleBadge = ' <span style="color:var(--primary); font-size:10px;">(Owner)</span>';
-            else if (currentRoomData?.admins?.includes(msg.senderId)) roleBadge = ' <span style="color:var(--text-muted); font-size:10px;">(Admin)</span>';
+            if (msg.isOwner === true) {
+                roleBadge = ' <span style="color:var(--primary); font-size:11px; font-weight:700;">(Owner)</span>';
+            } else if (currentRoomData?.admins?.includes(msg.senderId)) {
+                roleBadge = ' <span style="color:var(--text-muted); font-size:11px; font-weight:700;">(Admin)</span>';
+            }
 
-            const senderNameHTML = (!isMe && isFirstInGroup) ? `<div class="msg-sender-name">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
+            // If it's a centered announcement, we still want to show the sender name inside the bubble
+            const showName = isSystemAdminMsg || (!isMe && isFirstInGroup);
+            const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
+            const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
+            
             const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
 
             const actionMenuHTML = `
@@ -288,8 +288,10 @@ export const listenToMessages = (roomId) => {
             `;
 
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
-            const alignmentClass = msg.isOwner ? 'admin' : (isMe ? 'me' : 'other');
-            const bubbleClass = msg.isOwner ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
+            
+            // Uses the new Global Alignment Logic
+            const alignmentClass = isSystemAdminMsg ? 'admin' : (isMe ? 'me' : 'other');
+            const bubbleClass = isSystemAdminMsg ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
             
             const formattedTextContent = parseWhatsAppFormatting(msg.text);
             const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
@@ -325,7 +327,7 @@ export const sendMessage = async () => {
         text, 
         senderId: curId, 
         senderName: currentUser?.name || 'User', 
-        isOwner: currentUser?.isOwner, // Embed owner status securely
+        isOwner: currentUser?.isOwner === true, // Embeds your Owner status strictly into the message!
         timestamp: serverTimestamp() 
     };
 
@@ -337,7 +339,6 @@ export const sendMessage = async () => {
     
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
-        // Instantly update my own read receipt
         await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
     } catch (error) {}
 };
@@ -346,7 +347,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // --- INSTANT IMAGE COMPRESSOR ---
     const mediaBtn = document.getElementById('btn-media-upload');
     const fileInput = document.getElementById('hidden-file-input');
 
@@ -375,7 +375,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const payload = { 
                         text: "📷 Image Attached", imageUrl: compressedBase64, 
                         senderId: curId, senderName: currentUser?.name || 'User', 
-                        isOwner: currentUser?.isOwner, timestamp: serverTimestamp() 
+                        isOwner: currentUser?.isOwner === true, 
+                        timestamp: serverTimestamp() 
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
