@@ -21,6 +21,10 @@ const listenToCloudRooms = () => {
     onSnapshot(q, (snapshot) => {
         dynamicRooms = {}; 
         
+        const myName = String(currentUser.name || "").toLowerCase().trim();
+        const ownerEmail1 = 'akshat124.am12@gmail.com';
+        const ownerEmail2 = 'akshat124am.12@gmail.com';
+
         snapshot.forEach(docObj => {
             const data = docObj.data();
             
@@ -32,12 +36,16 @@ const listenToCloudRooms = () => {
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
                 
-                const otherName = data.names[otherId] || 'User';
-                if (otherName === currentUser.name || otherName === currentUser.email.split('@')[0]) return;
+                const otherNameRaw = data.names[otherId] || 'User';
+                const otherNameLower = String(otherNameRaw).toLowerCase().trim();
+                
+                // SCORCHED-EARTH FILTER: Block any DM that is with an alter-ego
+                if (otherNameLower === myName) return; 
+                if (otherNameRaw === currentUser.email.split('@')[0]) return;
                 
                 dynamicRooms[docObj.id] = {
-                    name: otherName,
-                    icon: data.avatars[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherName)}&background=00a884&color=fff`,
+                    name: otherNameRaw,
+                    icon: data.avatars[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherNameRaw)}&background=00a884&color=fff`,
                     type: 'dm',
                     isImage: true 
                 };
@@ -169,22 +177,38 @@ const fetchNetworkUsers = async () => {
         
         const myUid = String(currentUser?.id || "").trim();
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
+        const myName = String(currentUser?.name || "").toLowerCase().trim();
+        
+        const ownerEmail1 = 'akshat124.am12@gmail.com';
+        const ownerEmail2 = 'akshat124am.12@gmail.com';
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = String(docObj.id).trim();
             const targetEmail = String(u.email || "").toLowerCase().trim();
+            const rawName = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
+            const targetNameLower = String(rawName).toLowerCase().trim();
             
-            if (targetUid === myUid || (targetEmail === myEmail && myEmail !== "")) return; 
+            // --- THE SCORCHED-EARTH IDENTITY FILTER ---
+            // 1. Block exact UID matches
+            if (targetUid === myUid) return; 
+            // 2. Block exact Email matches
+            if (targetEmail === myEmail && myEmail !== "") return; 
+            // 3. Block exact Name matches (Stops testing duplicates)
+            if (targetNameLower === myName && myName !== "") return;
+            // 4. Block alter-ego Owner accounts from rendering
+            if (currentUser.isOwner && (targetEmail === ownerEmail1 || targetEmail === ownerEmail2)) return;
             
-            const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
-            const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00a884&color=fff`;
+            const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
             
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00a884&color=fff'">
-                <div class="user-info"><h4>${name}</h4><p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p></div>
+                <img src="${pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff'">
+                <div class="user-info">
+                    <h4>${rawName}</h4>
+                    <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
+                </div>
             `;
 
             item.addEventListener('click', async () => {
@@ -194,13 +218,13 @@ const fetchNetworkUsers = async () => {
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
                         type: 'dm', participants: [myUid, targetUid],
-                        names: { [myUid]: currentUser.name, [targetUid]: name },
+                        names: { [myUid]: currentUser.name, [targetUid]: rawName },
                         avatars: { [myUid]: myPic, [targetUid]: pic }
                     }, { merge: true });
                 } catch(e) {}
 
                 appState.activeChatId = deterministicId;
-                document.getElementById('active-room-name').innerText = name;
+                document.getElementById('active-room-name').innerText = rawName;
                 document.getElementById('active-room-icon').innerText = 'person';
                 
                 appState.isMobileChatOpen = true;
@@ -209,7 +233,9 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
-    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
+    } catch (e) {
+        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>';
+    }
 };
 
 window.deleteSidebarChat = async (roomId) => {
@@ -232,12 +258,17 @@ export const renderSidebarList = () => {
     listContainer.innerHTML = '';
 
     const combinedRooms = { ...roomsInfo, ...dynamicRooms };
+    const myName = String(currentUser.name || "").toLowerCase().trim();
 
     Object.keys(combinedRooms).forEach(id => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
-        if (room.type === 'dm' && (room.name === currentUser.name || room.name === currentUser.email.split('@')[0])) return;
+        // SCORCHED EARTH CACHE FILTER: Hide any leftover self-chats in memory
+        if (room.type === 'dm') {
+            const roomNameLower = String(room.name).toLowerCase().trim();
+            if (roomNameLower === myName || room.name === currentUser.email.split('@')[0]) return;
+        }
 
         if (appState.activeTab === 'all') displayQualifies = true;
         if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
