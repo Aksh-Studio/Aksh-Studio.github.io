@@ -5,7 +5,7 @@ import { currentUser } from './auth.js';
 let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
-export let currentRoomData = null; // Exposes room state to allow Admin checks
+export let currentRoomData = null; 
 let replyContext = null; 
 let messageToPin = null; 
 
@@ -20,12 +20,12 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- DYNAMIC GROUP ADMIN MODAL BUILDER ---
+// --- DYNAMIC GROUP MANAGEMENT DASHBOARD ---
 const injectGroupAdminModal = () => {
     if (document.getElementById('group-admin-modal')) return;
     const modalHTML = `
         <div id="group-admin-modal" class="guest-overlay" style="display: none; z-index: 10002;">
-            <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 350px;">
+            <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto;">
                 <h3 style="margin-bottom: 15px; color: var(--primary);">Group Settings</h3>
                 
                 <input type="text" id="edit-group-name" placeholder="Group Name" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
@@ -33,70 +33,75 @@ const injectGroupAdminModal = () => {
                 
                 <button id="btn-add-group-member" style="width: 100%; padding: 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); border-radius: 8px; margin-bottom: 15px; cursor: pointer; font-weight: 600;">+ Add Member by Email</button>
 
-                <h4 style="font-size: 12px; text-align: left; margin-bottom: 5px; color: var(--text-muted); text-transform: uppercase;">Transfer Admin Ownership</h4>
+                <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Manage Members</h4>
+                <div id="admin-member-list" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px;"></div>
+
+                <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Transfer Admin Status</h4>
                 <select id="transfer-admin-select" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
                     <option value="">Select a member...</option>
                 </select>
 
                 <button id="btn-save-group" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Save Changes</button>
+                <button id="btn-delete-group" style="width: 100%; padding: 12px; background: #ea0038; color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Delete Group</button>
                 <button id="btn-cancel-group" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Close</button>
             </div>
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-    document.getElementById('btn-cancel-group').addEventListener('click', () => {
-        document.getElementById('group-admin-modal').style.display = 'none';
-    });
+    document.getElementById('btn-cancel-group').addEventListener('click', () => { document.getElementById('group-admin-modal').style.display = 'none'; });
 
-    // Add Member Execution
     document.getElementById('btn-add-group-member').addEventListener('click', async () => {
-        const email = prompt("Enter the exact email of the user you want to add to this group:");
+        const email = prompt("Enter the exact email of the user you want to add:");
         if (!email) return;
-        
         try {
             const q = query(collection(db, "users"), where("email", "==", email.toLowerCase().trim()));
             const snap = await getDocs(q);
             if (snap.empty) return alert("User not found in network directory.");
-            
             const newMemberId = snap.docs[0].id;
             const currentParticipants = currentRoomData?.participants || [];
-            
             if (currentParticipants.includes(newMemberId)) return alert("User is already in this group.");
-
             const updatedParticipants = [...currentParticipants, newMemberId];
             await setDoc(doc(db, "chats", currentRoomId), { participants: updatedParticipants }, { merge: true });
-            
             alert("Member added successfully!");
-            populateAdminDropdown(updatedParticipants); // Refresh the dropdown
-        } catch(e) { console.error(e); alert("Failed to add member."); }
+        } catch(e) { alert("Failed to add member."); }
     });
 
-    // Save Changes Execution
     document.getElementById('btn-save-group').addEventListener('click', async () => {
         const newName = document.getElementById('edit-group-name').value.trim();
         const newIcon = document.getElementById('edit-group-icon').value.trim();
         const newAdminId = document.getElementById('transfer-admin-select').value;
-        
         const updates = {};
         if (newName) updates.name = newName;
         if (newIcon) updates.icon = newIcon;
-        if (newAdminId) updates.admins = [newAdminId]; // Transfers admin rights permanently to chosen user
+        if (newAdminId) updates.admins = [newAdminId]; 
         
         if (Object.keys(updates).length > 0) {
-            try {
-                await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true });
-                alert("Group settings saved.");
-            } catch(e) { console.error(e); alert("Error saving settings."); }
+            try { await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true }); alert("Group settings saved."); } 
+            catch(e) { alert("Error saving settings."); }
         }
         document.getElementById('group-admin-modal').style.display = 'none';
     });
+
+    // DELETE GROUP LOGIC
+    document.getElementById('btn-delete-group').addEventListener('click', async () => {
+        if (confirm("WARNING: This will permanently destroy this group and all messages for everyone. Proceed?")) {
+            try {
+                await deleteDoc(doc(db, "chats", currentRoomId));
+                document.getElementById('group-admin-modal').style.display = 'none';
+                window.location.reload(); // Refresh to resync state cleanly
+            } catch(e) { alert("Insufficient Permissions to delete group."); }
+        }
+    });
 };
 
-const populateAdminDropdown = async (participants) => {
-    const select = document.getElementById('transfer-admin-select');
-    if (!select) return;
-    select.innerHTML = '<option value="">Select a member to make Admin...</option>';
+const populateGroupManagement = async (participants, admins) => {
+    const listEl = document.getElementById('admin-member-list');
+    const selectEl = document.getElementById('transfer-admin-select');
+    if (!listEl || !selectEl) return;
+    
+    listEl.innerHTML = '';
+    selectEl.innerHTML = '<option value="">Select a member to make Admin...</option>';
     
     for (const uid of participants) {
         try {
@@ -104,10 +109,33 @@ const populateAdminDropdown = async (participants) => {
             if (userDoc.exists()) {
                 const u = userDoc.data();
                 const name = u.fullName || u.firstName || u.email.split('@')[0];
-                select.innerHTML += `<option value="${uid}">${name}</option>`;
+                const isAdmin = admins?.includes(uid);
+                
+                // Add to Transfer Dropdown
+                if (!isAdmin) selectEl.innerHTML += `<option value="${uid}">${name}</option>`;
+
+                // Render Member List with Kick Button
+                const myId = currentUser?.id || currentUser?.uid;
+                const kickBtnHTML = (uid !== myId) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Kick</button>` : '';
+
+                listEl.innerHTML += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--app-bg);">
+                        <span style="font-size: 13px; color: var(--text-main);">${name} <span style="color:var(--primary); font-size:10px;">${isAdmin ? '(Admin)' : ''}</span></span>
+                        ${kickBtnHTML}
+                    </div>
+                `;
             }
         } catch(e) {}
     }
+};
+
+window.kickUser = async (targetUid) => {
+    if (!confirm("Are you sure you want to remove this user from the group?")) return;
+    try {
+        const newParticipants = currentRoomData.participants.filter(id => id !== targetUid);
+        const newAdmins = (currentRoomData.admins || []).filter(id => id !== targetUid);
+        await setDoc(doc(db, "chats", currentRoomId), { participants: newParticipants, admins: newAdmins }, { merge: true });
+    } catch(e) { alert("Failed to kick user."); }
 };
 
 export const switchChatRoom = (roomId) => {
@@ -121,6 +149,12 @@ export const switchChatRoom = (roomId) => {
 
     listenToRoomState(roomId); 
     listenToMessages(roomId);
+    
+    // READ RECEIPT TRIGGER: Tell the room you have opened it
+    try {
+        const curId = currentUser?.id || currentUser?.uid;
+        if (curId) setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+    } catch(e) {}
 };
 
 const listenToRoomState = (roomId) => {
@@ -151,25 +185,27 @@ const listenToRoomState = (roomId) => {
 
         const titleEl = document.getElementById('active-room-name');
         
-        // Grants access if they created the group, or are the universal Owner
         if ((currentRoomData.type === 'group' || isSystemGroup) && (isGroupAdmin || isOwner)) {
             const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
             
-            // Replaces text and adds gear
             const baseName = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Group');
             titleEl.innerHTML = `${baseName} ${gearHTML}`;
             
-            // Build logic for Settings Modal
             document.getElementById('group-settings-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                injectGroupAdminModal(); // Creates modal if missing
+                injectGroupAdminModal(); 
+                
+                // Hide Delete button on Global/Help rooms
+                const delBtn = document.getElementById('btn-delete-group');
+                if (delBtn) delBtn.style.display = isSystemGroup ? 'none' : 'block';
+
                 document.getElementById('edit-group-name').value = currentRoomData.name || '';
                 document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                populateAdminDropdown(currentRoomData.participants || []);
+                
+                populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
                 document.getElementById('group-admin-modal').style.display = 'flex';
             });
         } else {
-            // Standard user just sees the text
             if (titleEl && titleEl.innerHTML.includes('group-settings-btn')) {
                 titleEl.innerHTML = currentRoomData.name || 'Chat';
             }
@@ -190,23 +226,53 @@ export const listenToMessages = (roomId) => {
     unsubscribeListener = onSnapshot(q, (snapshot) => {
         let messagesHTML = disclaimerHTML; 
         let previousSenderId = null; 
+        
+        // Dynamic Read Receipt Data
+        const readReceipts = currentRoomData?.readReceipts || {};
+        const curId = currentUser?.id || currentUser?.uid;
+        const otherParticipants = (currentRoomData?.participants || []).filter(id => id !== curId);
+
+        // Update my own read receipt if the newest message isn't mine
+        if (snapshot.docs.length > 0) {
+            const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
+            if (lastMsg.senderId !== curId) {
+                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
+            }
+        }
 
         snapshot.forEach((documentObj) => {
             const msgId = documentObj.id;
             if (hiddenMsgs.includes(msgId)) return;
 
             const msg = documentObj.data();
-            const curId = currentUser?.id || currentUser?.uid;
             const isMe = msg.senderId === curId; 
-            
-            // Universal Owner override check for system messages
-            const isAdminMessage = currentUser?.isOwner && msg.senderId === curId && roomId === 'aksh_help';
             const isFirstInGroup = previousSenderId !== msg.senderId;
 
-            let timeString = msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending...";
-            let tickHTML = isMe && msg.timestamp ? `<span class="material-symbols-rounded tick-icon tick-read" style="color: #53bdeb; font-size: 16px; margin-left: 2px;">done_all</span>` : "";
+            // WHATSAPP READ RECEIPTS MATRIX (BLUE TICKS)
+            let timeString = "Sending...";
+            let tickHTML = "";
+            
+            if (msg.timestamp) {
+                const msgTime = msg.timestamp.toMillis();
+                timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                if (isMe) {
+                    // Check if ALL OTHER participants have read this message
+                    let allRead = false;
+                    if (otherParticipants.length > 0) {
+                        allRead = otherParticipants.every(pid => readReceipts[pid] >= msgTime);
+                    }
+                    const tickColor = allRead ? "#53bdeb" : "#8696a0"; // Blue vs Grey
+                    tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
+                }
+            }
 
-            const senderNameHTML = (!isMe && isFirstInGroup && !isAdminMessage) ? `<div class="msg-sender-name">${msg.senderName || 'Network User'}</div>` : '';
+            // ROLE BADGES (Owner / Admin)
+            let roleBadge = '';
+            if (msg.isOwner) roleBadge = ' <span style="color:var(--primary); font-size:10px;">(Owner)</span>';
+            else if (currentRoomData?.admins?.includes(msg.senderId)) roleBadge = ' <span style="color:var(--text-muted); font-size:10px;">(Admin)</span>';
+
+            const senderNameHTML = (!isMe && isFirstInGroup) ? `<div class="msg-sender-name">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
             const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
 
             const actionMenuHTML = `
@@ -222,8 +288,8 @@ export const listenToMessages = (roomId) => {
             `;
 
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
-            const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
-            const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
+            const alignmentClass = msg.isOwner ? 'admin' : (isMe ? 'me' : 'other');
+            const bubbleClass = msg.isOwner ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
             
             const formattedTextContent = parseWhatsAppFormatting(msg.text);
             const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
@@ -255,7 +321,13 @@ export const sendMessage = async () => {
 
     inputField.value = ''; 
     const curId = currentUser?.id || currentUser?.uid;
-    const payload = { text, senderId: curId, senderName: currentUser?.name || 'User', timestamp: serverTimestamp() };
+    const payload = { 
+        text, 
+        senderId: curId, 
+        senderName: currentUser?.name || 'User', 
+        isOwner: currentUser?.isOwner, // Embed owner status securely
+        timestamp: serverTimestamp() 
+    };
 
     if (replyContext) {
         payload.replyToText = replyContext.text;
@@ -263,7 +335,11 @@ export const sendMessage = async () => {
         window.cancelReply(); 
     }
     
-    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } catch (error) {}
+    try { 
+        await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
+        // Instantly update my own read receipt
+        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+    } catch (error) {}
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -276,7 +352,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (mediaBtn && fileInput) {
         mediaBtn.addEventListener('click', () => fileInput.click()); 
-        
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -297,9 +372,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
 
                     const curId = currentUser?.id || currentUser?.uid;
-                    const payload = { text: "📷 Image Attached", imageUrl: compressedBase64, senderId: curId, senderName: currentUser?.name || 'User', timestamp: serverTimestamp() };
-                    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } 
-                    catch (error) { console.error("Image Upload Failed", error); }
+                    const payload = { 
+                        text: "📷 Image Attached", imageUrl: compressedBase64, 
+                        senderId: curId, senderName: currentUser?.name || 'User', 
+                        isOwner: currentUser?.isOwner, timestamp: serverTimestamp() 
+                    };
+                    try { 
+                        await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
+                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+                    } catch (error) { console.error("Image Upload Failed", error); }
                 };
                 img.src = event.target.result;
             };
@@ -330,23 +411,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(err) { alert("Export operational processing failure."); }
     });
 
-    // --- OWNER / ADMIN SECURE DELETION LOGIC ---
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
         
         let hasUnauthorizedMessage = false;
         const curId = currentUser?.id || currentUser?.uid;
-        const amIOwner = currentUser?.isOwner;
-        const amIGroupAdmin = currentRoomData?.admins?.includes(curId);
-
-        selected.forEach(box => { 
-            const senderId = box.getAttribute('data-sender');
-            // If it's not my message, and I'm not the universal Owner, and I'm not the Group Admin... deny.
-            if (senderId !== curId && !amIOwner && !amIGroupAdmin) { 
-                hasUnauthorizedMessage = true; 
-            } 
-        });
+        selected.forEach(box => { if (box.getAttribute('data-sender') !== curId && !currentUser?.isOwner && !currentRoomData?.admins?.includes(curId)) { hasUnauthorizedMessage = true; } });
         
         const deleteEveryoneBtn = document.getElementById('btn-delete-everyone');
         if (deleteEveryoneBtn) { deleteEveryoneBtn.style.display = hasUnauthorizedMessage ? 'none' : 'block'; }
@@ -406,7 +477,6 @@ window.replyToMessage = (msgId) => {
     document.getElementById('reply-preview-banner').style.display = 'block';
     window.toggleActionMenu(msgId);
 };
-
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
 
 window.enableSelectionMode = (enable = true) => {
@@ -423,7 +493,6 @@ window.enableSelectionMode = (enable = true) => {
         document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
     }
 };
-
 document.addEventListener('change', (e) => {
     if (e.target.classList.contains('msg-checkbox')) {
         const count = document.querySelectorAll('.msg-checkbox:checked').length;
