@@ -9,15 +9,41 @@ export let currentRoomId = null;
 let replyContext = null; 
 let messageToPin = null; 
 
+// --- WhatsApp Rich-Text Engine Parser ---
+const parseWhatsAppFormatting = (text) => {
+    if (!text) return "";
+    
+    // XSS Sanitization Layer
+    let safeHtml = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
+    // Bold Regex (*text*)
+    safeHtml = safeHtml.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+    
+    // Italic Regex (_text_)
+    safeHtml = safeHtml.replace(/_(.*?)_/g, '<em>$1</em>');
+    
+    // Strikethrough Regex (~text~)
+    safeHtml = safeHtml.replace(/~(.*?)~/g, '<del>$1</del>');
+    
+    // Monospace Code Regex (`text`)
+    safeHtml = safeHtml.replace(/`(.*?)`/g, '<code style="background: rgba(0,0,0,0.06); padding: 2px 4px; border-radius: 4px; font-family: monospace;">$1</code>');
+    
+    // Blockquote Formatting (> text)
+    safeHtml = safeHtml.replace(/^&gt;\s(.*)$/gm, '<blockquote style="border-left: 3px solid #00a884; padding-left: 8px; margin: 4px 0; color: var(--text-muted);">$1</blockquote>');
+
+    return safeHtml;
+};
+
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     
-    const isPublic = roomId === 'global_channel' || roomId === 'aksh_help';
+    // Dynamically lock down access to audio/video protocols when inside public nodes
+    const isPublicGroup = roomId === 'global_channel' || roomId === 'aksh_help';
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
     
-    if (audioBtn) audioBtn.style.display = isPublic ? 'none' : 'block';
-    if (videoBtn) videoBtn.style.display = isPublic ? 'none' : 'block';
+    if (audioBtn) audioBtn.style.display = isPublicGroup ? 'none' : 'block';
+    if (videoBtn) videoBtn.style.display = isPublicGroup ? 'none' : 'block';
 
     listenToGlobalPin(roomId);
     listenToMessages(roomId);
@@ -31,7 +57,7 @@ const listenToGlobalPin = (roomId) => {
         const banner = document.getElementById('pinned-message-banner');
         
         if (banner && data && data.pinnedMessage && Date.now() < data.pinExpiry) {
-            document.getElementById('pinned-message-text').innerText = data.pinnedMessage;
+            document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(data.pinnedMessage);
             const titleEl = banner.querySelector('p');
             if (titleEl) titleEl.innerText = "Pinned Message";
             banner.style.display = 'flex';
@@ -76,7 +102,7 @@ export const listenToMessages = (roomId) => {
             let tickHTML = isMe && msg.timestamp ? `<span class="material-symbols-rounded tick-icon tick-read" style="color: #53bdeb; font-size: 16px; margin-left: 2px;">done_all</span>` : "";
 
             const senderNameHTML = (!isMe && isFirstInGroup && !isAdminMessage) ? `<div class="msg-sender-name">${msg.senderName || 'Network User'}</div>` : '';
-            const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${msg.replyToText}</div></div>` : '';
+            const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
 
             const actionMenuHTML = `
                 <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
@@ -94,6 +120,9 @@ export const listenToMessages = (roomId) => {
             const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
             const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
 
+            // Formats rendering output utilizing the RegEx parsing matrix
+            const formattedTextContent = parseWhatsAppFormatting(msg.text);
+
             messagesHTML += `
                 <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
                     ${checkboxHTML}
@@ -101,7 +130,7 @@ export const listenToMessages = (roomId) => {
                         ${actionMenuHTML}
                         ${senderNameHTML}
                         ${replyHTML}
-                        <span id="text-${msgId}">${msg.text}</span>
+                        <span id="text-${msgId}">${formattedTextContent}</span>
                         <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
                     </div>
                 </div>
@@ -134,40 +163,39 @@ export const sendMessage = async () => {
     catch (error) { console.error("Send Error:", error); }
 };
 
-// --- SECURE SYSTEM OPERATIONS & LIFECYCLES ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // Chat History Native PlainText Downloader
+    // Native WhatsApp Chat Log Archiver Engine
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
             const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
             const snapshot = await getDocs(q);
-            let log = `=== Aksh Studio Chat History Export [Room ID: ${currentRoomId}] ===\n\n`;
+            let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
             
-            snapshot.forEach(doc => {
-                const m = doc.data();
-                const ts = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Pending";
-                log += `[${ts}] ${m.senderName || 'System User'}: ${m.text}\n`;
+            snapshot.forEach(docObj => {
+                const m = docObj.data();
+                const stamp = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Processing";
+                logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
             });
             
-            const blob = new Blob([log], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.href = url;
-            downloadAnchor.download = `chat_history_${currentRoomId}.txt`;
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            document.body.removeChild(downloadAnchor);
-            URL.revokeObjectURL(url);
+            const fileBlob = new Blob([logOutput], { type: 'text/plain' });
+            const fileUrl = URL.createObjectURL(fileBlob);
+            const anchor = document.createElement('a');
+            anchor.href = fileUrl;
+            anchor.download = `WhatsApp_Chat_${currentRoomId}.txt`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(fileUrl);
         } catch(err) {
-            alert("Export failed. Validate network conditions.");
+            alert("Export operational processing failure.");
         }
     });
 
-    // Delete Operations
+    // Selection Deletions Logic Matrix
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
@@ -207,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
-    // Pinning Operations (Fixed to use setDoc with merge tracking)
+    // Pinned Document Processing Driver
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
@@ -218,12 +246,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
             
             try {
+                // Extracts internal text parameters securely
                 await setDoc(doc(db, "chats", currentRoomId), {
                     pinnedMessage: textEl.innerText,
                     pinExpiry: expiryTime
                 }, { merge: true });
             } catch (err) {
-                console.error("Firebase Pin Error:", err);
+                console.error("Firebase Pin Database Exception Error:", err);
             }
             
             document.getElementById('pin-modal').style.display = 'none';
@@ -239,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- GLOBAL WINDOW HOOKS ---
+// --- GLOBAL ATTACHMENTS TO WINDOW SCOPE ---
 window.triggerPinModal = (msgId) => {
     messageToPin = msgId;
     window.toggleActionMenu(msgId);
