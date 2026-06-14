@@ -15,68 +15,63 @@ export const currentUser = {
     }
 };
 
-export const initAuth = () => {
-    // We wrap this in a Promise so the Chat App waits for Firebase to check your login status before loading
-    return new Promise((resolve) => {
-        onAuthStateChanged(auth, async (user) => {
-            const overlay = document.getElementById('guest-overlay');
-            const root = document.getElementById('app-root');
+// We now pass a callback function so the app only boots AFTER Firebase gives the final green light
+export const initAuth = (onSuccessBoot) => {
+    const overlay = document.getElementById('guest-overlay');
+    const root = document.getElementById('app-root');
+    const guestBtn = overlay ? overlay.querySelector('a') : null;
 
-            if (user) {
-                // 1. Grab Base Firebase Auth Data
-                let displayName = user.displayName;
-                let photoURL = user.photoURL;
+    // This listener stays active. It handles the "flicker" automatically.
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            // 1. User is verified by Firebase. Fetch Dashboard Data.
+            let displayName = user.displayName;
+            let photoURL = user.photoURL;
 
-                // 2. Fetch specific Dashboard Data from Firestore (Mirroring your dashboard exactly)
-                try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        
-                        if (!displayName && userData.firstName) {
-                            displayName = `${userData.firstName} ${userData.lastName || ""}`.trim();
-                        }
-                        if (userData.customProfilePic) {
-                            photoURL = userData.customProfilePic;
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error fetching Dashboard profile:", error);
+            try {
+                const userDocRef = doc(db, "users", user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    if (userData.fullName) displayName = userData.fullName;
+                    if (userData.customProfilePic) photoURL = userData.customProfilePic;
                 }
-
-                // 3. Populate Chat Identity
-                currentUser.id = user.uid;
-                currentUser.email = user.email;
-                currentUser.name = displayName || user.email.split('@')[0];
-                currentUser.photoURL = photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff&bold=true`;
-
-                // 4. Unlock UI
-                if (overlay) overlay.style.display = 'none';
-                if (root) root.classList.remove('guest-blur');
-
-                // 5. Render Profile Menu
-                const nameEl = document.getElementById('nav-profile-name');
-                const emailEl = document.getElementById('nav-profile-email');
-                const picEl = document.getElementById('nav-profile-pic');
-                const displayRole = currentUser.isAdmin ? ' (Admin)' : '';
-
-                if (nameEl) nameEl.innerText = `Name: ${currentUser.name}${displayRole}`;
-                if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
-                if (picEl) picEl.src = currentUser.photoURL;
-
-                resolve(true); // Tell the app to boot
-            } else {
-                // USER IS LOGGED OUT OF DASHBOARD - LOCK THEM OUT OF CHAT
-                currentUser.id = null;
-                if (overlay) overlay.style.display = 'flex';
-                if (root) root.classList.add('guest-blur');
-                
-                const guestBtn = overlay.querySelector('a');
-                if (guestBtn) guestBtn.href = '../../dashboard.html';
-                
-                resolve(false); // Stop app boot
+            } catch (error) {
+                console.error("Error fetching Dashboard profile:", error);
             }
-        });
+
+            // 2. Populate Chat Identity
+            currentUser.id = user.uid;
+            currentUser.email = user.email;
+            currentUser.name = displayName || user.email.split('@')[0];
+            currentUser.photoURL = photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff&bold=true`;
+
+            // 3. Unlock UI
+            if (overlay) overlay.style.display = 'none';
+            if (root) root.classList.remove('guest-blur');
+
+            // 4. Render Profile Menu
+            const nameEl = document.getElementById('nav-profile-name');
+            const emailEl = document.getElementById('nav-profile-email');
+            const picEl = document.getElementById('nav-profile-pic');
+            const displayRole = currentUser.isAdmin ? ' (Admin)' : '';
+
+            if (nameEl) nameEl.innerText = `Name: ${currentUser.name}${displayRole}`;
+            if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
+            if (picEl) picEl.src = currentUser.photoURL;
+
+            // 5. Tell app.js to boot the chat interface!
+            if (onSuccessBoot) onSuccessBoot();
+
+        } else {
+            // FIREBASE CONFIRMS USER IS LOGGED OUT
+            currentUser.id = null;
+            if (overlay) overlay.style.display = 'flex';
+            if (root) root.classList.add('guest-blur');
+            
+            // Route them back to the root login page
+            if (guestBtn) guestBtn.href = '../../index.html';
+        }
     });
 };
