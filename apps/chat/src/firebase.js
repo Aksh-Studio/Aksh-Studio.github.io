@@ -1,15 +1,8 @@
 // src/firebase.js
 
-// Import Firebase tools natively from Google's servers (No npm required)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    onSnapshot, 
-    query, 
-    orderBy, 
-    serverTimestamp 
+    getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // Your exact Aksh Studio configuration
@@ -19,9 +12,7 @@ const firebaseConfig = {
     projectId: "aksh-studio"
 };
 
-// Boot up the database
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
-// Export the tools so app.js can use them
-export { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp };
+export { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc };
