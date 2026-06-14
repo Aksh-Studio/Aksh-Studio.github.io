@@ -112,24 +112,69 @@ body.dark-theme .global-icon-box { background: #667781; }
 .user-info p { font-size: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ==========================================================================
-   5. PHASE 3: CORE MESSAGING WINDOW & STATUS TICKS
+   5. PHASE 3: CORE MESSAGING WINDOW & STATUS TICKS (REPAIRED)
    ========================================================================== */
-.chat-main { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); position: relative; }
+.chat-main { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    background: var(--chat-bg); 
+    position: relative; 
+    height: 100%; 
+    overflow: hidden; /* Prevents the whole page from scrolling */
+}
+
+/* Background Pattern */
 .chat-main::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.4; z-index: 0; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-repeat: repeat; pointer-events: none; }
 body.dark-theme .chat-main::before { opacity: 0.05; filter: invert(1); }
 
-.chat-header { padding: 10px 20px; background: var(--card-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 15px; z-index: 2; height: 60px; flex-shrink: 0; }
-.chat-messages { flex: 1; padding: 20px 5%; overflow-y: auto; display: flex; flex-direction: column; z-index: 1; position: relative; }
-.chat-input-area { padding: 10px 20px; background: var(--card-bg); display: flex; gap: 10px; align-items: center; z-index: 2; flex-shrink: 0; }
+/* Strict Header Sizing */
+.chat-header { 
+    padding: 10px 20px; 
+    background: var(--card-bg); 
+    border-bottom: 1px solid var(--border); 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    z-index: 2; 
+    min-height: 65px; /* Forced height */
+    flex-shrink: 0;   /* Prevents crushing */
+}
+
+/* Message Scroll Area */
+.chat-messages { 
+    flex: 1;          /* Takes up all remaining middle space */
+    padding: 20px 5%; 
+    overflow-y: auto; /* Enables scrolling for messages only */
+    display: flex; 
+    flex-direction: column; 
+    z-index: 1; 
+    position: relative; 
+}
+
+/* Strict Input Area Sizing */
+.chat-input-area { 
+    padding: 10px 20px; 
+    background: var(--card-bg); 
+    display: flex; 
+    gap: 10px; 
+    align-items: center; 
+    z-index: 2; 
+    min-height: 65px; /* Forced height */
+    flex-shrink: 0;   /* Prevents crushing */
+    border-top: 1px solid var(--border);
+}
+
 .chat-input-area input[type="text"] { flex: 1; padding: 12px 20px; border-radius: 8px; border: none; background: var(--app-bg); color: var(--text-main); font-size: 15px; outline: none; }
 .btn-send { background: var(--primary); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.btn-send:hover { background: var(--primary-hover); }
 
 /* Disclaimers */
-.chat-disclaimer-wrapper { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; width: 100%; gap: 10px; }
+.chat-disclaimer-wrapper { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; width: 100%; gap: 10px; flex-shrink: 0; }
 .chat-disclaimer { background: var(--sys-msg-bg); color: var(--sys-msg-text); font-size: 12.5px; text-align: center; padding: 8px 14px; border-radius: 8px; max-width: 90%; box-shadow: var(--shadow-sm); line-height: 1.4; }
 
-/* Message Bubbles & Smart Grouping */
-.msg-container { display: flex; flex-direction: column; margin-bottom: 2px; width: 100%; position: relative; }
+/* Message Bubbles */
+.msg-container { display: flex; flex-direction: column; margin-bottom: 2px; width: 100%; position: relative; flex-shrink: 0; }
 .msg-container.first-in-group { margin-top: 10px; }
 .msg-bubble { padding: 6px 10px 8px 10px; max-width: 65%; font-size: 14.5px; line-height: 1.4; box-shadow: var(--shadow-sm); position: relative; word-wrap: break-word; }
 
