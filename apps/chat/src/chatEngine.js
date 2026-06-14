@@ -20,9 +20,12 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// CALL LOGGING FUNCTION
-const logCall = (type) => {
+// --- RESTORED CALL UI ENGINE ---
+const startCallUI = (type) => {
     const targetName = document.getElementById('active-room-name').innerText;
+    const overlay = document.getElementById('call-overlay');
+    
+    // 1. Log the call into local history
     let logs = JSON.parse(localStorage.getItem('call_logs')) || [];
     logs.push({
         target: targetName,
@@ -31,7 +34,25 @@ const logCall = (type) => {
         date: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     });
     localStorage.setItem('call_logs', JSON.stringify(logs));
-    alert(`Initiating E2E Encrypted ${type} Call to ${targetName}...`);
+
+    // 2. Launch the Dark Calling Interface
+    if (overlay) {
+        document.getElementById('call-target-name').innerText = targetName;
+        document.getElementById('call-status-text').innerText = type === 'Video' ? 'Starting Video Call...' : 'Calling...';
+        
+        const icon = document.getElementById('call-center-icon');
+        if(icon) icon.innerText = type === 'Video' ? 'videocam' : 'person';
+        
+        overlay.style.display = 'flex';
+        
+        // Simulate connection ringing
+        setTimeout(() => {
+            const statusEl = document.getElementById('call-status-text');
+            if(statusEl && overlay.style.display === 'flex') {
+                statusEl.innerText = 'Ringing...';
+            }
+        }, 1500);
+    }
 };
 
 export const switchChatRoom = (roomId) => {
@@ -41,7 +62,6 @@ export const switchChatRoom = (roomId) => {
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
     
-    // Show buttons ONLY for private messages
     if (audioBtn) audioBtn.style.display = isPublicGroup ? 'none' : 'block';
     if (videoBtn) videoBtn.style.display = isPublicGroup ? 'none' : 'block';
 
@@ -151,9 +171,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // ATTACH CALL EVENTS
-    document.getElementById('btn-start-audio-call')?.addEventListener('click', () => logCall('Voice'));
-    document.getElementById('btn-start-video-call')?.addEventListener('click', () => logCall('Video'));
+    // ATTACH CALL UI EVENTS
+    document.getElementById('btn-start-audio-call')?.addEventListener('click', () => startCallUI('Voice'));
+    document.getElementById('btn-start-video-call')?.addEventListener('click', () => startCallUI('Video'));
+    
+    document.getElementById('btn-call-end')?.addEventListener('click', () => {
+        const overlay = document.getElementById('call-overlay');
+        if (overlay) {
+            document.getElementById('call-status-text').innerText = 'Call Ended';
+            setTimeout(() => { overlay.style.display = 'none'; }, 800);
+        }
+    });
 
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
