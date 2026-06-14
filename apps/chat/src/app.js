@@ -1,10 +1,9 @@
 // src/app.js
 import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from './firebase.js';
 
-// --- 1. APPLICATION & USER STATE ---
 let isMobileChatOpen = false;
 let activeChatId = 'global_channel'; 
-let activeTab = 'all'; // State for the new Filter Tabs
+let activeTab = 'all'; 
 let unsubscribeListener = null; 
 
 const currentUser = {
@@ -15,14 +14,12 @@ const currentUser = {
     isGuest: false 
 };
 
-// Expanded Database to test WhatsApp Tabs
 const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group', unread: false, fav: false, network: false },
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group', unread: true, fav: true, network: false },
     'john_doe': { name: 'John Doe', icon: 'person', type: 'direct', unread: false, fav: false, network: true }
 };
 
-// --- 2. THEME ENGINE ---
 const initializeTheme = () => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') document.body.classList.add('dark-theme');
@@ -36,7 +33,6 @@ const toggleTheme = () => {
     if (themeBtn) themeBtn.innerText = isDark ? 'Light Mode' : 'Dark Mode';
 };
 
-// --- 3. NAVIGATION & FILTER ENGINE (NEW) ---
 const switchTab = (tabName) => {
     activeTab = tabName;
     document.querySelectorAll('.tab-pill').forEach(btn => btn.classList.remove('active'));
@@ -52,7 +48,6 @@ const renderSidebarList = () => {
         const room = roomsInfo[id];
         let show = false;
 
-        // Routing logic based on WhatsApp Tabs
         if (activeTab === 'all' && !room.network) show = true;
         if (activeTab === 'unread' && room.unread) show = true;
         if (activeTab === 'fav' && room.fav) show = true;
@@ -61,7 +56,7 @@ const renderSidebarList = () => {
 
         if (show) {
             const isActive = activeChatId === id ? 'active' : '';
-            const unreadBadge = room.unread ? `<span class="unread-badge">1</span>` : '';
+            const unreadBadge = room.unread ? `<span style="background: var(--primary); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; margin-left: auto;">1</span>` : '';
             
             listContainer.innerHTML += `
                 <div class="user-item ${isActive}" onclick="window.switchChat('${id}')" id="btn-${id}">
@@ -75,10 +70,6 @@ const renderSidebarList = () => {
             `;
         }
     });
-
-    if (listContainer.innerHTML === '') {
-        listContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 20px;">No chats found here.</p>`;
-    }
 };
 
 window.switchChat = (chatId) => {
@@ -104,47 +95,71 @@ const closeMobileChat = () => {
     if (layout) layout.className = 'app-layout';
 };
 
-// --- 4. FIREBASE REAL-TIME ENGINE ---
+// --- PHASE 3: MESSAGE STREAM ENGINE ---
 const listenToMessages = (roomId) => {
     if (currentUser.isGuest) return; 
 
     const container = document.getElementById('chat-messages-container');
-    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin-top: 20px;">Syncing secure connection...</div>`;
+    
+    // Setup the permanent UI Headers (End-to-End Encrypted & Backup notices)
+    const disclaimerHTML = `
+        <div class="chat-disclaimer">
+            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: text-bottom; margin-right: 4px;">lock</span>
+            Messages are end-to-end encrypted. No one outside of this chat, not even Aksh Studio, can read or listen to them.
+        </div>
+        <div class="chat-disclaimer" style="background: transparent; border: 1px solid var(--border); box-shadow: none;">
+            We will only store messages up to 3 months.<br>For extended messages backup contact: <b>akshstudioofficial@gmail.com</b>
+        </div>
+    `;
+
+    // Start with disclaimers instead of replacing everything with "Syncing..."
+    container.innerHTML = disclaimerHTML;
 
     if (unsubscribeListener) unsubscribeListener();
-
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
     unsubscribeListener = onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-            container.innerHTML = `
-                <div style="margin: auto; text-align: center; color: var(--text-muted);">
-                    <span class="material-symbols-rounded" style="font-size: 48px; opacity: 0.5;">forum</span>
-                    <p style="margin-top: 10px;">Be the first to say hello!</p>
-                </div>
-            `;
-            return;
-        }
+        let messagesHTML = disclaimerHTML; // Always keep headers at top
 
-        let messagesHTML = '';
+        let previousSenderId = null; // Tracks who sent the last message for grouping
+
         snapshot.forEach((doc) => {
             const msg = doc.data();
             const isMe = msg.senderId === currentUser.id; 
             
+            // Smart Grouping Logic: Checks if this is the first message in a row by this user
+            const isFirstInGroup = previousSenderId !== msg.senderId;
+
             let timeString = "Just now";
             if (msg.timestamp) {
                 const date = msg.timestamp.toDate();
                 timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
 
+            // Message Status Ticks (Double Blue tick if sent by you)
+            const statusIcon = isMe ? `<span class="material-symbols-rounded tick-icon">done_all</span>` : '';
+            
+            // Inject Sender Name ONLY if it's a new group of messages from someone else
+            const senderNameHTML = (!isMe && isFirstInGroup) ? `<div class="msg-sender-name">User ID: ${msg.senderId.substring(0,6)}...</div>` : '';
+
+            // CSS Class logic for tail grouping
+            const bubbleShapeClass = isFirstInGroup ? '' : 'grouped';
+
             messagesHTML += `
-                <div style="display: flex; flex-direction: column; align-items: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 15px;">
-                    <div style="background: ${isMe ? 'var(--primary)' : 'var(--card-bg)'}; color: ${isMe ? '#fff' : 'var(--text-main)'}; padding: 10px 15px; border-radius: 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 14.5px; line-height: 1.4;">
-                        ${msg.text}
+                <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''}">
+                    <div class="msg-bubble ${isMe ? 'msg-me' : 'msg-other'} ${bubbleShapeClass}">
+                        ${senderNameHTML}
+                        <span>${msg.text}</span>
+                        <div class="msg-meta">
+                            <span>${timeString}</span>
+                            ${statusIcon}
+                        </div>
                     </div>
-                    <span style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">${timeString}</span>
                 </div>
             `;
+            
+            // Update tracking variable
+            previousSenderId = msg.senderId;
         });
 
         container.innerHTML = messagesHTML;
@@ -173,14 +188,12 @@ const sendMessage = async () => {
     }
 };
 
-// --- 5. INITIAL SHELL RENDER ---
 const renderAppShell = () => {
     const root = document.getElementById('app-root');
     const isDark = document.body.classList.contains('dark-theme');
-    const blurClass = currentUser.isGuest ? 'guest-blur' : '';
 
     root.innerHTML = `
-        <div class="aksh-chat-app ${blurClass}">
+        <div class="aksh-chat-app">
             <nav class="top-nav">
                 <div class="nav-left">
                     <a href="/dashboard.html" class="back-link">← Dashboard</a>
@@ -190,9 +203,7 @@ const renderAppShell = () => {
                     </div>
                 </div>
                 <div class="nav-right">
-                    <button id="theme-btn" class="btn-outline">
-                        ${isDark ? 'Light Mode' : 'Dark Mode'}
-                    </button>
+                    <button id="theme-btn" class="btn-outline">${isDark ? 'Light Mode' : 'Dark Mode'}</button>
                     <div class="profile-menu">
                         <img src="${currentUser.photoURL}" alt="Profile" class="user-avatar">
                         <div class="dropdown-content">
@@ -230,8 +241,7 @@ const renderAppShell = () => {
                         <button class="tab-pill" id="tab-groups" onclick="window.switchTab('groups')">Groups</button>
                     </div>
 
-                    <div class="user-list" id="dynamic-user-list">
-                        </div>
+                    <div class="user-list" id="dynamic-user-list"></div>
                 </aside>
 
                 <main class="chat-main">
@@ -261,8 +271,8 @@ const renderAppShell = () => {
 
     if (!currentUser.isGuest) {
         document.getElementById('theme-btn').addEventListener('click', toggleTheme);
-        window.switchTab = switchTab; // Expose to global for inline clicks
-        renderSidebarList(); // Initial list render
+        window.switchTab = switchTab; 
+        renderSidebarList(); 
 
         const mobileBackBtn = document.getElementById('btn-mobile-back');
         if (mobileBackBtn) mobileBackBtn.addEventListener('click', closeMobileChat);
