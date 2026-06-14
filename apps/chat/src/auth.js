@@ -3,8 +3,12 @@ import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
 
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
-    // UPGRADED TO GLOBAL OWNER STATUS
-    get isOwner() { return this.email === 'akshat124.am12@gmail.com' || this.email === 'akshat124am.12@gmail.com'; },
+    
+    // BULLETPROOF OWNER VALIDATION
+    get isOwner() { 
+        const e = String(this.email).toLowerCase().trim();
+        return e === 'akshat124.am12@gmail.com' || e === 'akshat124am.12@gmail.com'; 
+    },
     get isGuest() { return !this.id; }
 };
 
@@ -25,9 +29,9 @@ export const initAuth = (onSuccessBoot) => {
         if (overlay) overlay.style.display = 'none';
         if (root) root.classList.remove('guest-blur');
 
+        // INJECT OWNER TAG DIRECTLY INTO NAVBAR
         const nameEl = document.getElementById('nav-profile-name');
-        // TAG UPDATED TO OWNER
-        if (nameEl) nameEl.innerText = `Name: ${currentUser.name}${currentUser.isOwner ? ' (Owner)' : ''}`;
+        if (nameEl) nameEl.innerHTML = `Name: ${currentUser.name} <span style="color:var(--primary); font-size:12px;">${currentUser.isOwner ? '(Owner)' : ''}</span>`;
         
         const emailEl = document.getElementById('nav-profile-email');
         if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
