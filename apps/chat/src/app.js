@@ -1,15 +1,16 @@
 // src/app.js
 import { initAuth, currentUser } from './auth.js';
-import { listenToMessages, switchChatRoom } from './chatEngine.js';
+import { switchChatRoom } from './chatEngine.js';
+import { initMediaEngine } from './mediaEngine.js';
+import { initGroupEngine } from './groupEngine.js';
+import { initCallEngine } from './callEngine.js';
 
-// Global State
 export const appState = {
     activeChatId: null,
     activeTab: 'all',
     isMobileChatOpen: false
 };
 
-// Room Database (Phase 5 prep included)
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group', unread: false, fav: false, network: false, unleaveable: true },
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group', unread: true, fav: true, network: false, unleaveable: true }
@@ -17,25 +18,21 @@ export const roomsInfo = {
 
 // --- THEME ENGINE ---
 const initTheme = () => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') document.body.classList.add('dark-theme');
-    updateThemeBtn();
+    const themeBtn = document.getElementById('theme-btn');
+    if (!themeBtn) return;
+
+    if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-theme');
+    themeBtn.innerText = document.body.classList.contains('dark-theme') ? 'Light Mode' : 'Dark Mode';
     
-    document.getElementById('theme-btn').addEventListener('click', () => {
+    themeBtn.addEventListener('click', () => {
         document.body.classList.toggle('dark-theme');
         localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
-        updateThemeBtn();
+        themeBtn.innerText = document.body.classList.contains('dark-theme') ? 'Light Mode' : 'Dark Mode';
     });
-};
-
-const updateThemeBtn = () => {
-    const btn = document.getElementById('theme-btn');
-    if (btn) btn.innerText = document.body.classList.contains('dark-theme') ? 'Light Mode' : 'Dark Mode';
 };
 
 // --- NAVIGATION & TABS ---
 const initNavigation = () => {
-    // Tab Clicks (All, Unread, Groups, etc.)
     document.querySelectorAll('.tab-pill').forEach(tab => {
         tab.addEventListener('click', (e) => {
             document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
@@ -45,15 +42,18 @@ const initNavigation = () => {
         });
     });
 
-    // Mobile Back Button
-    document.getElementById('btn-mobile-back').addEventListener('click', () => {
-        appState.isMobileChatOpen = false;
-        document.getElementById('main-layout').classList.remove('mobile-chat-active');
-    });
+    const mobileBack = document.getElementById('btn-mobile-back');
+    if (mobileBack) {
+        mobileBack.addEventListener('click', () => {
+            appState.isMobileChatOpen = false;
+            document.getElementById('main-layout').classList.remove('mobile-chat-active');
+        });
+    }
 };
 
 export const renderSidebarList = () => {
     const listContainer = document.getElementById('dynamic-user-list');
+    if (!listContainer) return;
     listContainer.innerHTML = '';
 
     Object.keys(roomsInfo).forEach(id => {
@@ -82,7 +82,6 @@ export const renderSidebarList = () => {
             `;
             
             item.addEventListener('click', () => {
-                // UI Updates
                 document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 
@@ -90,11 +89,9 @@ export const renderSidebarList = () => {
                 document.getElementById('active-room-icon').innerText = room.icon;
                 document.getElementById('active-room-status').innerText = 'Online';
                 
-                // Mobile slide
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
-                // Engine Trigger
                 appState.activeChatId = id;
                 switchChatRoom(id);
             });
@@ -109,18 +106,22 @@ export const renderSidebarList = () => {
 };
 
 // --- BOOT SEQUENCE ---
-document.addEventListener('DOMContentLoaded', async () => {
-    // Await the Firebase Auth check before loading the chat UI
-    await initAuth();
-    
-    if (!currentUser.isGuest) {
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Wait for Auth to sync with Dashboard
+    initAuth(() => {
+        // 2. Initialize Core UI
         initTheme();
         initNavigation();
-        renderSidebarList();
         
-        // Auto-load default room
+        // 3. Initialize Advanced Engines
+        initMediaEngine();
+        initGroupEngine();
+        initCallEngine();
+
+        // 4. Render and Select Default Room
+        renderSidebarList();
         const defaultRoom = 'global_channel';
         const defaultBtn = document.getElementById(`btn-room-${defaultRoom}`);
         if(defaultBtn) defaultBtn.click();
-    }
+    });
 });
