@@ -124,9 +124,38 @@ body.dark-theme .dropdown-content { background: #1e1e1e; border-color: #333; }
     flex: 1;
     overflow: hidden;
     background: var(--card-bg);
-    /* Removed the centering bug here so it stretches full screen! */
     width: 100%;
 }
+
+/* NEW: Master Left Navigation Rail */
+.side-rail {
+    width: 64px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 15px;
+    gap: 15px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.rail-item {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 12px;
+    border-radius: 12px;
+    transition: 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rail-item:hover { background: var(--app-bg); }
+.rail-item.active { background: rgba(18, 140, 126, 0.1); color: var(--primary); }
 
 /* LEFT PANEL: Sidebar */
 .chat-sidebar {
@@ -140,141 +169,74 @@ body.dark-theme .dropdown-content { background: #1e1e1e; border-color: #333; }
 }
 
 .sidebar-header {
-    padding: 20px;
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border);
 }
 
 .search-bar {
-    padding: 15px;
-    border-bottom: 1px solid var(--border);
+    padding: 0 15px 15px 15px;
 }
 
 .search-bar input {
     width: 100%;
-    padding: 10px 15px;
-    border-radius: 20px;
+    padding: 10px 15px 10px 40px;
+    border-radius: 12px;
     border: 1px solid var(--border);
-    background: var(--app-bg);
+    background: var(--app-bg) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="%23627d98"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>') no-repeat 10px center;
     color: var(--text-main);
     font-size: 14px;
     outline: none;
-}
-
-.user-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-}
-
-.user-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border-radius: 12px;
-    cursor: pointer;
     transition: 0.2s;
-    margin-bottom: 5px;
-    text-align: left;
 }
 
-.user-item:hover { background: var(--app-bg); }
-.user-item.active { background: var(--primary); color: white; }
+.search-bar input:focus { border-color: var(--primary); background-color: var(--card-bg); }
 
-.user-item img, .global-icon-box {
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.global-icon-box {
+/* NEW: Chat Filter Tabs */
+.chat-tabs {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--border);
-    font-size: 24px;
-}
-
-.user-item.active .global-icon-box { background: rgba(255,255,255,0.2); color: white; }
-
-.user-info { flex: 1; overflow: hidden; }
-.user-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
-.user-info p { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.user-item.active .user-info p { color: rgba(255,255,255,0.8); }
-
-/* RIGHT PANEL: Chat Main */
-.chat-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: var(--chat-bg);
-}
-
-.chat-header {
-    padding: 15px 25px;
-    background: var(--card-bg);
+    gap: 8px;
+    padding: 0 15px 10px 15px;
+    overflow-x: auto;
     border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    text-align: left;
 }
 
-.chat-messages {
-    flex: 1;
-    padding: 25px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
+.chat-tabs::-webkit-scrollbar { display: none; }
 
-.chat-input-area {
-    padding: 15px 25px;
-    background: var(--card-bg);
-    border-top: 1px solid var(--border);
-    display: flex;
-    gap: 15px;
-}
-
-.chat-input-area input {
-    flex: 1;
-    padding: 12px 20px;
-    border-radius: 25px;
-    border: none;
+.tab-pill {
     background: var(--app-bg);
-    color: var(--text-main);
-    font-size: 15px;
-    outline: none;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: 0.2s;
 }
 
-.btn-send {
+.tab-pill:hover { background: var(--border); }
+.tab-pill.active { background: rgba(18, 140, 126, 0.1); color: var(--primary); font-weight: 600; }
+
+/* Group/Unread Badges */
+.unread-badge {
     background: var(--primary);
     color: white;
-    border: none;
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: auto;
 }
 
-/* Mobile Back Button - Hidden on PC */
-.mobile-back-btn { display: none; background: transparent; border: none; color: var(--primary); cursor: pointer; padding: 5px; }
-
-/* --- MOBILE SLIDING LOGIC --- */
+/* Adjust Mobile Logic to hide Rail */
 @media screen and (max-width: 900px) {
+    .side-rail { display: none; }
     .chat-sidebar { width: 100%; border-right: none; }
     .chat-main { display: none; width: 100%; }
     .mobile-back-btn { display: flex; }
-
-    /* JS activates this class when a user taps a chat */
     .app-layout.mobile-chat-active .chat-sidebar { display: none; }
     .app-layout.mobile-chat-active .chat-main { display: flex; }
 }
