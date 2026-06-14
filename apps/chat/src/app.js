@@ -5,7 +5,6 @@ import { switchChatRoom } from './chatEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
-// Real list without fake hardcoded 'unread: true'
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group' },
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group' }
@@ -29,9 +28,18 @@ const initSettingsAndTheme = () => {
         document.getElementById('chat-main-panel').style.backgroundSize = 'cover';
     }
 
-    // Connect the new Settings Button
+    // Interactive Wallpaper Config & Removal Dialog
     document.getElementById('btn-settings')?.addEventListener('click', () => {
-        const bgUrl = prompt("Enter an Image URL to set as your Chat Wallpaper:");
+        const activeWallpaper = localStorage.getItem('chat_wallpaper');
+        if (activeWallpaper) {
+            const action = confirm("Custom wallpaper is active.\n\nClick [OK] to change the image URL.\nClick [Cancel] to completely REMOVE the wallpaper.");
+            if (!action) {
+                localStorage.removeItem('chat_wallpaper');
+                document.getElementById('chat-main-panel').style.backgroundImage = 'none';
+                return;
+            }
+        }
+        const bgUrl = prompt("Enter a image URL to assign as your Chat Background:");
         if (bgUrl) {
             localStorage.setItem('chat_wallpaper', bgUrl);
             document.getElementById('chat-main-panel').style.backgroundImage = `url(${bgUrl})`;
@@ -43,18 +51,47 @@ const initSettingsAndTheme = () => {
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
+    // Left Side Rail Call Tab Controller
+    document.getElementById('rail-calls')?.addEventListener('click', () => {
+        document.getElementById('rail-chats')?.classList.remove('active');
+        document.getElementById('rail-calls')?.classList.add('active');
+        const headerTitle = document.getElementById('sidebar-chats')?.querySelector('h2');
+        if (headerTitle) headerTitle.innerText = "Calls";
+        
+        const tabs = document.querySelector('.chat-tabs');
+        if (tabs) tabs.style.display = 'none';
+        
+        document.getElementById('dynamic-user-list').innerHTML = `
+            <div style="padding: 30px 20px; text-align: center; color: var(--text-muted);">
+                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 10px;">call_log</span>
+                <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs</p>
+                <p style="font-size: 12px; max-width: 200px; margin: 0 auto;">Voice and video call history configurations will render here.</p>
+            </div>
+        `;
+    });
+
+    document.getElementById('rail-chats')?.addEventListener('click', () => {
+        document.getElementById('rail-calls')?.classList.remove('active');
+        document.getElementById('rail-chats')?.classList.add('active');
+        const headerTitle = document.getElementById('sidebar-chats')?.querySelector('h2');
+        if (headerTitle) headerTitle.innerText = "Chats";
+        
+        const tabs = document.querySelector('.chat-tabs');
+        if (tabs) tabs.style.display = 'flex';
+        renderSidebarList();
+    });
+    
     document.querySelectorAll('.tab-pill').forEach(tab => {
         tab.addEventListener('click', (e) => {
             document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
             e.target.classList.add('active');
             appState.activeTab = e.target.getAttribute('data-tab');
             
-            // Dynamic Placeholder Update
             if (appState.activeTab === 'network') {
-                searchInput.placeholder = "Search Network Directory...";
+                if (searchInput) searchInput.placeholder = "Search Network Directory...";
                 fetchNetworkUsers();
             } else {
-                searchInput.placeholder = "Search";
+                if (searchInput) searchInput.placeholder = "Search";
                 renderSidebarList();
             }
         });
@@ -68,6 +105,7 @@ const initNavigation = () => {
 
 const fetchNetworkUsers = async () => {
     const listContainer = document.getElementById('dynamic-user-list');
+    if (!listContainer) return;
     listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">Scanning Network...</p>';
     
     try {
@@ -75,19 +113,25 @@ const fetchNetworkUsers = async () => {
         listContainer.innerHTML = '';
         querySnapshot.forEach((doc) => {
             const u = doc.data();
-            if (doc.id === currentUser.id) return; 
             
-            const name = u.fullName || u.firstName || u.email.split('@')[0];
+            // Protected check prevents execution breakages if schema ids are mixed
+            const curId = currentUser?.id || currentUser?.uid;
+            if (doc.id === curId) return; 
+            
+            const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
+            const pic = u.customProfilePic || u.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${u.customProfilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
-                <div class="user-info"><h4>${name}</h4><p style="font-size:12px;">Aksh Studio User</p></div>
+                <img src="${pic}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                <div class="user-info"><h4>${name}</h4><p style="font-size:12px; color: var(--text-muted);">Network Member</p></div>
             `;
             listContainer.appendChild(item);
         });
     } catch (e) {
-        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Error. Check Database Rules.</p>';
+        console.error(e);
+        listContainer.innerHTML = '<p style="text-align: center; color: red; font-size: 13px; padding: 20px;">Network Error. Check Database Rules.</p>';
     }
 };
 
@@ -100,7 +144,7 @@ export const renderSidebarList = () => {
         const room = roomsInfo[id];
         let show = false;
 
-        if (appState.activeTab === 'all' && !room.network) show = true;
+        if (appState.activeTab === 'all') show = true;
         if (appState.activeTab === 'groups' && room.type === 'group') show = true;
 
         if (show) {
@@ -128,6 +172,19 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
+        // Safe Check: Bind User Profile elements explicitly upon successfully pulling Auth payload
+        if (currentUser) {
+            const navAvatar = document.getElementById('nav-profile-pic');
+            if (navAvatar) {
+                navAvatar.src = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            }
+            const navName = document.getElementById('nav-profile-name');
+            if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "Loading");
+            
+            const navEmail = document.getElementById('nav-profile-email');
+            if (navEmail) navEmail.innerText = "Email: " + (currentUser.email || "");
+        }
+        
         initSettingsAndTheme();
         initNavigation();
         renderSidebarList();
