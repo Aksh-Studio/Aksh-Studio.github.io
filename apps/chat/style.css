@@ -88,33 +88,41 @@ html, body {
 .chat-messages { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; }
 .chat-input-area { padding: 15px 25px; background: var(--card-bg); display: flex; gap: 15px; align-items: center; }
 .chat-input-area input { flex: 1; padding: 12px 20px; border-radius: 25px; border: none; background: var(--app-bg); color: var(--text-main); font-size: 15px; outline: none; }
-.btn-send { background: var(--primary); color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.btn-send { background: var(--primary); color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.btn-send:hover { background: var(--primary-hover); }
 
 /* The Disclaimer Badges */
-.chat-disclaimer { background: #ffeecd; color: #543b16; font-size: 12px; text-align: center; padding: 8px 12px; border-radius: 8px; margin: 10px auto; max-width: 85%; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
+.chat-disclaimer-wrapper { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; width: 100%; gap: 10px; }
+.chat-disclaimer { background: #ffeecd; color: #543b16; font-size: 12.5px; text-align: center; padding: 8px 14px; border-radius: 8px; max-width: 85%; box-shadow: 0 1px 1px rgba(0,0,0,0.05); line-height: 1.4; }
+.notice-disclaimer { background: transparent; border: 1px solid var(--border); color: var(--text-muted); box-shadow: none; font-size: 12px; }
 body.dark-theme .chat-disclaimer { background: #182229; color: #ffd279; }
+body.dark-theme .notice-disclaimer { border-color: #202c33; color: #8696a0; }
 
 /* Smart Sender Grouping & Message Bubbles */
-.msg-container { display: flex; flex-direction: column; margin-bottom: 2px; }
-.msg-container.first-in-group { margin-top: 12px; }
+.msg-container { display: flex; flex-direction: column; margin-bottom: 3px; width: 100%; }
+.msg-container.first-in-group { margin-top: 10px; }
 .msg-bubble { padding: 8px 12px; max-width: 65%; font-size: 14.5px; line-height: 1.4; box-shadow: 0 1px 1px rgba(0,0,0,0.05); position: relative; }
 
 /* Sent by Me */
-.msg-me { align-self: flex-end; background: #d9fdd3; color: #111b21; border-radius: 12px 0 12px 12px; }
+.msg-container.me { align-items: flex-end; }
+.msg-me { background: #d9fdd3; color: #111b21; border-radius: 12px 0 12px 12px; }
 body.dark-theme .msg-me { background: #005c4b; color: #e9edef; }
-.msg-me.grouped { border-radius: 12px; }
+.msg-me.grouped { border-radius: 12px; } /* Removes the tail if grouped */
 
 /* Sent by Others */
-.msg-other { align-self: flex-start; background: #ffffff; color: #111b21; border-radius: 0 12px 12px 12px; }
+.msg-container.other { align-items: flex-start; }
+.msg-other { background: #ffffff; color: #111b21; border-radius: 0 12px 12px 12px; }
 body.dark-theme .msg-other { background: #202c33; color: #e9edef; }
-.msg-other.grouped { border-radius: 12px; }
+.msg-other.grouped { border-radius: 12px; } /* Removes the tail if grouped */
 
 /* Sender Name inside bubble (Groups) */
 .msg-sender-name { font-size: 12.5px; font-weight: 600; color: #ea0038; margin-bottom: 3px; cursor: pointer; }
 
 /* Message Metadata (Time & Ticks) */
-.msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; font-size: 11px; color: var(--text-muted); float: right; margin-left: 15px; }
-.tick-icon { font-size: 16px; color: #53bdeb; } /* Authentic Blue Tick */
+.msg-meta { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; color: var(--text-muted); float: right; margin-left: 15px; margin-top: 4px; }
+.tick-icon { font-size: 16px; margin-left: 2px; }
+.tick-sent { color: #8696a0; } /* Single Grey Tick */
+.tick-read { color: #53bdeb; } /* Double Blue Tick */
 
 .mobile-back-btn { display: none; background: transparent; border: none; color: var(--primary); cursor: pointer; padding: 5px; }
 
