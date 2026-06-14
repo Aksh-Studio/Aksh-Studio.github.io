@@ -1,40 +1,48 @@
 // src/chatEngine.js
-import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc } from './firebase.js';
 import { currentUser } from './auth.js';
 import { roomsInfo } from './app.js';
 
 let unsubscribeListener = null;
+let pinListener = null;
 export let currentRoomId = null;
 let replyContext = null; 
-let messageToPin = null; // Stores the ID temporarily for the modal
+let messageToPin = null; 
 
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
-    listenToMessages(roomId);
     
-    // Disable Call/Video buttons in Public Groups
+    // Disable Call Buttons in Public Groups
     const isPublic = roomId === 'global_channel' || roomId === 'aksh_help';
-    const audioBtn = document.getElementById('btn-start-audio-call');
-    const videoBtn = document.getElementById('btn-start-video-call');
-    if (audioBtn) audioBtn.style.display = isPublic ? 'none' : 'block';
-    if (videoBtn) videoBtn.style.display = isPublic ? 'none' : 'block';
+    document.getElementById('btn-start-audio-call').style.display = isPublic ? 'none' : 'block';
+    document.getElementById('btn-start-video-call').style.display = isPublic ? 'none' : 'block';
+
+    listenToGlobalPin(roomId);
+    listenToMessages(roomId);
+};
+
+// 1. GLOBAL FIREBASE PINNING LISTENER
+const listenToGlobalPin = (roomId) => {
+    if (pinListener) pinListener();
+    pinListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
+        const data = documentObj.data();
+        const banner = document.getElementById('pinned-message-banner');
+        
+        if (data && data.pinnedMessage && Date.now() < data.pinExpiry) {
+            document.getElementById('pinned-message-text').innerText = data.pinnedMessage;
+            banner.style.display = 'flex';
+        } else {
+            banner.style.display = 'none';
+        }
+    });
 };
 
 export const listenToMessages = (roomId) => {
     const container = document.getElementById('chat-messages-container');
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
 
-    const disclaimerHTML = `
-        <div class="chat-disclaimer-wrapper">
-            <div class="chat-disclaimer">
-                <span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px;">lock</span>
-                Messages are end-to-end encrypted. No one outside of this chat can read them.
-            </div>
-        </div>
-    `;
-
+    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer">End-to-End Encrypted.</div></div>`;
     container.innerHTML = disclaimerHTML;
-    showPinnedMessage(); // Load Local Pinned Message
 
     if (unsubscribeListener) unsubscribeListener();
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
@@ -45,38 +53,21 @@ export const listenToMessages = (roomId) => {
 
         snapshot.forEach((documentObj) => {
             const msgId = documentObj.id;
-            
-            // "Delete for Me" hides it locally
             if (hiddenMsgs.includes(msgId)) return;
 
             const msg = documentObj.data();
             const isMe = msg.senderId === currentUser.id; 
             const isAdminMessage = currentUser.isAdmin && msg.senderId === currentUser.id && roomId === 'aksh_help';
-            
             const isFirstInGroup = previousSenderId !== msg.senderId;
-            let timeString = "Sending...";
-            let tickHTML = "";
-            
-            if (msg.timestamp) {
-                const date = msg.timestamp.toDate();
-                timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                if (isMe) tickHTML = `<span class="material-symbols-rounded tick-icon tick-read">done_all</span>`;
-            }
 
-            const senderNameHTML = (!isMe && isFirstInGroup && !isAdminMessage) 
-                ? `<div class="msg-sender-name">${msg.senderName || 'Network User'}</div>` : '';
+            let timeString = msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending...";
+            let tickHTML = isMe && msg.timestamp ? `<span class="material-symbols-rounded tick-icon tick-read">done_all</span>` : "";
 
-            const replyHTML = msg.replyToText ? `
-                <div class="quoted-reply">
-                    <div class="quoted-name">${msg.replyToName}</div>
-                    <div class="quoted-text">${msg.replyToText}</div>
-                </div>
-            ` : '';
+            const senderNameHTML = (!isMe && isFirstInGroup && !isAdminMessage) ? `<div class="msg-sender-name">${msg.senderName}</div>` : '';
+            const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${msg.replyToText}</div></div>` : '';
 
             const actionMenuHTML = `
-                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
-                    <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
-                </div>
+                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')"><span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span></div>
                 <div class="msg-action-menu" id="menu-${msgId}">
                     <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
                     <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
@@ -85,19 +76,14 @@ export const listenToMessages = (roomId) => {
                 </div>
             `;
 
-            // We embed the senderId into the checkbox data attribute to verify ownership later!
+            // Embeds actual sender ID into the checkbox for security validation
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
-            const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
-            const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
 
             messagesHTML += `
-                <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
+                <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${isAdminMessage ? 'admin' : (isMe ? 'me' : 'other')}" id="container-${msgId}">
                     ${checkboxHTML}
-                    <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
-                        ${actionMenuHTML}
-                        ${senderNameHTML}
-                        ${replyHTML}
-                        <span id="text-${msgId}">${msg.text}</span>
+                    <div class="msg-bubble ${isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other')} ${isFirstInGroup ? '' : 'grouped'}">
+                        ${actionMenuHTML} ${senderNameHTML} ${replyHTML} <span id="text-${msgId}">${msg.text}</span>
                         <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
                     </div>
                 </div>
@@ -124,67 +110,57 @@ export const sendMessage = async () => {
         payload.replyToName = replyContext.senderName;
         window.cancelReply(); 
     }
-    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } 
-    catch (error) { console.error(error); }
+    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } catch (e) {}
 };
 
-// --- CUSTOM MODALS & LOGIC ---
+// --- SECURE UI ACTIONS ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // 1. DELETE LOGIC & CUSTOM MODAL
-    const deleteModal = document.getElementById('delete-modal');
-    const btnDeleteMe = document.getElementById('btn-delete-me');
-    const btnDeleteEveryone = document.getElementById('btn-delete-everyone');
-
+    // 2. STRICT ADMIN DELETE LOGIC
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
 
-        // Security Check: Does the user own every selected message?
-        const allMine = selected.every(box => box.getAttribute('data-sender') === currentUser.id);
+        // Security Check: Make sure they only selected their own messages OR they are the admin
+        let hasUnauthorizedMessage = false;
+        selected.forEach(box => {
+            if (box.getAttribute('data-sender') !== currentUser.id && !currentUser.isAdmin) {
+                hasUnauthorizedMessage = true;
+            }
+        });
 
-        if (allMine || currentUser.isAdmin) {
-            btnDeleteEveryone.style.display = 'block'; // Show Delete For Everyone
+        if (hasUnauthorizedMessage) {
+            document.getElementById('btn-delete-everyone').style.display = 'none'; // Lock out normal users
         } else {
-            btnDeleteEveryone.style.display = 'none';  // Hide it!
+            document.getElementById('btn-delete-everyone').style.display = 'block'; // Grant access
         }
-        deleteModal.style.display = 'flex';
+        document.getElementById('delete-modal').style.display = 'flex';
     });
 
-    btnDeleteMe?.addEventListener('click', () => {
-        const selected = document.querySelectorAll('.msg-checkbox:checked');
+    document.getElementById('btn-delete-me')?.addEventListener('click', () => {
         let hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
-        
-        selected.forEach(box => {
+        document.querySelectorAll('.msg-checkbox:checked').forEach(box => {
             hiddenMsgs.push(box.value);
             document.getElementById(`container-${box.value}`).style.display = 'none';
         });
-        
         localStorage.setItem('hidden_msgs', JSON.stringify(hiddenMsgs));
-        deleteModal.style.display = 'none';
+        document.getElementById('delete-modal').style.display = 'none';
         window.enableSelectionMode(false);
     });
 
-    btnDeleteEveryone?.addEventListener('click', async () => {
-        const selected = document.querySelectorAll('.msg-checkbox:checked');
-        for (let box of selected) {
+    document.getElementById('btn-delete-everyone')?.addEventListener('click', async () => {
+        document.querySelectorAll('.msg-checkbox:checked').forEach(async (box) => {
             try { await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, box.value)); } catch(e){}
-        }
-        deleteModal.style.display = 'none';
+        });
+        document.getElementById('delete-modal').style.display = 'none';
         window.enableSelectionMode(false);
     });
 
-    document.getElementById('btn-cancel-delete')?.addEventListener('click', () => {
-        deleteModal.style.display = 'none';
-    });
-
-    // 2. PINNING LOGIC & CUSTOM MODAL
-    const pinModal = document.getElementById('pin-modal');
-    
+    // 3. GLOBAL PIN MODAL LOGIC
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
             const textEl = document.getElementById(`text-${messageToPin}`);
             if (!textEl) return;
@@ -192,75 +168,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const hours = parseInt(e.target.getAttribute('data-hours'));
             const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
             
-            // Overwrites the previous pin automatically
-            localStorage.setItem(`pinned_${currentRoomId}`, JSON.stringify({ text: textEl.innerText, expiry: expiryTime }));
+            // Save globally to Firestore
+            try {
+                await updateDoc(doc(db, "chats", currentRoomId), {
+                    pinnedMessage: textEl.innerText,
+                    pinExpiry: expiryTime
+                });
+            } catch (err) {
+                console.error("Firebase Pin Error:", err);
+            }
             
-            showPinnedMessage();
-            pinModal.style.display = 'none';
+            document.getElementById('pin-modal').style.display = 'none';
             messageToPin = null;
         });
     });
 
-    document.getElementById('btn-cancel-pin')?.addEventListener('click', () => {
-        pinModal.style.display = 'none';
-        messageToPin = null;
+    // Clean up Modals
+    document.getElementById('btn-cancel-delete')?.addEventListener('click', () => document.getElementById('delete-modal').style.display = 'none');
+    document.getElementById('btn-cancel-pin')?.addEventListener('click', () => document.getElementById('pin-modal').style.display = 'none');
+    document.getElementById('btn-unpin')?.addEventListener('click', async () => {
+        try { await updateDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }); } catch (err) {}
     });
-
-    // 3. FORWARD LOGIC
-    document.getElementById('btn-action-forward')?.addEventListener('click', async () => {
-        const selected = document.querySelectorAll('.msg-checkbox:checked');
-        if (selected.length === 0) return;
-
-        const targetRoom = prompt("Enter Room ID to forward to (global_channel or aksh_help):");
-        if (!targetRoom || !roomsInfo[targetRoom]) return alert("Invalid room ID.");
-
-        for (let box of selected) {
-            const textEl = document.getElementById(`text-${box.value}`);
-            try {
-                await addDoc(collection(db, `chats/${targetRoom}/messages`), {
-                    text: `[Forwarded] ${textEl.innerText}`, senderId: currentUser.id, senderName: currentUser.name, timestamp: serverTimestamp()
-                });
-            } catch(e){}
-        }
-        window.enableSelectionMode(false);
-        alert("Messages forwarded!");
-    });
-
-    document.getElementById('btn-cancel-selection')?.addEventListener('click', () => window.enableSelectionMode(false));
-    document.getElementById('btn-cancel-reply')?.addEventListener('click', () => window.cancelReply());
 });
 
-// --- GLOBAL HELPERS ---
+// --- UI HELPERS ---
 window.triggerPinModal = (msgId) => {
     messageToPin = msgId;
     window.toggleActionMenu(msgId);
     document.getElementById('pin-modal').style.display = 'flex';
 };
 
-export const showPinnedMessage = () => {
-    const banner = document.getElementById('pinned-message-banner');
-    const pinData = JSON.parse(localStorage.getItem(`pinned_${currentRoomId}`));
-    
-    if (pinData && Date.now() < pinData.expiry) {
-        document.getElementById('pinned-message-text').innerText = pinData.text;
-        banner.style.display = 'flex';
-    } else {
-        banner.style.display = 'none';
-    }
-};
-
-document.getElementById('btn-unpin')?.addEventListener('click', () => {
-    document.getElementById('pinned-message-banner').style.display = 'none';
-    localStorage.removeItem(`pinned_${currentRoomId}`);
-});
-
 window.toggleActionMenu = (msgId) => {
     document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active'));
     document.getElementById(`menu-${msgId}`).classList.toggle('active');
 };
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.msg-bubble')) document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
-});
+document.addEventListener('click', (e) => { if (!e.target.closest('.msg-bubble')) document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active')); });
 
 window.replyToMessage = (msgId) => {
     const textEl = document.getElementById(`text-${msgId}`);
@@ -287,8 +229,3 @@ window.enableSelectionMode = (enable = true) => {
         document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
     }
 };
-document.addEventListener('change', (e) => {
-    if (e.target.classList.contains('msg-checkbox')) {
-        document.getElementById('selection-count').innerText = `${document.querySelectorAll('.msg-checkbox:checked').length} Selected`;
-    }
-});
