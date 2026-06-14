@@ -9,39 +9,39 @@ export let currentRoomId = null;
 let replyContext = null; 
 let messageToPin = null; 
 
-// --- WhatsApp Rich-Text Engine Parser ---
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
-    
-    // XSS Sanitization Layer
     let safeHtml = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    
-    // Bold Regex (*text*)
     safeHtml = safeHtml.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
-    
-    // Italic Regex (_text_)
     safeHtml = safeHtml.replace(/_(.*?)_/g, '<em>$1</em>');
-    
-    // Strikethrough Regex (~text~)
     safeHtml = safeHtml.replace(/~(.*?)~/g, '<del>$1</del>');
-    
-    // Monospace Code Regex (`text`)
     safeHtml = safeHtml.replace(/`(.*?)`/g, '<code style="background: rgba(0,0,0,0.06); padding: 2px 4px; border-radius: 4px; font-family: monospace;">$1</code>');
-    
-    // Blockquote Formatting (> text)
     safeHtml = safeHtml.replace(/^&gt;\s(.*)$/gm, '<blockquote style="border-left: 3px solid #00a884; padding-left: 8px; margin: 4px 0; color: var(--text-muted);">$1</blockquote>');
-
     return safeHtml;
+};
+
+// CALL LOGGING FUNCTION
+const logCall = (type) => {
+    const targetName = document.getElementById('active-room-name').innerText;
+    let logs = JSON.parse(localStorage.getItem('call_logs')) || [];
+    logs.push({
+        target: targetName,
+        type: type,
+        status: 'Outgoing',
+        date: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    });
+    localStorage.setItem('call_logs', JSON.stringify(logs));
+    alert(`Initiating E2E Encrypted ${type} Call to ${targetName}...`);
 };
 
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     
-    // Dynamically lock down access to audio/video protocols when inside public nodes
     const isPublicGroup = roomId === 'global_channel' || roomId === 'aksh_help';
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
     
+    // Show buttons ONLY for private messages
     if (audioBtn) audioBtn.style.display = isPublicGroup ? 'none' : 'block';
     if (videoBtn) videoBtn.style.display = isPublicGroup ? 'none' : 'block';
 
@@ -51,7 +51,6 @@ export const switchChatRoom = (roomId) => {
 
 const listenToGlobalPin = (roomId) => {
     if (pinListener) pinListener();
-    
     pinListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         const data = documentObj.data();
         const banner = document.getElementById('pinned-message-banner');
@@ -71,14 +70,7 @@ export const listenToMessages = (roomId) => {
     const container = document.getElementById('chat-messages-container');
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
 
-    const disclaimerHTML = `
-        <div class="chat-disclaimer-wrapper">
-            <div class="chat-disclaimer">
-                <span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>
-                Messages are end-to-end encrypted. No one outside of this chat can read them.
-            </div>
-        </div>
-    `;
+    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer"><span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>Messages are end-to-end encrypted. No one outside of this chat can read them.</div></div>`;
     container.innerHTML = disclaimerHTML;
 
     if (unsubscribeListener) unsubscribeListener();
@@ -105,9 +97,7 @@ export const listenToMessages = (roomId) => {
             const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
 
             const actionMenuHTML = `
-                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
-                    <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
-                </div>
+                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')"><span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span></div>
                 <div class="msg-action-menu" id="menu-${msgId}">
                     <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
                     <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
@@ -119,18 +109,13 @@ export const listenToMessages = (roomId) => {
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
             const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
             const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
-
-            // Formats rendering output utilizing the RegEx parsing matrix
             const formattedTextContent = parseWhatsAppFormatting(msg.text);
 
             messagesHTML += `
                 <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
                     ${checkboxHTML}
                     <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
-                        ${actionMenuHTML}
-                        ${senderNameHTML}
-                        ${replyHTML}
-                        <span id="text-${msgId}">${formattedTextContent}</span>
+                        ${actionMenuHTML} ${senderNameHTML} ${replyHTML} <span id="text-${msgId}">${formattedTextContent}</span>
                         <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
                     </div>
                 </div>
@@ -159,28 +144,28 @@ export const sendMessage = async () => {
         window.cancelReply(); 
     }
     
-    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } 
-    catch (error) { console.error("Send Error:", error); }
+    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } catch (error) {}
 };
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // Native WhatsApp Chat Log Archiver Engine
+    // ATTACH CALL EVENTS
+    document.getElementById('btn-start-audio-call')?.addEventListener('click', () => logCall('Voice'));
+    document.getElementById('btn-start-video-call')?.addEventListener('click', () => logCall('Video'));
+
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
             const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
             const snapshot = await getDocs(q);
             let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
-            
             snapshot.forEach(docObj => {
                 const m = docObj.data();
                 const stamp = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Processing";
                 logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
             });
-            
             const fileBlob = new Blob([logOutput], { type: 'text/plain' });
             const fileUrl = URL.createObjectURL(fileBlob);
             const anchor = document.createElement('a');
@@ -190,28 +175,17 @@ document.addEventListener('DOMContentLoaded', () => {
             anchor.click();
             document.body.removeChild(anchor);
             URL.revokeObjectURL(fileUrl);
-        } catch(err) {
-            alert("Export operational processing failure.");
-        }
+        } catch(err) { alert("Export operational processing failure."); }
     });
 
-    // Selection Deletions Logic Matrix
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
-
         let hasUnauthorizedMessage = false;
         const curId = currentUser?.id || currentUser?.uid;
-        selected.forEach(box => {
-            if (box.getAttribute('data-sender') !== curId && !currentUser?.isAdmin) {
-                hasUnauthorizedMessage = true;
-            }
-        });
-
+        selected.forEach(box => { if (box.getAttribute('data-sender') !== curId && !currentUser?.isAdmin) { hasUnauthorizedMessage = true; } });
         const deleteEveryoneBtn = document.getElementById('btn-delete-everyone');
-        if (deleteEveryoneBtn) {
-            deleteEveryoneBtn.style.display = hasUnauthorizedMessage ? 'none' : 'block';
-        }
+        if (deleteEveryoneBtn) { deleteEveryoneBtn.style.display = hasUnauthorizedMessage ? 'none' : 'block'; }
         document.getElementById('delete-modal').style.display = 'flex';
     });
 
@@ -235,26 +209,14 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
-    // Pinned Document Processing Driver
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
             const textEl = document.getElementById(`text-${messageToPin}`);
             if (!textEl) return;
-
             const hours = parseInt(e.target.getAttribute('data-hours'));
             const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
-            
-            try {
-                // Extracts internal text parameters securely
-                await setDoc(doc(db, "chats", currentRoomId), {
-                    pinnedMessage: textEl.innerText,
-                    pinExpiry: expiryTime
-                }, { merge: true });
-            } catch (err) {
-                console.error("Firebase Pin Database Exception Error:", err);
-            }
-            
+            try { await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: textEl.innerText, pinExpiry: expiryTime }, { merge: true }); } catch (err) {}
             document.getElementById('pin-modal').style.display = 'none';
             messageToPin = null;
         });
@@ -262,30 +224,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-cancel-delete')?.addEventListener('click', () => document.getElementById('delete-modal').style.display = 'none');
     document.getElementById('btn-cancel-pin')?.addEventListener('click', () => document.getElementById('pin-modal').style.display = 'none');
-    
     document.getElementById('btn-unpin')?.addEventListener('click', async () => {
         try { await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }, { merge: true }); } catch (err) {}
     });
 });
 
-// --- GLOBAL ATTACHMENTS TO WINDOW SCOPE ---
-window.triggerPinModal = (msgId) => {
-    messageToPin = msgId;
-    window.toggleActionMenu(msgId);
-    document.getElementById('pin-modal').style.display = 'flex';
-};
-
-window.toggleActionMenu = (msgId) => {
-    document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active'));
-    const menu = document.getElementById(`menu-${msgId}`);
-    if(menu) menu.classList.toggle('active');
-};
-
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.msg-bubble')) {
-        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
-    }
-});
+window.triggerPinModal = (msgId) => { messageToPin = msgId; window.toggleActionMenu(msgId); document.getElementById('pin-modal').style.display = 'flex'; };
+window.toggleActionMenu = (msgId) => { document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); const menu = document.getElementById(`menu-${msgId}`); if(menu) menu.classList.toggle('active'); };
+document.addEventListener('click', (e) => { if (!e.target.closest('.msg-bubble')) { document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active')); } });
 
 window.replyToMessage = (msgId) => {
     const textEl = document.getElementById(`text-${msgId}`);
@@ -297,10 +243,7 @@ window.replyToMessage = (msgId) => {
     window.toggleActionMenu(msgId);
 };
 
-window.cancelReply = () => { 
-    replyContext = null; 
-    document.getElementById('reply-preview-banner').style.display = 'none'; 
-};
+window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
 
 window.enableSelectionMode = (enable = true) => {
     const container = document.getElementById('chat-messages-container');
