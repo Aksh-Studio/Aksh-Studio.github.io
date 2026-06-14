@@ -22,13 +22,17 @@ const listenToCloudDMs = () => {
         snapshot.forEach(docObj => {
             const data = docObj.data();
             if (data.type === 'dm') {
-                const otherId = data.participants.find(id => id !== curId) || curId;
-                // STRICT DUPLICATE FILTER: Do not render a DM if it's pointing to yourself
-                if (data.names[otherId] === currentUser.name || data.names[otherId] === currentUser.email.split('@')[0]) return;
+                const otherId = data.participants.find(id => id !== curId);
+                
+                // NUCLEAR FILTER: Block self-chats if they slipped into the database
+                if (!otherId || otherId === curId) return; 
+                
+                const otherName = data.names[otherId] || 'User';
+                if (otherName === currentUser.name || otherName === currentUser.email.split('@')[0]) return;
                 
                 dynamicDMs[docObj.id] = {
-                    name: data.names[otherId] || 'User',
-                    icon: data.avatars[otherId] || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+                    name: otherName,
+                    icon: data.avatars[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherName)}&background=00a884&color=fff`,
                     type: 'dm',
                     isImage: true 
                 };
@@ -175,23 +179,26 @@ const fetchNetworkUsers = async () => {
     try {
         const querySnapshot = await getDocs(collection(db, "users"));
         listContainer.innerHTML = '';
-        const myUid = currentUser?.id || currentUser?.uid;
-        const myEmail = currentUser?.email;
+        
+        const myUid = String(currentUser?.id || "").trim();
+        const myEmail = String(currentUser?.email || "").toLowerCase().trim();
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
-            const targetUid = docObj.id;
+            const targetUid = String(docObj.id).trim();
+            const targetEmail = String(u.email || "").toLowerCase().trim();
             
-            // STRICT DOUBLE CHECK: Stops your own profile from generating in the network scan
-            if (targetUid === myUid || u.email === myEmail) return; 
+            // NUCLEAR DOUBLE-FILTER: Blocks your exact UID AND your exact Email from appearing
+            if (targetUid === myUid || (targetEmail === myEmail && myEmail !== "")) return; 
             
             const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
-            const pic = u.customProfilePic || u.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            // Generates a clean profile picture initial badge if they don't have a custom photo
+            const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00a884&color=fff`;
             
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
+                <img src="${pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00a884&color=fff'">
                 <div class="user-info">
                     <h4>${name}</h4>
                     <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
@@ -200,7 +207,7 @@ const fetchNetworkUsers = async () => {
 
             item.addEventListener('click', async () => {
                 const deterministicId = myUid < targetUid ? `dm_${myUid}_${targetUid}` : `dm_${targetUid}_${myUid}`;
-                const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                const myPic = currentUser.customProfilePic || currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
                 
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
@@ -246,7 +253,7 @@ export const renderSidebarList = () => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
-        // Skip rendering any DM room that was accidentally made pointing to yourself
+        // Ensure leftover self-chats in cache are permanently hidden
         if (room.type === 'dm' && (room.name === currentUser.name || room.name === currentUser.email.split('@')[0])) return;
 
         if (appState.activeTab === 'all') displayQualifies = true;
@@ -261,7 +268,7 @@ export const renderSidebarList = () => {
             
             if (room.isImage) {
                 item.innerHTML = `
-                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
+                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
                     <div class="user-info"><h4>${room.name}</h4><p>Direct Message</p></div>
                 `;
             } else {
@@ -289,9 +296,8 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
-        // Redundant top-right UI assignments were removed here because auth.js already handles them perfectly.
         if (currentUser) {
-            listenToCloudDMs(); // Mounts the real-time listener for incoming messages
+            listenToCloudDMs(); 
         }
         
         initSettingsAndTheme();
