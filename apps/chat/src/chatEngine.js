@@ -14,7 +14,6 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let isRecording = false;
 
-// --- WhatsApp Rich-Text Engine Parser ---
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
     let safeHtml = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -26,17 +25,14 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- WEBRTC HARDWARE ACCESS & RECORDING ENGINE ---
+// --- WEBRTC CALLING ---
 const startCallUI = async (type) => {
     const targetName = document.getElementById('active-room-name').innerText;
     const overlay = document.getElementById('call-overlay');
     
-    // Log interaction to internal registry
     let logs = JSON.parse(localStorage.getItem('call_logs')) || [];
     logs.push({
-        target: targetName,
-        type: type,
-        status: 'Outgoing',
+        target: targetName, type: type, status: 'Outgoing',
         date: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     });
     localStorage.setItem('call_logs', JSON.stringify(logs));
@@ -51,15 +47,9 @@ const startCallUI = async (type) => {
         overlay.style.display = 'flex';
 
         try {
-            // Hardware Bridge Activation
-            localStream = await navigator.mediaDevices.getUserMedia({
-                video: type === 'Video',
-                audio: true
-            });
-
+            localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'Video', audio: true });
             document.getElementById('call-status-text').innerText = 'Ringing...';
 
-            // Mount Hardware Stream to UI Matrix
             if (type === 'Video') {
                 const videoContainer = document.getElementById('video-container');
                 let videoEl = document.getElementById('local-video-stream');
@@ -69,7 +59,7 @@ const startCallUI = async (type) => {
                     videoEl.id = 'local-video-stream';
                     videoEl.autoplay = true;
                     videoEl.playsInline = true;
-                    videoEl.muted = true; // Mute local echo
+                    videoEl.muted = true; 
                     videoEl.style.width = '100%';
                     videoEl.style.height = '100%';
                     videoEl.style.objectFit = 'cover';
@@ -93,17 +83,14 @@ const endCallUI = () => {
     const overlay = document.getElementById('call-overlay');
     document.getElementById('call-status-text').innerText = 'Call Ended';
     
-    // Shut down Hardware endpoints
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
 
-    // Demount UI Elements
     const videoEl = document.getElementById('local-video-stream');
     if (videoEl) videoEl.style.display = 'none';
 
-    // Terminate active recording gracefully
     if (isRecording && mediaRecorder) {
         mediaRecorder.stop();
         isRecording = false;
@@ -111,16 +98,11 @@ const endCallUI = () => {
         if (recordBtn) recordBtn.style.color = 'white';
     }
 
-    setTimeout(() => { 
-        if (overlay) overlay.style.display = 'none'; 
-    }, 800);
+    setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 800);
 };
 
-// --- ROOM ROUTING ---
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
-    
-    // WebRTC endpoints disabled natively inside public broadcasts
     const isPublicGroup = roomId === 'global_channel' || roomId === 'aksh_help';
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
@@ -153,14 +135,7 @@ export const listenToMessages = (roomId) => {
     const container = document.getElementById('chat-messages-container');
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
 
-    const disclaimerHTML = `
-        <div class="chat-disclaimer-wrapper">
-            <div class="chat-disclaimer">
-                <span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>
-                Messages are end-to-end encrypted. No one outside of this chat can read them.
-            </div>
-        </div>
-    `;
+    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer"><span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>Messages are end-to-end encrypted. No one outside of this chat can read them.</div></div>`;
     container.innerHTML = disclaimerHTML;
 
     if (unsubscribeListener) unsubscribeListener();
@@ -201,13 +176,19 @@ export const listenToMessages = (roomId) => {
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
             const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
             const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
+            
             const formattedTextContent = parseWhatsAppFormatting(msg.text);
+            
+            // RENDERS ATTACHED IMAGES IF THEY EXIST IN THE DATABASE
+            const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
 
             messagesHTML += `
                 <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
                     ${checkboxHTML}
                     <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
-                        ${actionMenuHTML} ${senderNameHTML} ${replyHTML} <span id="text-${msgId}">${formattedTextContent}</span>
+                        ${actionMenuHTML} ${senderNameHTML} ${replyHTML}
+                        ${imageAttachmentHTML}
+                        <span id="text-${msgId}">${formattedTextContent}</span>
                         <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
                     </div>
                 </div>
@@ -239,17 +220,55 @@ export const sendMessage = async () => {
     try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } catch (error) {}
 };
 
-// --- SYSTEM INITIALIZATION & EVENT DELEGATION ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // WebRTC Triggers
+    // --- MEDIA BUTTON (IMAGE UPLOADER) ---
+    const mediaBtn = document.getElementById('btn-media-upload');
+    const fileInput = document.getElementById('hidden-file-input');
+
+    if (mediaBtn && fileInput) {
+        mediaBtn.addEventListener('click', () => fileInput.click()); // Opens Device File Explorer
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Only accept images for Base64 injection to protect database limits
+            if (!file.type.startsWith('image/')) {
+                return alert("Currently, only Image files are supported for direct chat attachments.");
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const base64String = event.target.result;
+                const curId = currentUser?.id || currentUser?.uid;
+                
+                const payload = {
+                    text: "📷 Image Attached", // Default text for images
+                    imageUrl: base64String,    // Injects the image directly into Firestore
+                    senderId: curId,
+                    senderName: currentUser?.name || 'User',
+                    timestamp: serverTimestamp()
+                };
+                
+                try {
+                    await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload);
+                } catch (error) {
+                    console.error("Image Upload Failed", error);
+                    alert("Image is too large. Firebase limits documents to 1MB. Please compress your image.");
+                }
+            };
+            reader.readAsDataURL(file); // Converts image to text format
+        });
+    }
+
+    // Call Actions
     document.getElementById('btn-start-audio-call')?.addEventListener('click', () => startCallUI('Voice'));
     document.getElementById('btn-start-video-call')?.addEventListener('click', () => startCallUI('Video'));
     document.getElementById('btn-call-end')?.addEventListener('click', endCallUI);
 
-    // MediaRecorder Local Capture Core
     document.getElementById('btn-call-record')?.addEventListener('click', () => {
         if (!localStream) return alert("Hardware link required. Call must be active to record.");
         const recordBtn = document.getElementById('btn-call-record');
@@ -258,12 +277,8 @@ document.addEventListener('DOMContentLoaded', () => {
             recordedChunks = [];
             mediaRecorder = new MediaRecorder(localStream);
             
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) recordedChunks.push(e.data);
-            };
-            
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
-                // Buffer to Local Filesystem
                 const blob = new Blob(recordedChunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
                 const downloadAnchor = document.createElement('a');
@@ -277,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             mediaRecorder.start();
             isRecording = true;
-            if (recordBtn) recordBtn.style.color = '#ea0038'; // Red Pulse Indicator
+            if (recordBtn) recordBtn.style.color = '#ea0038'; 
         } else {
             mediaRecorder.stop();
             isRecording = false;
@@ -285,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Chat History Native Downloader
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
@@ -311,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(err) { alert("Export operational processing failure."); }
     });
 
-    // Deletion Protocols
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
@@ -345,7 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
-    // Global Pin Protocol
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
