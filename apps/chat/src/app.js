@@ -24,7 +24,6 @@ const listenToCloudRooms = () => {
         snapshot.forEach(docObj => {
             const data = docObj.data();
             
-            // Allows Owner/Admins to visually edit System Channels
             if (docObj.id === 'global_channel' || docObj.id === 'aksh_help') {
                 if(data.name) roomsInfo[docObj.id].name = data.name;
                 if(data.icon) roomsInfo[docObj.id].icon = data.icon;
@@ -43,7 +42,6 @@ const listenToCloudRooms = () => {
                     isImage: true 
                 };
             }
-            // INJECT CUSTOM GROUPS INTO SIDEBAR
             else if (data.type === 'group') {
                 dynamicRooms[docObj.id] = {
                     name: data.name || 'Custom Group',
@@ -105,7 +103,7 @@ const initSettingsAndTheme = () => {
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
-    // PURGE CALL FEATURES: Force hide the call rail button
+    // PURGED CALL TAB
     const callRailBtn = document.getElementById('rail-calls');
     if (callRailBtn) callRailBtn.style.display = 'none';
 
@@ -138,7 +136,6 @@ const initNavigation = () => {
         document.getElementById('main-layout').classList.remove('mobile-chat-active');
     });
 
-    // --- CREATE NEW GROUP ---
     document.getElementById('btn-create-group')?.addEventListener('click', async () => {
         const groupName = prompt("Enter new Group Name:");
         if (!groupName) return;
@@ -147,22 +144,17 @@ const initNavigation = () => {
         
         try {
             await setDoc(doc(db, "chats", newGroupId), {
-                type: 'group',
-                name: groupName,
-                icon: 'groups',
-                participants: [curId],
-                admins: [curId], // Creator gets specific Group Admin privileges
-                createdBy: curId,
-                createdAt: Date.now()
+                type: 'group', name: groupName, icon: 'groups',
+                participants: [curId], admins: [curId], 
+                createdBy: curId, createdAt: Date.now()
             });
             
-            // Auto-Switch to new group
             appState.activeChatId = newGroupId;
             document.getElementById('active-room-name').innerText = groupName;
             document.getElementById('active-room-icon').innerText = 'groups';
             switchChatRoom(newGroupId);
-            alert("Group created! Click the Gear icon next to the Group Name to add members.");
-        } catch(e) { console.error(e); alert("Database Permission Error."); }
+            alert("Group created! Click the Gear icon next to the Group Name to manage members.");
+        } catch(e) { alert("Database Permission Error."); }
     });
 };
 
@@ -192,10 +184,7 @@ const fetchNetworkUsers = async () => {
             item.className = 'user-item';
             item.innerHTML = `
                 <img src="${pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00a884&color=fff'">
-                <div class="user-info">
-                    <h4>${name}</h4>
-                    <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
-                </div>
+                <div class="user-info"><h4>${name}</h4><p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p></div>
             `;
 
             item.addEventListener('click', async () => {
@@ -220,9 +209,7 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
-    } catch (e) {
-        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>';
-    }
+    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
 window.deleteSidebarChat = async (roomId) => {
@@ -303,16 +290,7 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
-        if (currentUser) {
-            const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-            const navAvatar = document.getElementById('nav-profile-pic');
-            if (navAvatar) { navAvatar.src = myPic; navAvatar.style.display = "block"; }
-            
-            const navName = document.getElementById('nav-profile-name');
-            if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "User");
-            
-            listenToCloudRooms(); 
-        }
+        if (currentUser) listenToCloudRooms(); 
         initSettingsAndTheme();
         initNavigation();
         renderSidebarList();
