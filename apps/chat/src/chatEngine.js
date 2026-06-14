@@ -6,15 +6,18 @@ import { roomsInfo } from './app.js';
 let unsubscribeListener = null;
 export let currentRoomId = null;
 let replyContext = null; 
+let messageToPin = null; // Stores the ID temporarily for the modal
 
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     listenToMessages(roomId);
     
-    // Disable calls in Public Rooms
+    // Disable Call/Video buttons in Public Groups
     const isPublic = roomId === 'global_channel' || roomId === 'aksh_help';
-    document.getElementById('btn-start-audio-call').style.display = isPublic ? 'none' : 'block';
-    document.getElementById('btn-start-video-call').style.display = isPublic ? 'none' : 'block';
+    const audioBtn = document.getElementById('btn-start-audio-call');
+    const videoBtn = document.getElementById('btn-start-video-call');
+    if (audioBtn) audioBtn.style.display = isPublic ? 'none' : 'block';
+    if (videoBtn) videoBtn.style.display = isPublic ? 'none' : 'block';
 };
 
 export const listenToMessages = (roomId) => {
@@ -31,9 +34,7 @@ export const listenToMessages = (roomId) => {
     `;
 
     container.innerHTML = disclaimerHTML;
-
-    // Load Local Pinned Message
-    showPinnedMessage();
+    showPinnedMessage(); // Load Local Pinned Message
 
     if (unsubscribeListener) unsubscribeListener();
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
@@ -44,7 +45,8 @@ export const listenToMessages = (roomId) => {
 
         snapshot.forEach((documentObj) => {
             const msgId = documentObj.id;
-            // Skip rendering if user chose "Delete for Me"
+            
+            // "Delete for Me" hides it locally
             if (hiddenMsgs.includes(msgId)) return;
 
             const msg = documentObj.data();
@@ -79,11 +81,12 @@ export const listenToMessages = (roomId) => {
                     <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
                     <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
                     <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Delete</button>
-                    <button class="msg-action-btn" onclick="window.pinMessage('${msgId}')">Pin Message</button>
+                    <button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>
                 </div>
             `;
 
-            const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}"></div>`;
+            // We embed the senderId into the checkbox data attribute to verify ownership later!
+            const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
             const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
             const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
 
@@ -122,51 +125,88 @@ export const sendMessage = async () => {
         window.cancelReply(); 
     }
     try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } 
-    catch (error) {}
+    catch (error) { console.error(error); }
 };
 
-// --- DELETE & ACTION LOGIC ---
+// --- CUSTOM MODALS & LOGIC ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // ADVANCED DELETE LOGIC
-    document.getElementById('btn-action-delete')?.addEventListener('click', async () => {
+    // 1. DELETE LOGIC & CUSTOM MODAL
+    const deleteModal = document.getElementById('delete-modal');
+    const btnDeleteMe = document.getElementById('btn-delete-me');
+    const btnDeleteEveryone = document.getElementById('btn-delete-everyone');
+
+    document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
 
-        // Verify if user is allowed to "Delete for Everyone"
-        let canDeleteForEveryone = true;
-        selected.forEach(box => {
-            const msgContainer = document.getElementById(`container-${box.value}`);
-            if (!msgContainer.classList.contains('me') && !currentUser.isAdmin) {
-                canDeleteForEveryone = false; // They selected someone else's message
-            }
-        });
+        // Security Check: Does the user own every selected message?
+        const allMine = selected.every(box => box.getAttribute('data-sender') === currentUser.id);
 
-        let deleteType = "me";
-        if (canDeleteForEveryone) {
-            const choice = confirm(`Delete ${selected.length} message(s)?\n\n[OK] = Delete for Everyone\n[Cancel] = Delete for Me`);
-            deleteType = choice ? "everyone" : "me";
+        if (allMine || currentUser.isAdmin) {
+            btnDeleteEveryone.style.display = 'block'; // Show Delete For Everyone
         } else {
-            const choice = confirm(`You selected messages sent by others.\n\nPress OK to "Delete for Me" only.`);
-            if (!choice) return window.enableSelectionMode(false);
+            btnDeleteEveryone.style.display = 'none';  // Hide it!
         }
+        deleteModal.style.display = 'flex';
+    });
 
-        for (let box of selected) {
-            if (deleteType === "everyone") {
-                try { await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, box.value)); } catch(e){}
-            } else {
-                // DELETE FOR ME (Hide Locally)
-                let hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
-                hiddenMsgs.push(box.value);
-                localStorage.setItem('hidden_msgs', JSON.stringify(hiddenMsgs));
-                document.getElementById(`container-${box.value}`).style.display = 'none';
-            }
-        }
+    btnDeleteMe?.addEventListener('click', () => {
+        const selected = document.querySelectorAll('.msg-checkbox:checked');
+        let hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
+        
+        selected.forEach(box => {
+            hiddenMsgs.push(box.value);
+            document.getElementById(`container-${box.value}`).style.display = 'none';
+        });
+        
+        localStorage.setItem('hidden_msgs', JSON.stringify(hiddenMsgs));
+        deleteModal.style.display = 'none';
         window.enableSelectionMode(false);
     });
 
+    btnDeleteEveryone?.addEventListener('click', async () => {
+        const selected = document.querySelectorAll('.msg-checkbox:checked');
+        for (let box of selected) {
+            try { await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, box.value)); } catch(e){}
+        }
+        deleteModal.style.display = 'none';
+        window.enableSelectionMode(false);
+    });
+
+    document.getElementById('btn-cancel-delete')?.addEventListener('click', () => {
+        deleteModal.style.display = 'none';
+    });
+
+    // 2. PINNING LOGIC & CUSTOM MODAL
+    const pinModal = document.getElementById('pin-modal');
+    
+    document.querySelectorAll('.pin-duration-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (!messageToPin) return;
+            const textEl = document.getElementById(`text-${messageToPin}`);
+            if (!textEl) return;
+
+            const hours = parseInt(e.target.getAttribute('data-hours'));
+            const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
+            
+            // Overwrites the previous pin automatically
+            localStorage.setItem(`pinned_${currentRoomId}`, JSON.stringify({ text: textEl.innerText, expiry: expiryTime }));
+            
+            showPinnedMessage();
+            pinModal.style.display = 'none';
+            messageToPin = null;
+        });
+    });
+
+    document.getElementById('btn-cancel-pin')?.addEventListener('click', () => {
+        pinModal.style.display = 'none';
+        messageToPin = null;
+    });
+
+    // 3. FORWARD LOGIC
     document.getElementById('btn-action-forward')?.addEventListener('click', async () => {
         const selected = document.querySelectorAll('.msg-checkbox:checked');
         if (selected.length === 0) return;
@@ -190,7 +230,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cancel-reply')?.addEventListener('click', () => window.cancelReply());
 });
 
-// --- PINNING LOGIC (Strictly Local) ---
+// --- GLOBAL HELPERS ---
+window.triggerPinModal = (msgId) => {
+    messageToPin = msgId;
+    window.toggleActionMenu(msgId);
+    document.getElementById('pin-modal').style.display = 'flex';
+};
+
 export const showPinnedMessage = () => {
     const banner = document.getElementById('pinned-message-banner');
     const pinData = JSON.parse(localStorage.getItem(`pinned_${currentRoomId}`));
@@ -203,21 +249,7 @@ export const showPinnedMessage = () => {
     }
 };
 
-window.pinMessage = (msgId) => {
-    const duration = prompt("How long do you want to pin this locally?\nEnter 1 (for 24h), 7 (for 7 days), or 30 (for 30 days):", "1");
-    if (!['1','7','30'].includes(duration)) return alert("Invalid duration cancelled.");
-    
-    const textEl = document.getElementById(`text-${msgId}`);
-    if (!textEl) return;
-
-    const expiryTime = Date.now() + (parseInt(duration) * 24 * 60 * 60 * 1000);
-    localStorage.setItem(`pinned_${currentRoomId}`, JSON.stringify({ text: textEl.innerText, expiry: expiryTime }));
-    
-    showPinnedMessage();
-    window.toggleActionMenu(msgId);
-};
-
-document.getElementById('pinned-message-banner')?.addEventListener('click', () => {
+document.getElementById('btn-unpin')?.addEventListener('click', () => {
     document.getElementById('pinned-message-banner').style.display = 'none';
     localStorage.removeItem(`pinned_${currentRoomId}`);
 });
