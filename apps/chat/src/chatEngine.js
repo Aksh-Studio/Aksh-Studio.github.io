@@ -9,39 +9,58 @@ export let currentRoomId = null;
 let replyContext = null; 
 let messageToPin = null; 
 
+// --- 1. ROOM ROUTING & RESTRICTIONS ---
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     
     // Disable Call Buttons in Public Groups
     const isPublic = roomId === 'global_channel' || roomId === 'aksh_help';
-    document.getElementById('btn-start-audio-call').style.display = isPublic ? 'none' : 'block';
-    document.getElementById('btn-start-video-call').style.display = isPublic ? 'none' : 'block';
+    const audioBtn = document.getElementById('btn-start-audio-call');
+    const videoBtn = document.getElementById('btn-start-video-call');
+    
+    if (audioBtn) audioBtn.style.display = isPublic ? 'none' : 'block';
+    if (videoBtn) videoBtn.style.display = isPublic ? 'none' : 'block';
 
     listenToGlobalPin(roomId);
     listenToMessages(roomId);
 };
 
-// 1. GLOBAL FIREBASE PINNING LISTENER
+// --- 2. GLOBAL FIREBASE PINNING ---
 const listenToGlobalPin = (roomId) => {
-    if (pinListener) pinListener();
+    if (pinListener) pinListener(); // Clear old listener
+    
     pinListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         const data = documentObj.data();
         const banner = document.getElementById('pinned-message-banner');
         
-        if (data && data.pinnedMessage && Date.now() < data.pinExpiry) {
+        if (banner && data && data.pinnedMessage && Date.now() < data.pinExpiry) {
             document.getElementById('pinned-message-text').innerText = data.pinnedMessage;
+            
+            // Dynamically strip out the hardcoded "(Private)" text from the HTML
+            const titleEl = banner.querySelector('p');
+            if (titleEl) titleEl.innerText = "Pinned Message"; 
+            
             banner.style.display = 'flex';
-        } else {
+        } else if (banner) {
             banner.style.display = 'none';
         }
     });
 };
 
+// --- 3. MESSAGE STREAM ---
 export const listenToMessages = (roomId) => {
     const container = document.getElementById('chat-messages-container');
-    const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
+    const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || []; // For "Delete For Me" tracking
 
-    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer">End-to-End Encrypted.</div></div>`;
+    const disclaimerHTML = `
+        <div class="chat-disclaimer-wrapper">
+            <div class="chat-disclaimer">
+                <span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>
+                Messages are end-to-end encrypted. No one outside of this chat can read them.
+            </div>
+        </div>
+    `;
+
     container.innerHTML = disclaimerHTML;
 
     if (unsubscribeListener) unsubscribeListener();
@@ -53,6 +72,8 @@ export const listenToMessages = (roomId) => {
 
         snapshot.forEach((documentObj) => {
             const msgId = documentObj.id;
+            
+            // Skip rendering if user chose "Delete for Me"
             if (hiddenMsgs.includes(msgId)) return;
 
             const msg = documentObj.data();
@@ -61,13 +82,15 @@ export const listenToMessages = (roomId) => {
             const isFirstInGroup = previousSenderId !== msg.senderId;
 
             let timeString = msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sending...";
-            let tickHTML = isMe && msg.timestamp ? `<span class="material-symbols-rounded tick-icon tick-read">done_all</span>` : "";
+            let tickHTML = isMe && msg.timestamp ? `<span class="material-symbols-rounded tick-icon tick-read" style="color: #53bdeb; font-size: 16px; margin-left: 2px;">done_all</span>` : "";
 
-            const senderNameHTML = (!isMe && isFirstInGroup && !isAdminMessage) ? `<div class="msg-sender-name">${msg.senderName}</div>` : '';
+            const senderNameHTML = (!isMe && isFirstInGroup && !isAdminMessage) ? `<div class="msg-sender-name">${msg.senderName || 'Network User'}</div>` : '';
             const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${msg.replyToText}</div></div>` : '';
 
             const actionMenuHTML = `
-                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')"><span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span></div>
+                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
+                </div>
                 <div class="msg-action-menu" id="menu-${msgId}">
                     <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
                     <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
@@ -76,14 +99,19 @@ export const listenToMessages = (roomId) => {
                 </div>
             `;
 
-            // Embeds actual sender ID into the checkbox for security validation
+            // Embeds actual sender ID into the checkbox for security validation!
             const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
+            const alignmentClass = isAdminMessage ? 'admin' : (isMe ? 'me' : 'other');
+            const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
 
             messagesHTML += `
-                <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${isAdminMessage ? 'admin' : (isMe ? 'me' : 'other')}" id="container-${msgId}">
+                <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
                     ${checkboxHTML}
-                    <div class="msg-bubble ${isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other')} ${isFirstInGroup ? '' : 'grouped'}">
-                        ${actionMenuHTML} ${senderNameHTML} ${replyHTML} <span id="text-${msgId}">${msg.text}</span>
+                    <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
+                        ${actionMenuHTML}
+                        ${senderNameHTML}
+                        ${replyHTML}
+                        <span id="text-${msgId}">${msg.text}</span>
                         <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
                     </div>
                 </div>
@@ -110,20 +138,22 @@ export const sendMessage = async () => {
         payload.replyToName = replyContext.senderName;
         window.cancelReply(); 
     }
-    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } catch (e) {}
+    
+    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } 
+    catch (error) { console.error("Send Error:", error); }
 };
 
-// --- SECURE UI ACTIONS ---
+// --- 4. SECURE UI ACTIONS & MODALS ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // 2. STRICT ADMIN DELETE LOGIC
+    // DELETE LOGIC
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
 
-        // Security Check: Make sure they only selected their own messages OR they are the admin
+        // Security Check: Make sure they only selected their own messages OR they are the Admin
         let hasUnauthorizedMessage = false;
         selected.forEach(box => {
             if (box.getAttribute('data-sender') !== currentUser.id && !currentUser.isAdmin) {
@@ -131,19 +161,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        const deleteEveryoneBtn = document.getElementById('btn-delete-everyone');
         if (hasUnauthorizedMessage) {
-            document.getElementById('btn-delete-everyone').style.display = 'none'; // Lock out normal users
+            deleteEveryoneBtn.style.display = 'none'; // Lock out normal users
         } else {
-            document.getElementById('btn-delete-everyone').style.display = 'block'; // Grant access
+            deleteEveryoneBtn.style.display = 'block'; // Grant access
         }
+        
         document.getElementById('delete-modal').style.display = 'flex';
     });
 
     document.getElementById('btn-delete-me')?.addEventListener('click', () => {
         let hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
         document.querySelectorAll('.msg-checkbox:checked').forEach(box => {
-            hiddenMsgs.push(box.value);
-            document.getElementById(`container-${box.value}`).style.display = 'none';
+            hiddenMsgs.push(box.value); // Save to local storage cache to hide
+            const container = document.getElementById(`container-${box.value}`);
+            if (container) container.style.display = 'none';
         });
         localStorage.setItem('hidden_msgs', JSON.stringify(hiddenMsgs));
         document.getElementById('delete-modal').style.display = 'none';
@@ -158,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
-    // 3. GLOBAL PIN MODAL LOGIC
+    // FIREBASE PIN MODAL LOGIC
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
@@ -168,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hours = parseInt(e.target.getAttribute('data-hours'));
             const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
             
-            // Save globally to Firestore
+            // Save globally to Firestore Room Document
             try {
                 await updateDoc(doc(db, "chats", currentRoomId), {
                     pinnedMessage: textEl.innerText,
@@ -176,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } catch (err) {
                 console.error("Firebase Pin Error:", err);
+                alert("Ensure your Firestore Rules allow writes to /chats/{chatId}");
             }
             
             document.getElementById('pin-modal').style.display = 'none';
@@ -183,15 +217,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Clean up Modals
+    // Cleanup Modals
     document.getElementById('btn-cancel-delete')?.addEventListener('click', () => document.getElementById('delete-modal').style.display = 'none');
     document.getElementById('btn-cancel-pin')?.addEventListener('click', () => document.getElementById('pin-modal').style.display = 'none');
+    
     document.getElementById('btn-unpin')?.addEventListener('click', async () => {
         try { await updateDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }); } catch (err) {}
     });
 });
 
-// --- UI HELPERS ---
+// --- 5. GLOBAL UI HELPERS ---
 window.triggerPinModal = (msgId) => {
     messageToPin = msgId;
     window.toggleActionMenu(msgId);
@@ -200,9 +235,15 @@ window.triggerPinModal = (msgId) => {
 
 window.toggleActionMenu = (msgId) => {
     document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active'));
-    document.getElementById(`menu-${msgId}`).classList.toggle('active');
+    const menu = document.getElementById(`menu-${msgId}`);
+    if(menu) menu.classList.toggle('active');
 };
-document.addEventListener('click', (e) => { if (!e.target.closest('.msg-bubble')) document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active')); });
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.msg-bubble')) {
+        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
+    }
+});
 
 window.replyToMessage = (msgId) => {
     const textEl = document.getElementById(`text-${msgId}`);
@@ -213,7 +254,11 @@ window.replyToMessage = (msgId) => {
     document.getElementById('reply-preview-banner').style.display = 'block';
     window.toggleActionMenu(msgId);
 };
-window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
+
+window.cancelReply = () => { 
+    replyContext = null; 
+    document.getElementById('reply-preview-banner').style.display = 'none'; 
+};
 
 window.enableSelectionMode = (enable = true) => {
     const container = document.getElementById('chat-messages-container');
@@ -229,3 +274,10 @@ window.enableSelectionMode = (enable = true) => {
         document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
     }
 };
+
+document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('msg-checkbox')) {
+        const count = document.querySelectorAll('.msg-checkbox:checked').length;
+        document.getElementById('selection-count').innerText = `${count} Selected`;
+    }
+});
