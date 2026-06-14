@@ -1,10 +1,20 @@
 // src/app.js
 import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from './firebase.js';
 
-// --- 1. APPLICATION STATE ---
+// --- 1. APPLICATION & USER STATE ---
 let isMobileChatOpen = false;
 let activeChatId = 'global_channel'; 
 let unsubscribeListener = null; 
+
+// Simulated User Authentication State (Will be replaced by real Auth later)
+const currentUser = {
+    id: 'akshat124',
+    name: 'Akshat',
+    email: 'akshat124.am12@gmail.com',
+    // Dynamic Avatar generation based on user's name
+    photoURL: 'https://ui-avatars.com/api/?name=Akshat&background=128C7E&color=fff&bold=true',
+    isGuest: false // CHANGE THIS TO 'true' TO TEST THE GUEST RESTRICTION BLUR!
+};
 
 const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public' }
@@ -20,7 +30,9 @@ const toggleTheme = () => {
     document.body.classList.toggle('dark-theme');
     const isDark = document.body.classList.contains('dark-theme');
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    document.getElementById('theme-btn').innerText = isDark ? 'Light Mode' : 'Dark Mode';
+    
+    const themeBtn = document.getElementById('theme-btn');
+    if (themeBtn) themeBtn.innerText = isDark ? 'Light Mode' : 'Dark Mode';
 };
 
 // --- 3. CHAT ACTIONS ---
@@ -47,6 +59,9 @@ const closeMobileChat = () => {
 
 // --- 4. FIREBASE REAL-TIME ENGINE ---
 const listenToMessages = (roomId) => {
+    // If user is guest, don't even bother fetching messages
+    if (currentUser.isGuest) return; 
+
     const container = document.getElementById('chat-messages-container');
     container.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin-top: 20px;">Syncing secure connection...</div>`;
 
@@ -54,7 +69,6 @@ const listenToMessages = (roomId) => {
 
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
-    // Real-Time Listener with Error Handling Added
     unsubscribeListener = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             container.innerHTML = `
@@ -69,7 +83,7 @@ const listenToMessages = (roomId) => {
         let messagesHTML = '';
         snapshot.forEach((doc) => {
             const msg = doc.data();
-            const isMe = msg.senderId === 'akshat124'; 
+            const isMe = msg.senderId === currentUser.id; 
             
             let timeString = "Just now";
             if (msg.timestamp) {
@@ -90,21 +104,14 @@ const listenToMessages = (roomId) => {
         container.innerHTML = messagesHTML;
         container.scrollTop = container.scrollHeight; 
     }, 
-    
-    // ERROR HANDLER: If Firebase blocks the connection, show this instead of spinning forever.
     (error) => {
         console.error("Firebase Sync Error:", error);
-        container.innerHTML = `
-            <div style="margin: auto; text-align: center; color: #dc2626; padding: 20px; background: #fee2e2; border-radius: 12px;">
-                <span class="material-symbols-rounded" style="font-size: 48px;">gpp_bad</span>
-                <p style="margin-top: 10px; font-weight: 600;">Connection Blocked by Firebase Rules</p>
-                <p style="font-size: 13px; margin-top: 5px; color: #991b1b;">Your Firebase Database requires you to update the Security Rules to allow access.</p>
-            </div>
-        `;
     });
 };
 
 const sendMessage = async () => {
+    if (currentUser.isGuest) return; // Prevent guests from sending
+
     const inputField = document.getElementById('chat-input');
     const text = inputField.value.trim();
     if (!text) return; 
@@ -114,7 +121,7 @@ const sendMessage = async () => {
     try {
         await addDoc(collection(db, `chats/${activeChatId}/messages`), {
             text: text,
-            senderId: 'akshat124', 
+            senderId: currentUser.id, 
             timestamp: serverTimestamp()
         });
     } catch (error) {
@@ -127,9 +134,26 @@ const sendMessage = async () => {
 const renderAppShell = () => {
     const root = document.getElementById('app-root');
     const isDark = document.body.classList.contains('dark-theme');
+    
+    // Check if the user is a guest to apply the blur effect
+    const blurClass = currentUser.isGuest ? 'guest-blur' : '';
+
+    // The restricted overlay HTML (Only shows if isGuest is true)
+    const guestOverlayHTML = currentUser.isGuest ? `
+        <div class="guest-overlay">
+            <div class="guest-modal">
+                <span class="material-symbols-rounded" style="font-size: 56px; color: var(--primary); margin-bottom: 15px;">lock_person</span>
+                <h2 style="margin-bottom: 10px; color: var(--text-main); font-size: 20px;">Guest Account Restricted</h2>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px; line-height: 1.5;">
+                    Guest users cannot use Aksh Chat. Please bind your account with Google or Email on the login page to securely access your messages.
+                </p>
+                <a href="/login.html" style="display: block; width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; text-decoration: none; transition: 0.2s;">Go to Login Page</a>
+            </div>
+        </div>
+    ` : '';
 
     root.innerHTML = `
-        <div class="aksh-chat-app">
+        <div class="aksh-chat-app ${blurClass}">
             
             <nav class="top-nav">
                 <div class="nav-left">
@@ -146,13 +170,13 @@ const renderAppShell = () => {
                     </button>
                     
                     <div class="profile-menu">
-                        <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar">
+                        <img src="${currentUser.photoURL}" alt="Profile" class="user-avatar">
                         <div class="dropdown-content">
                             <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600; letter-spacing: 0.5px;">Personal Profile</p>
-                            <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);">Name: Akshat</p>
-                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; word-break: break-all;">Email: akshat124am.12@gmail.com</p>
+                            <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);">Name: ${currentUser.name}</p>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; word-break: break-all;">Email: ${currentUser.email}</p>
                             <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
-                            <a href="/dashboard.html" style="display: block; width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-align: center; text-decoration: none; transition: 0.2s;">Sign Out</a>
+                            <a href="/login.html" style="display: block; width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-align: center; text-decoration: none; transition: 0.2s;">Sign Out</a>
                         </div>
                     </div>
                 </div>
@@ -166,7 +190,7 @@ const renderAppShell = () => {
                         <span class="material-symbols-rounded" style="color: var(--text-muted); cursor:pointer;">edit_square</span>
                     </div>
                     <div class="search-bar">
-                        <input type="text" placeholder="Search network...">
+                        <input type="text" placeholder="Search">
                     </div>
                     
                     <div class="user-list">
@@ -205,22 +229,31 @@ const renderAppShell = () => {
                 </main>
             </div>
         </div>
+        ${guestOverlayHTML}
     `;
 
-    document.getElementById('theme-btn').addEventListener('click', toggleTheme);
-    document.getElementById('btn-global_channel').addEventListener('click', () => switchChat('global_channel'));
-    
-    document.getElementById('btn-mobile-back').addEventListener('click', closeMobileChat);
-    document.getElementById('btn-send-msg').addEventListener('click', sendMessage);
+    // Only attach functional listeners if the user is NOT a guest
+    if (!currentUser.isGuest) {
+        document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+        document.getElementById('btn-global_channel').addEventListener('click', () => switchChat('global_channel'));
+        
+        const mobileBackBtn = document.getElementById('btn-mobile-back');
+        if (mobileBackBtn) mobileBackBtn.addEventListener('click', closeMobileChat);
+        
+        document.getElementById('btn-send-msg').addEventListener('click', sendMessage);
 
-    document.getElementById('chat-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
 
-    listenToMessages(activeChatId);
+        listenToMessages(activeChatId);
+    } else {
+        // Allow theme toggling even if blurred
+        document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+    }
 };
 
 // --- 6. BOOT APP ---
