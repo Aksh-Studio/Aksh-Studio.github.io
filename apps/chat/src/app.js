@@ -1,17 +1,15 @@
 // src/app.js
-import { db, collection, getDocs } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, doc, setDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom } from './chatEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
-// Base systemic rooms
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group' },
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group' }
 };
 
-// Tracks active peer-to-peer direct messages generated during session runtime
 export const dynamicDMs = JSON.parse(localStorage.getItem('active_dynamic_dms')) || {};
 
 const saveDynamicDMs = () => {
@@ -31,31 +29,24 @@ const initSettingsAndTheme = () => {
     }
 
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
-    if (savedWallpaper) {
-        const targetPanel = document.getElementById('chat-main-panel');
-        if (targetPanel) {
-            targetPanel.style.backgroundImage = `url(${savedWallpaper})`;
-            targetPanel.style.backgroundSize = 'cover';
-            targetPanel.style.backgroundPosition = 'center';
-        }
+    const targetPanel = document.getElementById('chat-main-panel');
+    if (savedWallpaper && targetPanel) {
+        targetPanel.style.backgroundImage = `url(${savedWallpaper})`;
+        targetPanel.style.backgroundSize = 'cover';
+        targetPanel.style.backgroundPosition = 'center';
     }
 
-    // High-fidelity WhatsApp-style integrated Wallpaper Management
     document.getElementById('btn-settings')?.addEventListener('click', () => {
         const hasWallpaper = !!localStorage.getItem('chat_wallpaper');
         let optionsMsg = "Settings Menu:\n\nEnter a direct image URL to set a new chat background.";
-        if (hasWallpaper) {
-            optionsMsg += "\n\nType the word 'REMOVE' in the box below to wipe out your custom wallpaper.";
-        }
+        if (hasWallpaper) optionsMsg += "\n\nType the word 'REMOVE' in the box below to wipe out your custom wallpaper.";
         
         const userInput = prompt(optionsMsg);
         if (userInput === null) return; 
         
-        const targetPanel = document.getElementById('chat-main-panel');
         if (userInput.trim().toUpperCase() === 'REMOVE') {
             localStorage.removeItem('chat_wallpaper');
             if (targetPanel) targetPanel.style.backgroundImage = 'none';
-            alert("Wallpaper successfully restored to factory defaults.");
         } else if (userInput.trim() !== '') {
             localStorage.setItem('chat_wallpaper', userInput.trim());
             if (targetPanel) {
@@ -63,7 +54,6 @@ const initSettingsAndTheme = () => {
                 targetPanel.style.backgroundSize = 'cover';
                 targetPanel.style.backgroundPosition = 'center';
             }
-            alert("New custom wallpaper assigned successfully.");
         }
     });
 };
@@ -71,6 +61,7 @@ const initSettingsAndTheme = () => {
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
+    // Call Logs Engine
     document.getElementById('rail-calls')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.remove('active');
         document.getElementById('rail-calls')?.classList.add('active');
@@ -80,14 +71,31 @@ const initNavigation = () => {
         const tabs = document.querySelector('.chat-tabs');
         if (tabs) tabs.style.display = 'none';
         
-        // Isolate layout strictly from chat items
-        document.getElementById('dynamic-user-list').innerHTML = `
-            <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
-                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">call_log</span>
-                <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs Available</p>
-                <p style="font-size: 12px; max-width: 220px; margin: 0 auto;">End-to-end encrypted direct cellular calls are tracked cleanly inside this layout view.</p>
-            </div>
-        `;
+        const logs = JSON.parse(localStorage.getItem('aksh_call_logs')) || [];
+        const listContainer = document.getElementById('dynamic-user-list');
+        
+        if (logs.length === 0) {
+            listContainer.innerHTML = `
+                <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+                    <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">call_log</span>
+                    <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs Available</p>
+                    <p style="font-size: 12px; max-width: 220px; margin: 0 auto;">End-to-end encrypted direct cellular calls are tracked cleanly inside this layout view.</p>
+                </div>
+            `;
+        } else {
+            listContainer.innerHTML = '';
+            logs.forEach(log => {
+                listContainer.innerHTML += `
+                    <div class="user-item">
+                        <div class="global-icon-box" style="background: ${log.type === 'Video' ? '#00a88422' : '#e9edef'}; color: ${log.type === 'Video' ? '#00a884' : '#111b21'};"><span class="material-symbols-rounded">${log.type === 'Video' ? 'videocam' : 'call'}</span></div>
+                        <div class="user-info">
+                            <h4>${log.name}</h4>
+                            <p style="font-size:12px; color: var(--text-muted);">${log.date} • Outgoing</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
     });
 
     document.getElementById('rail-chats')?.addEventListener('click', () => {
@@ -145,34 +153,27 @@ const fetchNetworkUsers = async () => {
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${pic}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
+                <img src="${pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
                 <div class="user-info">
                     <h4>${name}</h4>
                     <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
                 </div>
             `;
 
-            // CRITICAL FIX: Generate 1:1 workspace dynamically when clicking network directory item
+            // Deterministic P2P Routing
             item.addEventListener('click', () => {
                 const deterministicId = myUid < targetUid ? `dm_${myUid}_${targetUid}` : `dm_${targetUid}_${myUid}`;
                 
-                // Mount new room profile to runtime engine state
-                dynamicDMs[deterministicId] = {
-                    name: name,
-                    icon: 'person',
-                    type: 'chat'
-                };
+                dynamicDMs[deterministicId] = { name: name, pic: pic, type: 'dm', targetUid: targetUid };
                 saveDynamicDMs();
 
-                // Swap views to newly activated chat workspace smoothly
                 appState.activeChatId = deterministicId;
                 document.getElementById('active-room-name').innerText = name;
-                document.getElementById('active-room-icon').innerText = 'person';
+                document.getElementById('active-room-icon-box').innerHTML = `<img src="${pic}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
-                // Return perspective to "All Chats" list layout view
                 const allTabBtn = document.querySelector('[data-tab="all"]');
                 if (allTabBtn) {
                     document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
@@ -187,7 +188,6 @@ const fetchNetworkUsers = async () => {
             listContainer.appendChild(item);
         });
     } catch (e) {
-        console.error(e);
         listContainer.innerHTML = '<p style="text-align: center; color: red; font-size: 13px; padding: 20px;">Network Directory Error. Validate database configurations.</p>';
     }
 };
@@ -197,7 +197,6 @@ export const renderSidebarList = () => {
     if (!listContainer) return;
     listContainer.innerHTML = '';
 
-    // Merge static core engine channels with newly discovered 1:1 workspace targets
     const combinedRooms = { ...roomsInfo, ...dynamicDMs };
 
     Object.keys(combinedRooms).forEach(id => {
@@ -213,15 +212,16 @@ export const renderSidebarList = () => {
             item.className = `user-item ${isActive}`;
             item.id = `btn-room-${id}`;
             
-            // Build visual component matching WhatsApp spec
             if (room.type === 'group') {
                 item.innerHTML = `
                     <div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div>
                     <div class="user-info"><h4>${room.name}</h4><p>Tap to view messages</p></div>
                 `;
             } else {
+                // Renders the ACTUAL profile picture in the sidebar
+                const picSrc = room.pic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
                 item.innerHTML = `
-                    <div class="global-icon-box" style="background: var(--primary-light, #00a88422); color: var(--primary, #00a884);"><span class="material-symbols-rounded">person</span></div>
+                    <img src="${picSrc}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
                     <div class="user-info"><h4>${room.name}</h4><p>Direct Message</p></div>
                 `;
             }
@@ -231,7 +231,12 @@ export const renderSidebarList = () => {
                 item.classList.add('active');
                 appState.activeChatId = id;
                 document.getElementById('active-room-name').innerText = room.name;
-                document.getElementById('active-room-icon').innerText = room.type === 'group' ? room.icon : 'person';
+                
+                if (room.type === 'group') {
+                    document.getElementById('active-room-icon-box').innerHTML = `<span id="active-room-icon" class="material-symbols-rounded">${room.icon}</span>`;
+                } else {
+                    document.getElementById('active-room-icon-box').innerHTML = `<img src="${room.pic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                }
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
@@ -244,21 +249,35 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
+        const myUid = currentUser?.id || currentUser?.uid;
+        
         if (currentUser) {
             const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-            
-            // Sync user avatar seamlessly across all DOM containers
             const navAvatar = document.getElementById('nav-profile-pic');
-            if (navAvatar) {
-                navAvatar.src = myPic;
-                navAvatar.style.display = "block"; 
-            }
+            if (navAvatar) navAvatar.src = myPic;
             
             const navName = document.getElementById('nav-profile-name');
             if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "Authenticated User");
             
             const navEmail = document.getElementById('nav-profile-email');
             if (navEmail) navEmail.innerText = "Email: " + (currentUser.email || "No Email Bound");
+
+            // Cloud Inbox Listener - Automatically syncs inbound DMs
+            onSnapshot(collection(db, 'users', myUid, 'inbox'), (snapshot) => {
+                let requiresRender = false;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const roomId = data.roomId;
+                    if (!dynamicDMs[roomId]) {
+                        dynamicDMs[roomId] = { name: data.senderName, pic: data.senderPic, type: 'dm', targetUid: doc.id };
+                        requiresRender = true;
+                    }
+                });
+                if (requiresRender) {
+                    saveDynamicDMs();
+                    if (appState.activeTab === 'all') renderSidebarList();
+                }
+            });
         }
         
         initSettingsAndTheme();
