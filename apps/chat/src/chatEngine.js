@@ -1,7 +1,6 @@
 // src/chatEngine.js
 import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, setDoc, getDocs } from './firebase.js';
 import { currentUser } from './auth.js';
-import { roomsInfo } from './app.js';
 
 let unsubscribeListener = null;
 let pinListener = null;
@@ -9,6 +8,13 @@ export let currentRoomId = null;
 let replyContext = null; 
 let messageToPin = null; 
 
+// WebRTC Hardware Scopes
+let localStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+
+// --- WhatsApp Rich-Text Engine Parser ---
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
     let safeHtml = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -20,12 +26,12 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- RESTORED CALL UI ENGINE ---
-const startCallUI = (type) => {
+// --- WEBRTC HARDWARE ACCESS & RECORDING ENGINE ---
+const startCallUI = async (type) => {
     const targetName = document.getElementById('active-room-name').innerText;
     const overlay = document.getElementById('call-overlay');
     
-    // 1. Log the call into local history
+    // Log interaction to internal registry
     let logs = JSON.parse(localStorage.getItem('call_logs')) || [];
     logs.push({
         target: targetName,
@@ -35,29 +41,86 @@ const startCallUI = (type) => {
     });
     localStorage.setItem('call_logs', JSON.stringify(logs));
 
-    // 2. Launch the Dark Calling Interface
     if (overlay) {
         document.getElementById('call-target-name').innerText = targetName;
-        document.getElementById('call-status-text').innerText = type === 'Video' ? 'Starting Video Call...' : 'Calling...';
+        document.getElementById('call-status-text').innerText = type === 'Video' ? 'Requesting Camera...' : 'Requesting Microphone...';
         
         const icon = document.getElementById('call-center-icon');
-        if(icon) icon.innerText = type === 'Video' ? 'videocam' : 'person';
+        if (icon) icon.innerText = type === 'Video' ? 'videocam' : 'person';
         
         overlay.style.display = 'flex';
-        
-        // Simulate connection ringing
-        setTimeout(() => {
-            const statusEl = document.getElementById('call-status-text');
-            if(statusEl && overlay.style.display === 'flex') {
-                statusEl.innerText = 'Ringing...';
+
+        try {
+            // Hardware Bridge Activation
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: type === 'Video',
+                audio: true
+            });
+
+            document.getElementById('call-status-text').innerText = 'Ringing...';
+
+            // Mount Hardware Stream to UI Matrix
+            if (type === 'Video') {
+                const videoContainer = document.getElementById('video-container');
+                let videoEl = document.getElementById('local-video-stream');
+                
+                if (!videoEl) {
+                    videoEl = document.createElement('video');
+                    videoEl.id = 'local-video-stream';
+                    videoEl.autoplay = true;
+                    videoEl.playsInline = true;
+                    videoEl.muted = true; // Mute local echo
+                    videoEl.style.width = '100%';
+                    videoEl.style.height = '100%';
+                    videoEl.style.objectFit = 'cover';
+                    videoEl.style.position = 'absolute';
+                    videoEl.style.top = '0';
+                    videoEl.style.left = '0';
+                    videoEl.style.borderRadius = '16px';
+                    videoContainer.appendChild(videoEl);
+                }
+                videoEl.srcObject = localStream;
+                videoEl.style.display = 'block';
             }
-        }, 1500);
+        } catch (err) {
+            console.error("WebRTC Protocol Blocked:", err);
+            document.getElementById('call-status-text').innerText = 'Device Access Denied';
+        }
     }
 };
 
+const endCallUI = () => {
+    const overlay = document.getElementById('call-overlay');
+    document.getElementById('call-status-text').innerText = 'Call Ended';
+    
+    // Shut down Hardware endpoints
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+
+    // Demount UI Elements
+    const videoEl = document.getElementById('local-video-stream');
+    if (videoEl) videoEl.style.display = 'none';
+
+    // Terminate active recording gracefully
+    if (isRecording && mediaRecorder) {
+        mediaRecorder.stop();
+        isRecording = false;
+        const recordBtn = document.getElementById('btn-call-record');
+        if (recordBtn) recordBtn.style.color = 'white';
+    }
+
+    setTimeout(() => { 
+        if (overlay) overlay.style.display = 'none'; 
+    }, 800);
+};
+
+// --- ROOM ROUTING ---
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     
+    // WebRTC endpoints disabled natively inside public broadcasts
     const isPublicGroup = roomId === 'global_channel' || roomId === 'aksh_help';
     const audioBtn = document.getElementById('btn-start-audio-call');
     const videoBtn = document.getElementById('btn-start-video-call');
@@ -90,7 +153,14 @@ export const listenToMessages = (roomId) => {
     const container = document.getElementById('chat-messages-container');
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
 
-    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer"><span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>Messages are end-to-end encrypted. No one outside of this chat can read them.</div></div>`;
+    const disclaimerHTML = `
+        <div class="chat-disclaimer-wrapper">
+            <div class="chat-disclaimer">
+                <span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>
+                Messages are end-to-end encrypted. No one outside of this chat can read them.
+            </div>
+        </div>
+    `;
     container.innerHTML = disclaimerHTML;
 
     if (unsubscribeListener) unsubscribeListener();
@@ -117,7 +187,9 @@ export const listenToMessages = (roomId) => {
             const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
 
             const actionMenuHTML = `
-                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')"><span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span></div>
+                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
+                </div>
                 <div class="msg-action-menu" id="menu-${msgId}">
                     <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
                     <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
@@ -167,33 +239,66 @@ export const sendMessage = async () => {
     try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } catch (error) {}
 };
 
+// --- SYSTEM INITIALIZATION & EVENT DELEGATION ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // ATTACH CALL UI EVENTS
+    // WebRTC Triggers
     document.getElementById('btn-start-audio-call')?.addEventListener('click', () => startCallUI('Voice'));
     document.getElementById('btn-start-video-call')?.addEventListener('click', () => startCallUI('Video'));
-    
-    document.getElementById('btn-call-end')?.addEventListener('click', () => {
-        const overlay = document.getElementById('call-overlay');
-        if (overlay) {
-            document.getElementById('call-status-text').innerText = 'Call Ended';
-            setTimeout(() => { overlay.style.display = 'none'; }, 800);
+    document.getElementById('btn-call-end')?.addEventListener('click', endCallUI);
+
+    // MediaRecorder Local Capture Core
+    document.getElementById('btn-call-record')?.addEventListener('click', () => {
+        if (!localStream) return alert("Hardware link required. Call must be active to record.");
+        const recordBtn = document.getElementById('btn-call-record');
+
+        if (!isRecording) {
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(localStream);
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = () => {
+                // Buffer to Local Filesystem
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.style.display = 'none';
+                downloadAnchor.href = url;
+                downloadAnchor.download = `WebRTC_Call_Log_${Date.now()}.webm`;
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                URL.revokeObjectURL(url);
+            };
+            
+            mediaRecorder.start();
+            isRecording = true;
+            if (recordBtn) recordBtn.style.color = '#ea0038'; // Red Pulse Indicator
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            if (recordBtn) recordBtn.style.color = 'white';
         }
     });
 
+    // Chat History Native Downloader
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
             const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
             const snapshot = await getDocs(q);
             let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
+            
             snapshot.forEach(docObj => {
                 const m = docObj.data();
                 const stamp = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Processing";
                 logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
             });
+            
             const fileBlob = new Blob([logOutput], { type: 'text/plain' });
             const fileUrl = URL.createObjectURL(fileBlob);
             const anchor = document.createElement('a');
@@ -206,12 +311,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(err) { alert("Export operational processing failure."); }
     });
 
+    // Deletion Protocols
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
+        
         let hasUnauthorizedMessage = false;
         const curId = currentUser?.id || currentUser?.uid;
         selected.forEach(box => { if (box.getAttribute('data-sender') !== curId && !currentUser?.isAdmin) { hasUnauthorizedMessage = true; } });
+        
         const deleteEveryoneBtn = document.getElementById('btn-delete-everyone');
         if (deleteEveryoneBtn) { deleteEveryoneBtn.style.display = hasUnauthorizedMessage ? 'none' : 'block'; }
         document.getElementById('delete-modal').style.display = 'flex';
@@ -237,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
+    // Global Pin Protocol
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
