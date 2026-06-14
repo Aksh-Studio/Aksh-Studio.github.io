@@ -1,5 +1,5 @@
 // src/app.js
-import { db, collection, getDocs, onSnapshot, doc, setDoc } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom } from './chatEngine.js';
 
@@ -10,10 +10,32 @@ export const roomsInfo = {
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group' }
 };
 
-export const dynamicDMs = JSON.parse(localStorage.getItem('active_dynamic_dms')) || {};
+export let dynamicDMs = {}; 
 
-const saveDynamicDMs = () => {
-    localStorage.setItem('active_dynamic_dms', JSON.stringify(dynamicDMs));
+// --- REAL-TIME CLOUD DM SYNCHRONIZATION ---
+const listenToCloudDMs = () => {
+    const curId = currentUser?.id || currentUser?.uid;
+    if (!curId) return;
+
+    // Listen to Firebase for any chat where you are listed as a participant
+    const q = query(collection(db, "chats"), where("participants", "array-contains", curId));
+    
+    onSnapshot(q, (snapshot) => {
+        snapshot.forEach(docObj => {
+            const data = docObj.data();
+            if (data.type === 'dm') {
+                // Find the other person's ID to display THEIR name and photo to YOU
+                const otherId = data.participants.find(id => id !== curId) || curId;
+                dynamicDMs[docObj.id] = {
+                    name: data.names[otherId] || 'User',
+                    icon: data.avatars[otherId] || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+                    type: 'dm',
+                    isImage: true 
+                };
+            }
+        });
+        renderSidebarList(); // Instantly updates the UI when a new DM arrives!
+    });
 };
 
 const initSettingsAndTheme = () => {
@@ -29,11 +51,13 @@ const initSettingsAndTheme = () => {
     }
 
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
-    const targetPanel = document.getElementById('chat-main-panel');
-    if (savedWallpaper && targetPanel) {
-        targetPanel.style.backgroundImage = `url(${savedWallpaper})`;
-        targetPanel.style.backgroundSize = 'cover';
-        targetPanel.style.backgroundPosition = 'center';
+    if (savedWallpaper) {
+        const targetPanel = document.getElementById('chat-main-panel');
+        if (targetPanel) {
+            targetPanel.style.backgroundImage = `url(${savedWallpaper})`;
+            targetPanel.style.backgroundSize = 'cover';
+            targetPanel.style.backgroundPosition = 'center';
+        }
     }
 
     document.getElementById('btn-settings')?.addEventListener('click', () => {
@@ -44,6 +68,7 @@ const initSettingsAndTheme = () => {
         const userInput = prompt(optionsMsg);
         if (userInput === null) return; 
         
+        const targetPanel = document.getElementById('chat-main-panel');
         if (userInput.trim().toUpperCase() === 'REMOVE') {
             localStorage.removeItem('chat_wallpaper');
             if (targetPanel) targetPanel.style.backgroundImage = 'none';
@@ -58,10 +83,38 @@ const initSettingsAndTheme = () => {
     });
 };
 
+// --- CALL LOG RENDERER ---
+export const renderCallLogs = () => {
+    const logs = JSON.parse(localStorage.getItem('call_logs')) || [];
+    const listContainer = document.getElementById('dynamic-user-list');
+    
+    if (logs.length === 0) {
+        listContainer.innerHTML = `
+            <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">call_log</span>
+                <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs Available</p>
+                <p style="font-size: 12px; max-width: 220px; margin: 0 auto;">Your incoming and outgoing WebRTC logs will appear here.</p>
+            </div>`;
+    } else {
+        listContainer.innerHTML = '';
+        logs.reverse().forEach(log => {
+            const icon = log.type === 'Video' ? 'videocam' : 'call';
+            const color = log.status === 'Outgoing' ? '#00a884' : '#ea0038';
+            listContainer.innerHTML += `
+                <div class="user-item">
+                    <div class="global-icon-box" style="background: transparent; color: ${color};"><span class="material-symbols-rounded">${icon}</span></div>
+                    <div class="user-info">
+                        <h4>${log.target}</h4>
+                        <p style="font-size: 12px;">${log.date} • ${log.status}</p>
+                    </div>
+                </div>`;
+        });
+    }
+};
+
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
-    // Call Logs Engine
     document.getElementById('rail-calls')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.remove('active');
         document.getElementById('rail-calls')?.classList.add('active');
@@ -71,31 +124,8 @@ const initNavigation = () => {
         const tabs = document.querySelector('.chat-tabs');
         if (tabs) tabs.style.display = 'none';
         
-        const logs = JSON.parse(localStorage.getItem('aksh_call_logs')) || [];
-        const listContainer = document.getElementById('dynamic-user-list');
-        
-        if (logs.length === 0) {
-            listContainer.innerHTML = `
-                <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
-                    <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">call_log</span>
-                    <p style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No Call Logs Available</p>
-                    <p style="font-size: 12px; max-width: 220px; margin: 0 auto;">End-to-end encrypted direct cellular calls are tracked cleanly inside this layout view.</p>
-                </div>
-            `;
-        } else {
-            listContainer.innerHTML = '';
-            logs.forEach(log => {
-                listContainer.innerHTML += `
-                    <div class="user-item">
-                        <div class="global-icon-box" style="background: ${log.type === 'Video' ? '#00a88422' : '#e9edef'}; color: ${log.type === 'Video' ? '#00a884' : '#111b21'};"><span class="material-symbols-rounded">${log.type === 'Video' ? 'videocam' : 'call'}</span></div>
-                        <div class="user-info">
-                            <h4>${log.name}</h4>
-                            <p style="font-size:12px; color: var(--text-muted);">${log.date} • Outgoing</p>
-                        </div>
-                    </div>
-                `;
-            });
-        }
+        appState.activeTab = 'calls';
+        renderCallLogs();
     });
 
     document.getElementById('rail-chats')?.addEventListener('click', () => {
@@ -106,6 +136,13 @@ const initNavigation = () => {
         
         const tabs = document.querySelector('.chat-tabs');
         if (tabs) tabs.style.display = 'flex';
+        
+        const allTabBtn = document.querySelector('[data-tab="all"]');
+        if (allTabBtn) {
+            document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
+            allTabBtn.classList.add('active');
+        }
+        appState.activeTab = 'all';
         renderSidebarList();
     });
     
@@ -144,7 +181,6 @@ const fetchNetworkUsers = async () => {
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = docObj.id;
-            
             if (targetUid === myUid) return; 
             
             const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
@@ -160,16 +196,23 @@ const fetchNetworkUsers = async () => {
                 </div>
             `;
 
-            // Deterministic P2P Routing
-            item.addEventListener('click', () => {
+            // CLOUD HANDSHAKE: Register the room in Firestore so the recipient wakes up!
+            item.addEventListener('click', async () => {
                 const deterministicId = myUid < targetUid ? `dm_${myUid}_${targetUid}` : `dm_${targetUid}_${myUid}`;
+                const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
                 
-                dynamicDMs[deterministicId] = { name: name, pic: pic, type: 'dm', targetUid: targetUid };
-                saveDynamicDMs();
+                try {
+                    await setDoc(doc(db, "chats", deterministicId), {
+                        type: 'dm',
+                        participants: [myUid, targetUid],
+                        names: { [myUid]: currentUser.name, [targetUid]: name },
+                        avatars: { [myUid]: myPic, [targetUid]: pic }
+                    }, { merge: true });
+                } catch(e) { console.error("Cloud Handshake Failed:", e); }
 
                 appState.activeChatId = deterministicId;
                 document.getElementById('active-room-name').innerText = name;
-                document.getElementById('active-room-icon-box').innerHTML = `<img src="${pic}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                document.getElementById('active-room-icon').innerText = 'person';
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
@@ -180,11 +223,8 @@ const fetchNetworkUsers = async () => {
                     allTabBtn.classList.add('active');
                 }
                 appState.activeTab = 'all';
-                
-                renderSidebarList();
                 switchChatRoom(deterministicId);
             });
-
             listContainer.appendChild(item);
         });
     } catch (e) {
@@ -193,6 +233,8 @@ const fetchNetworkUsers = async () => {
 };
 
 export const renderSidebarList = () => {
+    if (appState.activeTab === 'calls') return renderCallLogs();
+
     const listContainer = document.getElementById('dynamic-user-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
@@ -205,6 +247,7 @@ export const renderSidebarList = () => {
 
         if (appState.activeTab === 'all') displayQualifies = true;
         if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
+        if (appState.activeTab === 'unread' && room.unread) displayQualifies = true;
 
         if (displayQualifies) {
             const isActive = appState.activeChatId === id ? 'active' : '';
@@ -212,17 +255,16 @@ export const renderSidebarList = () => {
             item.className = `user-item ${isActive}`;
             item.id = `btn-room-${id}`;
             
-            if (room.type === 'group') {
+            // PROFILE PICTURE FIX: Renders the dynamic avatar instead of a generic icon
+            if (room.isImage) {
+                item.innerHTML = `
+                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
+                    <div class="user-info"><h4>${room.name}</h4><p>Direct Message</p></div>
+                `;
+            } else {
                 item.innerHTML = `
                     <div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div>
                     <div class="user-info"><h4>${room.name}</h4><p>Tap to view messages</p></div>
-                `;
-            } else {
-                // Renders the ACTUAL profile picture in the sidebar
-                const picSrc = room.pic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-                item.innerHTML = `
-                    <img src="${picSrc}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/149/149071.png'">
-                    <div class="user-info"><h4>${room.name}</h4><p>Direct Message</p></div>
                 `;
             }
 
@@ -231,12 +273,7 @@ export const renderSidebarList = () => {
                 item.classList.add('active');
                 appState.activeChatId = id;
                 document.getElementById('active-room-name').innerText = room.name;
-                
-                if (room.type === 'group') {
-                    document.getElementById('active-room-icon-box').innerHTML = `<span id="active-room-icon" class="material-symbols-rounded">${room.icon}</span>`;
-                } else {
-                    document.getElementById('active-room-icon-box').innerHTML = `<img src="${room.pic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-                }
+                document.getElementById('active-room-icon').innerText = room.type === 'group' ? room.icon : 'person';
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
@@ -249,35 +286,19 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
-        const myUid = currentUser?.id || currentUser?.uid;
-        
         if (currentUser) {
             const myPic = currentUser.customProfilePic || currentUser.photoURL || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
             const navAvatar = document.getElementById('nav-profile-pic');
-            if (navAvatar) navAvatar.src = myPic;
+            if (navAvatar) { navAvatar.src = myPic; navAvatar.style.display = "block"; }
             
             const navName = document.getElementById('nav-profile-name');
             if (navName) navName.innerText = "Name: " + (currentUser.name || currentUser.fullName || "Authenticated User");
             
             const navEmail = document.getElementById('nav-profile-email');
             if (navEmail) navEmail.innerText = "Email: " + (currentUser.email || "No Email Bound");
-
-            // Cloud Inbox Listener - Automatically syncs inbound DMs
-            onSnapshot(collection(db, 'users', myUid, 'inbox'), (snapshot) => {
-                let requiresRender = false;
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const roomId = data.roomId;
-                    if (!dynamicDMs[roomId]) {
-                        dynamicDMs[roomId] = { name: data.senderName, pic: data.senderPic, type: 'dm', targetUid: doc.id };
-                        requiresRender = true;
-                    }
-                });
-                if (requiresRender) {
-                    saveDynamicDMs();
-                    if (appState.activeTab === 'all') renderSidebarList();
-                }
-            });
+            
+            // Trigger the Cloud Listener!
+            listenToCloudDMs();
         }
         
         initSettingsAndTheme();
