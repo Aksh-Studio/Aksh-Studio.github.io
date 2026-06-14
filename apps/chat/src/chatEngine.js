@@ -3,16 +3,12 @@ import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, do
 import { currentUser } from './auth.js';
 
 let unsubscribeListener = null;
-let pinListener = null;
+let roomStateListener = null;
 export let currentRoomId = null;
 let replyContext = null; 
 let messageToPin = null; 
 
-// WebRTC Hardware Scopes
 let localStream = null;
-let mediaRecorder = null;
-let recordedChunks = [];
-let isRecording = false;
 
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
@@ -25,78 +21,71 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- WEBRTC CALLING ---
+// --- TWO-WAY CALLING SYNCHRONIZATION ---
+const startLocalMedia = async (isVideo) => {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+        if (isVideo) {
+            const videoContainer = document.getElementById('video-container');
+            let videoEl = document.getElementById('local-video-stream');
+            if (!videoEl) {
+                videoEl = document.createElement('video');
+                videoEl.id = 'local-video-stream';
+                videoEl.autoplay = true; videoEl.playsInline = true; videoEl.muted = true; 
+                videoEl.style = 'width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; border-radius: 16px;';
+                videoContainer.appendChild(videoEl);
+            }
+            videoEl.srcObject = localStream;
+            videoEl.style.display = 'block';
+        }
+    } catch(e) { console.error("Hardware Blocked", e); }
+};
+
 const startCallUI = async (type) => {
     const targetName = document.getElementById('active-room-name').innerText;
     const overlay = document.getElementById('call-overlay');
     
+    // Logs outbound call locally
     let logs = JSON.parse(localStorage.getItem('call_logs')) || [];
-    logs.push({
-        target: targetName, type: type, status: 'Outgoing',
-        date: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    });
+    logs.push({ target: targetName, type: type, status: 'Outgoing', date: new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) });
     localStorage.setItem('call_logs', JSON.stringify(logs));
 
-    if (overlay) {
-        document.getElementById('call-target-name').innerText = targetName;
-        document.getElementById('call-status-text').innerText = type === 'Video' ? 'Requesting Camera...' : 'Requesting Microphone...';
-        
-        const icon = document.getElementById('call-center-icon');
-        if (icon) icon.innerText = type === 'Video' ? 'videocam' : 'person';
-        
-        overlay.style.display = 'flex';
+    // Signalling Firestore to ring the RECIPIENT'S device!
+    try {
+        await setDoc(doc(db, "chats", currentRoomId), {
+            callState: { callerId: currentUser.id || currentUser.uid, callerName: currentUser.name, type: type, status: 'ringing', timestamp: Date.now() }
+        }, { merge: true });
 
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'Video', audio: true });
-            document.getElementById('call-status-text').innerText = 'Ringing...';
+        if (overlay) {
+            document.getElementById('call-target-name').innerText = targetName;
+            document.getElementById('call-status-text').innerText = 'Calling...';
+            document.getElementById('call-center-icon').innerText = type === 'Video' ? 'videocam' : 'person';
+            
+            // Reset Call Answer Button to normal End state for caller
+            document.getElementById('btn-call-record').style.display = 'block';
+            const micBtn = document.getElementById('btn-call-mic');
+            micBtn.innerHTML = `<span class="material-symbols-rounded">mic</span>`;
+            micBtn.style.background = '#202c33';
+            micBtn.onclick = null; // Clear incoming hack
 
-            if (type === 'Video') {
-                const videoContainer = document.getElementById('video-container');
-                let videoEl = document.getElementById('local-video-stream');
-                
-                if (!videoEl) {
-                    videoEl = document.createElement('video');
-                    videoEl.id = 'local-video-stream';
-                    videoEl.autoplay = true;
-                    videoEl.playsInline = true;
-                    videoEl.muted = true; 
-                    videoEl.style.width = '100%';
-                    videoEl.style.height = '100%';
-                    videoEl.style.objectFit = 'cover';
-                    videoEl.style.position = 'absolute';
-                    videoEl.style.top = '0';
-                    videoEl.style.left = '0';
-                    videoEl.style.borderRadius = '16px';
-                    videoContainer.appendChild(videoEl);
-                }
-                videoEl.srcObject = localStream;
-                videoEl.style.display = 'block';
-            }
-        } catch (err) {
-            console.error("WebRTC Protocol Blocked:", err);
-            document.getElementById('call-status-text').innerText = 'Device Access Denied';
+            overlay.style.display = 'flex';
+            startLocalMedia(type === 'Video');
         }
-    }
+    } catch(e) { console.error(e); }
 };
 
-const endCallUI = () => {
+const endCallUI = async (updateDB = true) => {
     const overlay = document.getElementById('call-overlay');
     document.getElementById('call-status-text').innerText = 'Call Ended';
     
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
+    // Signal Firestore to terminate call on BOTH devices
+    if (updateDB && currentRoomId) {
+        try { await setDoc(doc(db, "chats", currentRoomId), { callState: { status: 'ended' } }, { merge: true }); } catch(e){}
     }
 
+    if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
     const videoEl = document.getElementById('local-video-stream');
     if (videoEl) videoEl.style.display = 'none';
-
-    if (isRecording && mediaRecorder) {
-        mediaRecorder.stop();
-        isRecording = false;
-        const recordBtn = document.getElementById('btn-call-record');
-        if (recordBtn) recordBtn.style.color = 'white';
-    }
 
     setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 800);
 };
@@ -110,23 +99,65 @@ export const switchChatRoom = (roomId) => {
     if (audioBtn) audioBtn.style.display = isPublicGroup ? 'none' : 'block';
     if (videoBtn) videoBtn.style.display = isPublicGroup ? 'none' : 'block';
 
-    listenToGlobalPin(roomId);
+    listenToRoomState(roomId); // Handles both Pins and Incoming Calls!
     listenToMessages(roomId);
 };
 
-const listenToGlobalPin = (roomId) => {
-    if (pinListener) pinListener();
-    pinListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
+// COMBINED LISTENER: Pins & Incoming Calls
+const listenToRoomState = (roomId) => {
+    if (roomStateListener) roomStateListener();
+    
+    roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         const data = documentObj.data();
+        if (!data) return;
+
+        // 1. PINNED MESSAGE RENDERER
         const banner = document.getElementById('pinned-message-banner');
-        
-        if (banner && data && data.pinnedMessage && Date.now() < data.pinExpiry) {
+        if (banner && data.pinnedMessage && Date.now() < data.pinExpiry) {
             document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(data.pinnedMessage);
             const titleEl = banner.querySelector('p');
             if (titleEl) titleEl.innerText = "Pinned Message";
             banner.style.display = 'flex';
         } else if (banner) {
             banner.style.display = 'none';
+        }
+
+        // 2. INCOMING CALL RENDERER
+        const curId = currentUser?.id || currentUser?.uid;
+        const overlay = document.getElementById('call-overlay');
+        
+        if (data.callState && data.callState.status === 'ringing' && data.callState.callerId !== curId) {
+            // RECIEVER SEES INCOMING CALL!
+            if (overlay && overlay.style.display !== 'flex') {
+                document.getElementById('call-target-name').innerText = data.callState.callerName;
+                document.getElementById('call-status-text').innerText = `Incoming ${data.callState.type} Call...`;
+                document.getElementById('call-center-icon').innerText = data.callState.type === 'Video' ? 'videocam' : 'call';
+                
+                // Hijack the middle button to act as a green 'Answer' button
+                document.getElementById('btn-call-record').style.display = 'none'; 
+                const answerBtn = document.getElementById('btn-call-mic');
+                answerBtn.innerHTML = `<span class="material-symbols-rounded">call</span>`;
+                answerBtn.style.background = '#00a884'; // Green Accept
+                
+                answerBtn.onclick = async () => {
+                    await setDoc(doc(db, "chats", currentRoomId), { callState: { ...data.callState, status: 'answered' } }, { merge: true });
+                    document.getElementById('call-status-text').innerText = 'Connected';
+                    answerBtn.style.background = '#202c33';
+                    answerBtn.innerHTML = `<span class="material-symbols-rounded">mic</span>`;
+                    startLocalMedia(data.callState.type === 'Video');
+                };
+                
+                overlay.style.display = 'flex';
+            }
+        } else if (data.callState && data.callState.status === 'ended') {
+            // Call terminated remotely
+            if (overlay && overlay.style.display === 'flex') {
+                document.getElementById('call-status-text').innerText = 'Call Ended';
+                setTimeout(() => endCallUI(false), 800); 
+            }
+        } else if (data.callState && data.callState.status === 'answered' && data.callState.callerId === curId) {
+            // Caller sees that the receiver accepted!
+            document.getElementById('call-status-text').innerText = 'Connected';
         }
     });
 };
@@ -178,8 +209,6 @@ export const listenToMessages = (roomId) => {
             const bubbleClass = isAdminMessage ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
             
             const formattedTextContent = parseWhatsAppFormatting(msg.text);
-            
-            // RENDERS ATTACHED IMAGES IF THEY EXIST IN THE DATABASE
             const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
 
             messagesHTML += `
@@ -224,81 +253,48 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-    // --- MEDIA BUTTON (IMAGE UPLOADER) ---
+    // --- INSTANT IMAGE COMPRESSOR ---
     const mediaBtn = document.getElementById('btn-media-upload');
     const fileInput = document.getElementById('hidden-file-input');
 
     if (mediaBtn && fileInput) {
-        mediaBtn.addEventListener('click', () => fileInput.click()); // Opens Device File Explorer
+        mediaBtn.addEventListener('click', () => fileInput.click()); 
         
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
-            // Only accept images for Base64 injection to protect database limits
-            if (!file.type.startsWith('image/')) {
-                return alert("Currently, only Image files are supported for direct chat attachments.");
-            }
+            if (!file.type.startsWith('image/')) return alert("Only images are supported.");
 
             const reader = new FileReader();
-            reader.onload = async (event) => {
-                const base64String = event.target.result;
-                const curId = currentUser?.id || currentUser?.uid;
-                
-                const payload = {
-                    text: "📷 Image Attached", // Default text for images
-                    imageUrl: base64String,    // Injects the image directly into Firestore
-                    senderId: curId,
-                    senderName: currentUser?.name || 'User',
-                    timestamp: serverTimestamp()
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = async () => {
+                    // Compress Image via Canvas to bypass Firebase size limits!
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800; // Resize to perfect chat-width
+                    const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH;
+                    canvas.height = img.height * scaleSize;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // Compress to 60% quality (~100kb)
+
+                    const curId = currentUser?.id || currentUser?.uid;
+                    const payload = { text: "📷 Image Attached", imageUrl: compressedBase64, senderId: curId, senderName: currentUser?.name || 'User', timestamp: serverTimestamp() };
+                    try { await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); } 
+                    catch (error) { console.error("Image Upload Failed", error); }
                 };
-                
-                try {
-                    await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload);
-                } catch (error) {
-                    console.error("Image Upload Failed", error);
-                    alert("Image is too large. Firebase limits documents to 1MB. Please compress your image.");
-                }
+                img.src = event.target.result;
             };
-            reader.readAsDataURL(file); // Converts image to text format
+            reader.readAsDataURL(file); 
         });
     }
 
-    // Call Actions
+    // Call Buttons
     document.getElementById('btn-start-audio-call')?.addEventListener('click', () => startCallUI('Voice'));
     document.getElementById('btn-start-video-call')?.addEventListener('click', () => startCallUI('Video'));
-    document.getElementById('btn-call-end')?.addEventListener('click', endCallUI);
-
-    document.getElementById('btn-call-record')?.addEventListener('click', () => {
-        if (!localStream) return alert("Hardware link required. Call must be active to record.");
-        const recordBtn = document.getElementById('btn-call-record');
-
-        if (!isRecording) {
-            recordedChunks = [];
-            mediaRecorder = new MediaRecorder(localStream);
-            
-            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const downloadAnchor = document.createElement('a');
-                downloadAnchor.style.display = 'none';
-                downloadAnchor.href = url;
-                downloadAnchor.download = `WebRTC_Call_Log_${Date.now()}.webm`;
-                document.body.appendChild(downloadAnchor);
-                downloadAnchor.click();
-                URL.revokeObjectURL(url);
-            };
-            
-            mediaRecorder.start();
-            isRecording = true;
-            if (recordBtn) recordBtn.style.color = '#ea0038'; 
-        } else {
-            mediaRecorder.stop();
-            isRecording = false;
-            if (recordBtn) recordBtn.style.color = 'white';
-        }
-    });
+    document.getElementById('btn-call-end')?.addEventListener('click', () => endCallUI(true)); // update db on end
 
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
@@ -306,13 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
             const snapshot = await getDocs(q);
             let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
-            
             snapshot.forEach(docObj => {
                 const m = docObj.data();
                 const stamp = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Processing";
                 logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
             });
-            
             const fileBlob = new Blob([logOutput], { type: 'text/plain' });
             const fileUrl = URL.createObjectURL(fileBlob);
             const anchor = document.createElement('a');
@@ -328,11 +322,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
-        
         let hasUnauthorizedMessage = false;
         const curId = currentUser?.id || currentUser?.uid;
         selected.forEach(box => { if (box.getAttribute('data-sender') !== curId && !currentUser?.isAdmin) { hasUnauthorizedMessage = true; } });
-        
         const deleteEveryoneBtn = document.getElementById('btn-delete-everyone');
         if (deleteEveryoneBtn) { deleteEveryoneBtn.style.display = hasUnauthorizedMessage ? 'none' : 'block'; }
         document.getElementById('delete-modal').style.display = 'flex';
