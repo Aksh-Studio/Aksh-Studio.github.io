@@ -5,6 +5,7 @@ import { switchChatRoom } from './chatEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
+// UNIVERSAL BROADCAST NODES: Pre-installed for everyone
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group' },
     'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group' }
@@ -12,43 +13,50 @@ export const roomsInfo = {
 
 export let dynamicRooms = {}; 
 
-window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; // Forwarding Modals Link
+window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
 const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
+    // Listen to chats you are specifically added to
     const q = query(collection(db, "chats"), where("participants", "array-contains", curId));
     
-    onSnapshot(q, (snapshot) => {
+    // Also explicitly listen to the System Broadcast nodes so the Owner's changes update live
+    onSnapshot(collection(db, "chats"), (snapshot) => {
         dynamicRooms = {}; 
+        const myName = String(currentUser.name || "").toLowerCase().trim();
         
         snapshot.forEach(docObj => {
             const data = docObj.data();
+            const roomId = docObj.id;
             
-            if (docObj.id === 'global_channel' || docObj.id === 'aksh_help') {
-                if(data.name) roomsInfo[docObj.id].name = data.name;
-                if(data.icon) roomsInfo[docObj.id].icon = data.icon;
+            // 1. Update System Rooms natively
+            if (roomId === 'global_channel' || roomId === 'aksh_help') {
+                if(data.name) roomsInfo[roomId].name = data.name;
+                if(data.icon) roomsInfo[roomId].icon = data.icon;
             } 
-            else if (data.type === 'dm') {
+            // 2. Load DMs you are a part of
+            else if (data.type === 'dm' && data.participants?.includes(curId)) {
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
                 
                 const otherNameRaw = data.names[otherId] || 'User';
                 
-                dynamicRooms[docObj.id] = {
+                dynamicRooms[roomId] = {
                     name: otherNameRaw,
                     icon: data.avatars[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherNameRaw)}&background=00a884&color=fff`,
                     type: 'dm',
                     isImage: true 
                 };
             }
-            else if (data.type === 'group') {
-                dynamicRooms[docObj.id] = {
+            // 3. Load Custom Groups you are a part of
+            else if (data.type === 'group' && data.participants?.includes(curId)) {
+                dynamicRooms[roomId] = {
                     name: data.name || 'Custom Group',
                     icon: data.icon || 'groups',
                     type: 'group',
-                    isImage: !!(data.icon && data.icon.startsWith('data:image') || data.icon.startsWith('http'))
+                    isImage: !!(data.icon && (data.icon.startsWith('data:image') || data.icon.startsWith('http')))
                 };
             }
         });
@@ -114,6 +122,10 @@ const initNavigation = () => {
         });
     }
 
+    // CALL ENGINE PURGED
+    const callRailBtn = document.getElementById('rail-calls');
+    if (callRailBtn) callRailBtn.style.display = 'none';
+
     document.getElementById('rail-chats')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.add('active');
         const tabs = document.querySelector('.chat-tabs');
@@ -162,7 +174,7 @@ const initNavigation = () => {
             document.getElementById('active-room-name').innerText = groupName;
             document.getElementById('active-room-icon').innerText = 'groups';
             switchChatRoom(newGroupId);
-            alert("Group created! Click the Gear icon to manage members and icon.");
+            alert("Group created! Click the Gear icon to upload a logo and add members.");
         } catch(e) { alert("Database Permission Error."); }
     });
 };
@@ -230,9 +242,7 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
-    } catch (e) {
-        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>';
-    }
+    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
 window.deleteSidebarChat = async (roomId) => {
