@@ -6,7 +6,7 @@ let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
 export let currentRoomData = null; 
-export let currentMessagesSnapshot = []; // Global Cache for Reactivity Redraws
+export let currentMessagesSnapshot = []; 
 let replyContext = null; 
 let messageToPin = null; 
 let uploadedGroupIconBase64 = null; 
@@ -130,6 +130,7 @@ window.addGroupMember = async (newMemberId) => {
         document.getElementById('search-member-input').value = '';
         document.getElementById('search-member-results').innerHTML = '';
         document.getElementById('search-member-results').style.display = 'none';
+        alert("Member successfully added.");
     } catch(e) { alert("Failed to add member."); }
 };
 
@@ -177,7 +178,6 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- BUG FIX: OMNI-SEARCH NETWORK ALGORITHM ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -189,7 +189,6 @@ const populateGroupManagement = async (participants, admins) => {
         });
     } catch(e) {}
 
-    // Fallback: If network fetch misses them, inject users directly from active sidebar history
     const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
     Object.keys(availableRooms).forEach(rId => {
         const room = availableRooms[rId];
@@ -245,7 +244,6 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
     
-    // --- BUG FIX: INSTANT HEADER RENDERER ---
     const titleEl = document.getElementById('active-room-name');
     const iconBox = document.getElementById('active-room-icon-box');
     
@@ -262,6 +260,10 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
 
     document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
     
+    // --- FIX 1: INSTANT DOM PURGE FOR GHOST MESSAGES ---
+    currentMessagesSnapshot = []; 
+    renderMessagesUI();
+
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
@@ -269,14 +271,14 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) {
             myLastReceiptUpdate = Date.now();
-            setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
+            setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: Date.now() } }, { merge: true });
         }
     } catch(e) {}
 };
 
-// --- REACTIVE UI REDRAW ENGINE FOR BLUE TICKS ---
+// --- ISOLATED REACTIVE RENDER ENGINE ---
 const renderMessagesUI = () => {
-    if (!currentMessagesSnapshot || currentMessagesSnapshot.length === 0 || !currentRoomId) return;
+    if (!currentRoomId) return; 
     
     const container = document.getElementById('chat-messages-container');
     if (!container) return;
@@ -296,90 +298,92 @@ const renderMessagesUI = () => {
     }
     const otherParticipants = participantList.filter(id => id !== curId);
 
-    currentMessagesSnapshot.forEach((documentObj) => {
-        const msgId = documentObj.id;
-        if (hiddenMsgs.includes(msgId)) return;
+    if (currentMessagesSnapshot && currentMessagesSnapshot.length > 0) {
+        currentMessagesSnapshot.forEach((documentObj) => {
+            const msgId = documentObj.id;
+            if (hiddenMsgs.includes(msgId)) return;
 
-        const msg = documentObj.data();
-        const isMe = msg.senderId === curId; 
-        const isFirstInGroup = previousSenderId !== msg.senderId;
-        const isSystemAdminMsg = msg.isOwner === true && (currentRoomId === 'global_channel' || currentRoomId === 'aksh_help');
+            const msg = documentObj.data();
+            const isMe = msg.senderId === curId; 
+            const isFirstInGroup = previousSenderId !== msg.senderId;
+            const isSystemAdminMsg = msg.isOwner === true && (currentRoomId === 'global_channel' || currentRoomId === 'aksh_help');
 
-        let timeString = "Sending...";
-        let tickHTML = "";
-        
-        // --- BUG FIX: BULLETPROOF BLUE TICK MATH ---
-        let msgTime = 0;
-        if (msg.timestamp && msg.timestamp.toMillis) {
-            msgTime = msg.timestamp.toMillis();
-            timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (msg.localTimestamp) {
-            msgTime = msg.localTimestamp;
-        }
-
-        if (isMe && msgTime > 0) {
-            let allRead = false;
-            if (otherParticipants.length > 0) {
-                allRead = otherParticipants.every(pid => {
-                    const recObj = readReceipts[pid];
-                    let rTime = 0;
-                    if (recObj && recObj.toMillis) rTime = recObj.toMillis();
-                    else if (typeof recObj === 'number') rTime = recObj;
-
-                    // It is Blue if the recipient timestamp is perfectly equal to or newer than the message
-                    return rTime > 0 && rTime >= (msgTime - 5000); 
-                });
+            let timeString = "Sending...";
+            let tickHTML = "";
+            
+            let msgTime = 0;
+            if (msg.timestamp && msg.timestamp.toMillis) {
+                msgTime = msg.timestamp.toMillis();
+                timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (msg.localTimestamp) {
+                msgTime = msg.localTimestamp;
             }
-            const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
-            tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
-        }
 
-        let roleBadge = '';
-        if (msg.isOwner === true) {
-            roleBadge = ' <span style="color:var(--primary); font-size:11px; font-weight:700;">(Owner)</span>';
-        } else if (currentRoomData?.admins?.includes(msg.senderId)) {
-            roleBadge = ' <span style="color:var(--text-muted); font-size:11px; font-weight:700;">(Admin)</span>';
-        }
+            if (isMe && msgTime > 0) {
+                let allRead = false;
+                if (otherParticipants.length > 0) {
+                    allRead = otherParticipants.every(pid => {
+                        const recObj = readReceipts[pid];
+                        let rTime = 0;
+                        if (recObj && recObj.toMillis) rTime = recObj.toMillis();
+                        else if (typeof recObj === 'number') rTime = recObj;
 
-        const showName = isSystemAdminMsg || (!isMe && isFirstInGroup);
-        const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
-        const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
-        
-        const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
+                        // Accommodates 1-minute clock drift between independent devices
+                        return rTime > 0 && rTime >= (msgTime - 60000); 
+                    });
+                }
+                const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
+                tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
+            }
 
-        const actionMenuHTML = `
-            <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
-                <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
-            </div>
-            <div class="msg-action-menu" id="menu-${msgId}">
-                <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
-                <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
-                <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Delete</button>
-                <button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>
-            </div>
-        `;
+            let roleBadge = '';
+            if (msg.isOwner === true) {
+                roleBadge = ' <span style="color:var(--primary); font-size:11px; font-weight:700;">(Owner)</span>';
+            } else if (currentRoomData?.admins?.includes(msg.senderId)) {
+                roleBadge = ' <span style="color:var(--text-muted); font-size:11px; font-weight:700;">(Admin)</span>';
+            }
 
-        const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
-        const alignmentClass = isSystemAdminMsg ? 'admin' : (isMe ? 'me' : 'other');
-        const bubbleClass = isSystemAdminMsg ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
-        
-        const formattedTextContent = parseWhatsAppFormatting(msg.text);
-        const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
+            const showName = isSystemAdminMsg || (!isMe && isFirstInGroup);
+            const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
+            const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
+            
+            const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
 
-        messagesHTML += `
-            <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
-                ${checkboxHTML}
-                <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
-                    ${actionMenuHTML} ${senderNameHTML} ${replyHTML}
-                    ${imageAttachmentHTML}
-                    <span id="text-${msgId}">${formattedTextContent}</span>
-                    <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
+            const actionMenuHTML = `
+                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
                 </div>
-            </div>
-        `;
-        previousSenderId = msg.senderId;
-    });
+                <div class="msg-action-menu" id="menu-${msgId}">
+                    <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
+                    <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
+                    <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Delete</button>
+                    <button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>
+                </div>
+            `;
 
+            const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
+            const alignmentClass = isSystemAdminMsg ? 'admin' : (isMe ? 'me' : 'other');
+            const bubbleClass = isSystemAdminMsg ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
+            
+            const formattedTextContent = parseWhatsAppFormatting(msg.text);
+            const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
+
+            messagesHTML += `
+                <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
+                    ${checkboxHTML}
+                    <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
+                        ${actionMenuHTML} ${senderNameHTML} ${replyHTML}
+                        ${imageAttachmentHTML}
+                        <span id="text-${msgId}">${formattedTextContent}</span>
+                        <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
+                    </div>
+                </div>
+            `;
+            previousSenderId = msg.senderId;
+        });
+    }
+
+    // Completely overwrites the DOM payload every single time so ghost groups cannot exist
     container.innerHTML = messagesHTML;
     container.scrollTop = container.scrollHeight; 
 };
@@ -448,8 +452,7 @@ const listenToRoomState = (roomId) => {
             }
         }
         
-        // --- REACTIVITY TRIGGER ---
-        // Forces UI to redraw and turn ticks blue instantly when the readReceipt payload arrives
+        // Forces UI to redraw and turn ticks blue instantly when the readReceipt room payload arrives
         if (currentMessagesSnapshot.length > 0) renderMessagesUI();
     });
 };
@@ -459,16 +462,19 @@ export const listenToMessages = (roomId) => {
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
     unsubscribeListener = onSnapshot(q, (snapshot) => {
-        // Cache messages globally for Reactivity Redraws
         currentMessagesSnapshot = snapshot.docs;
         const curId = currentUser?.id || currentUser?.uid;
-        
+
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
-            // Push receipt immediately to Firebase so the sender's UI updates
-            if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
+            const msgTime = lastMsg.localTimestamp || (lastMsg.timestamp ? lastMsg.timestamp.toMillis() : 0);
+            
+            // --- FIX 2: RACE CONDITION DESTROYER ---
+            // The instant a new message arrives from someone else that is newer than your last receipt update, 
+            // the system overrides the throttle and immediately stamps it.
+            if (lastMsg.senderId !== curId && msgTime > myLastReceiptUpdate) {
                 myLastReceiptUpdate = Date.now();
-                try { setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true }); } catch(e){}
+                try { setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: Date.now() } }, { merge: true }); } catch(e){}
             }
         }
         
@@ -498,7 +504,7 @@ export const sendMessage = async () => {
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
-        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
+        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: Date.now() } }, { merge: true });
     } catch (error) {}
 };
 
@@ -606,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         myLastReceiptUpdate = Date.now();
-                        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
+                        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: Date.now() } }, { merge: true });
                     } catch (error) {}
                 };
                 img.src = event.target.result;
