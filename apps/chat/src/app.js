@@ -11,7 +11,6 @@ export const roomsInfo = {
 };
 
 export let dynamicRooms = {}; 
-
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
 const listenToCloudRooms = () => {
@@ -38,7 +37,6 @@ const listenToCloudRooms = () => {
                 if (!otherId || otherId === curId) return; 
                 
                 const otherNameRaw = data.names[otherId] || 'User';
-                
                 dynamicRooms[roomId] = {
                     name: otherNameRaw,
                     icon: data.avatars[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherNameRaw)}&background=00a884&color=fff`,
@@ -94,8 +92,6 @@ const initNavigation = () => {
         });
     }
 
-    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
-
     document.getElementById('rail-chats')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.add('active');
         const tabs = document.querySelector('.chat-tabs');
@@ -141,11 +137,6 @@ const initNavigation = () => {
             });
             
             appState.activeChatId = newGroupId;
-            document.getElementById('active-room-name').innerText = groupName;
-            
-            const iconEl = document.getElementById('active-room-icon');
-            iconEl.innerHTML = `<span class="material-symbols-rounded">groups</span>`;
-            
             switchChatRoom(newGroupId);
             alert("Group created! Click the Gear icon to upload a logo and add members.");
         } catch(e) {}
@@ -202,12 +193,6 @@ const fetchNetworkUsers = async () => {
                 } catch(e) {}
 
                 appState.activeChatId = deterministicId;
-                document.getElementById('active-room-name').innerText = rawName;
-                
-                const iconEl = document.getElementById('active-room-icon');
-                iconEl.style.background = 'transparent';
-                iconEl.innerHTML = `<img src="${pic}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-                
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
@@ -218,7 +203,7 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
-    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
+    } catch (e) {}
 };
 
 window.deleteSidebarChat = async (roomId) => {
@@ -229,7 +214,11 @@ window.deleteSidebarChat = async (roomId) => {
                 appState.activeChatId = null;
                 document.getElementById('chat-messages-container').innerHTML = '';
                 document.getElementById('active-room-name').innerText = 'Select a chat';
-                document.getElementById('active-room-icon').innerHTML = `<span class="material-symbols-rounded">chat</span>`;
+                const iconBox = document.getElementById('active-room-icon-box');
+                if (iconBox) {
+                    iconBox.style.background = '#dfe5e7';
+                    iconBox.innerHTML = `<span class="material-symbols-rounded">chat</span>`;
+                }
             }
         } catch(e) { alert("Delete failed. Check permissions."); }
     }
@@ -289,19 +278,6 @@ export const renderSidebarList = () => {
                 document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 appState.activeChatId = id;
-                
-                // FIX 2: Dynamic Image Injection for the Chat Header
-                document.getElementById('active-room-name').innerText = room.name;
-                const iconEl = document.getElementById('active-room-icon');
-                
-                if (room.isImage) {
-                    iconEl.style.background = 'transparent';
-                    iconEl.innerHTML = `<img src="${room.icon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-                } else {
-                    iconEl.style.background = 'var(--app-bg)';
-                    iconEl.innerHTML = `<span class="material-symbols-rounded">${room.type === 'group' ? room.icon : 'person'}</span>`;
-                }
-                
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 switchChatRoom(id);
