@@ -4,7 +4,6 @@ import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
     
-    // STRICT OWNER LOCK
     get isOwner() { 
         const e = String(this.email).toLowerCase().trim();
         return e === 'akshat124.am12@gmail.com'; 
@@ -43,19 +42,17 @@ export const initAuth = (onSuccessBoot) => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             let dName = user.displayName;
-            let pUrl = null; // Start null to force custom fetch
+            let pUrl = null; 
             
-            // PROFILE PIC BUG FIX: Rigidly await Firestore BEFORE booting UI
             try {
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
                     const data = uDoc.data();
                     dName = data.fullName || data.name || dName;
-                    pUrl = data.customProfilePic || data.photoURL; // Prioritize Database Image
+                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage;
                 }
             } catch (error) {}
             
-            // Fallback to Google photo only if DB is empty
             pUrl = pUrl || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(dName || 'User')}&background=00a884&color=fff`;
             
             forceBoot(user.uid, user.email, dName, pUrl);
