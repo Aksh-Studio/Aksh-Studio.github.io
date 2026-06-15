@@ -4,7 +4,6 @@ import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
     
-    // STRICT OWNER LOCK
     get isOwner() { 
         const e = String(this.email).toLowerCase().trim();
         return e === 'akshat124.am12@gmail.com'; 
@@ -18,13 +17,20 @@ export const initAuth = (onSuccessBoot) => {
     let isBooted = false;
 
     const forceBoot = (uid, email, name, photo) => {
-        if (isBooted) return;
+        if (isBooted) {
+            // Late-arriving Firestore photo patch
+            if (photo && photo !== currentUser.photoURL) {
+                currentUser.photoURL = photo;
+                const picEl = document.getElementById('nav-profile-pic');
+                if (picEl) picEl.src = photo;
+            }
+            return;
+        }
         isBooted = true;
 
         currentUser.id = uid;
         currentUser.email = email;
         currentUser.name = name || email.split('@')[0];
-        // PROFILE PIC BUG FIX: Prioritize the passed photo (from DB) before fallback
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
         if (overlay) overlay.style.display = 'none';
@@ -49,14 +55,17 @@ export const initAuth = (onSuccessBoot) => {
         if (user) {
             let dName = user.displayName;
             let pUrl = user.photoURL;
+            
+            // PROFILE BUG FIX: Await Firestore rigidly before rendering avatar
             try {
-                // PROFILE PIC BUG FIX: Strictly fetch custom profile pic from Firestore
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
-                    dName = uDoc.data().fullName || dName;
-                    pUrl = uDoc.data().customProfilePic || uDoc.data().photoURL || pUrl;
+                    const data = uDoc.data();
+                    dName = data.fullName || data.name || dName;
+                    pUrl = data.customProfilePic || data.photoURL || pUrl;
                 }
             } catch (error) {}
+            
             forceBoot(user.uid, user.email, dName, pUrl);
         } else {
             const localEmail = localStorage.getItem('aksh_user_email') || localStorage.getItem('email');
