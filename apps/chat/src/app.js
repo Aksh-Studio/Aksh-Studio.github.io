@@ -92,6 +92,9 @@ const initNavigation = () => {
         });
     }
 
+    // --- ABSOLUTE PURGE OF CALL BUTTONS ---
+    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
+
     document.getElementById('rail-chats')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.add('active');
         const tabs = document.querySelector('.chat-tabs');
