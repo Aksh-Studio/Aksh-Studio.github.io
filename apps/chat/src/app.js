@@ -13,6 +13,11 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
+// --- ABSOLUTE PURGE OF CALL BUTTONS ---
+const style = document.createElement('style');
+style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; }`;
+document.head.appendChild(style);
+
 const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
@@ -91,9 +96,6 @@ const initNavigation = () => {
             });
         });
     }
-
-    // --- ABSOLUTE PURGE OF CALL BUTTONS ---
-    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
 
     document.getElementById('rail-chats')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.add('active');
@@ -207,7 +209,7 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
-    } catch (e) {}
+    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
 window.deleteSidebarChat = async (roomId) => {
