@@ -40,7 +40,7 @@ const injectGroupAdminModal = () => {
                 
                 <div id="add-member-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                    <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                    <input type="text" id="search-member-input" placeholder="Search by exact name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
                     <div id="search-member-results" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
                 </div>
 
@@ -172,7 +172,6 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- FIX 4: ROBUST SEARCH ARRAY BUILDER ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -230,6 +229,7 @@ export const switchChatRoom = (roomId) => {
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
+    // Explicitly update read receipt when you open the room
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
@@ -241,7 +241,6 @@ const listenToRoomState = (roomId) => {
     roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
         
-        // Ensure legacy DMs map fallback participants directly from the deterministic ID
         if (roomId.startsWith('dm_') && (!currentRoomData.participants || currentRoomData.participants.length === 0)) {
             const splitIds = roomId.replace('dm_', '').split('_');
             currentRoomData.participants = splitIds;
@@ -270,35 +269,47 @@ const listenToRoomState = (roomId) => {
         if (existingGear) existingGear.remove();
 
         const titleEl = document.getElementById('active-room-name');
-        
-        if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
-            const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
-            
-            // Cleanly strips old HTML artifacts from the title string
-            const rawTitle = titleEl.innerText.replace('settings', '').trim();
-            titleEl.innerHTML = `${rawTitle} ${gearHTML}`;
-            
-            document.getElementById('group-settings-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                injectGroupAdminModal(); 
-                
-                document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
-                document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+        const iconBox = document.getElementById('active-room-icon-box');
 
-                document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
-                document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+        // CHAT HEADER LOGO INJECTION
+        if (titleEl && iconBox) {
+            titleEl.innerText = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Chat');
+            
+            // Check if logo exists in database and replace text icon with image
+            if (currentRoomData.icon && (currentRoomData.icon.startsWith('http') || currentRoomData.icon.startsWith('data:image'))) {
+                iconBox.style.background = 'transparent';
+                iconBox.innerHTML = `<img src="${currentRoomData.icon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+            } else {
+                iconBox.style.background = '#dfe5e7';
+                iconBox.innerHTML = `<span id="active-room-icon" class="material-symbols-rounded">${currentRoomData.type === 'group' || isSystemGroup ? 'groups' : 'person'}</span>`;
+            }
 
-                if (canEdit) {
-                    document.getElementById('edit-group-name').value = currentRoomData.name || '';
-                    document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                    document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-                }
+            if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
+                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
+                titleEl.insertAdjacentHTML('beforeend', gearHTML);
                 
-                populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
-                document.getElementById('group-admin-modal').style.display = 'flex';
-            });
+                document.getElementById('group-settings-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    injectGroupAdminModal(); 
+                    
+                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+
+                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
+                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+
+                    if (canEdit) {
+                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                    }
+                    
+                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
+                    document.getElementById('group-admin-modal').style.display = 'flex';
+                });
+            }
         }
     });
 };
@@ -320,13 +331,13 @@ export const listenToMessages = (roomId) => {
         const readReceipts = currentRoomData?.readReceipts || {};
         const curId = currentUser?.id || currentUser?.uid;
         
-        // Ensures DM participant isolation
         let participantList = currentRoomData?.participants || [];
         if (roomId.startsWith('dm_') && participantList.length === 0) {
             participantList = roomId.replace('dm_', '').split('_');
         }
         const otherParticipants = participantList.filter(id => id !== curId);
 
+        // Update read receipt dynamically if you are in the room looking at a new message
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             if (lastMsg.senderId !== curId) {
@@ -346,7 +357,6 @@ export const listenToMessages = (roomId) => {
             let timeString = "Sending...";
             let tickHTML = "";
             
-            // --- FIX 3: BLUE TICK LATENCY MATH ---
             if (msg.timestamp) {
                 const msgTime = msg.timestamp.toMillis();
                 timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -354,8 +364,8 @@ export const listenToMessages = (roomId) => {
                 if (isMe) {
                     let allRead = false;
                     if (otherParticipants.length > 0) {
-                        // Math buffer: Assumes it was read if the receipt stamp is roughly equal to or newer than the message stamp
-                        allRead = otherParticipants.every(pid => readReceipts[pid] && readReceipts[pid] >= (msgTime - 2000));
+                        // FIXED: Applies 120-second active buffer to defeat race-conditions
+                        allRead = otherParticipants.every(pid => readReceipts[pid] && readReceipts[pid] >= (msgTime - 120000));
                     }
                     const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
                     tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
@@ -481,9 +491,10 @@ window.forwardSelectedMessages = async () => {
                     if (msgDoc.exists()) {
                         const originalData = msgDoc.data();
                         
-                        const prefix = "_▶ Forwarded_\n\n";
+                        // FIX: Forces visible italics for the forwarded tag
+                        const prefix = "_▶ Forwarded_ \n\n";
                         let finalizedText = originalData.text;
-                        if (!finalizedText.includes(prefix.trim())) finalizedText = prefix + finalizedText;
+                        if (!finalizedText.includes("▶ Forwarded")) finalizedText = prefix + finalizedText;
 
                         const fwdPayload = {
                             text: finalizedText,
@@ -548,8 +559,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const forwardBtnTop = document.getElementById('btn-action-forward');
-    if (forwardBtnTop) forwardBtnTop.addEventListener('click', window.forwardSelectedMessages);
+    // Explicitly binds the HTML buttons to the JS Execution Logic
+    const fwdBtn = document.getElementById('btn-action-forward');
+    if (fwdBtn) fwdBtn.addEventListener('click', window.forwardSelectedMessages);
+    
+    // Explicitly binds the Native HTML Cancel Selection button to remove the Double X bug
+    const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
+    if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
@@ -642,7 +658,7 @@ window.replyToMessage = (msgId) => {
 };
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
 
-// --- FIX 1: DUPLICATE 'X' BUTTON REMOVED ---
+// NO MORE INJECTED BUTTONS: Strictly hooks into the HTML to prevent duplicates
 window.enableSelectionMode = (enable = true) => {
     const container = document.getElementById('chat-messages-container');
     const selectionHeader = document.getElementById('selection-chat-header');
@@ -650,16 +666,7 @@ window.enableSelectionMode = (enable = true) => {
     if (enable) {
         container.classList.add('selection-mode');
         document.getElementById('standard-chat-header').style.display = 'none';
-        
-        if (selectionHeader) {
-            // Uniquely target our injected button and replace safely if missing
-            const oldCloseBtn = document.getElementById('injected-close-btn');
-            if (!oldCloseBtn) {
-                const cancelBtnHTML = `<span id="injected-close-btn" class="material-symbols-rounded" style="cursor: pointer; margin-right: 15px; color: var(--text-main);" onclick="window.enableSelectionMode(false)">close</span>`;
-                selectionHeader.insertAdjacentHTML('afterbegin', cancelBtnHTML);
-            }
-            selectionHeader.style.display = 'flex';
-        }
+        if (selectionHeader) selectionHeader.style.display = 'flex';
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
     } else {
         container.classList.remove('selection-mode');
