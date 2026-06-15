@@ -12,6 +12,8 @@ export const roomsInfo = {
 
 export let dynamicRooms = {}; 
 
+window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; // Forwarding Modals Link
+
 const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
@@ -20,9 +22,7 @@ const listenToCloudRooms = () => {
     
     onSnapshot(q, (snapshot) => {
         dynamicRooms = {}; 
-        const myName = String(currentUser.name || "").toLowerCase().trim();
-        const ownerEmail = 'akshat124.am12@gmail.com';
-
+        
         snapshot.forEach(docObj => {
             const data = docObj.data();
             
@@ -35,10 +35,6 @@ const listenToCloudRooms = () => {
                 if (!otherId || otherId === curId) return; 
                 
                 const otherNameRaw = data.names[otherId] || 'User';
-                const otherNameLower = String(otherNameRaw).toLowerCase().trim();
-                
-                if (otherNameLower === myName) return; 
-                if (otherNameRaw === currentUser.email.split('@')[0]) return;
                 
                 dynamicRooms[docObj.id] = {
                     name: otherNameRaw,
@@ -108,7 +104,6 @@ const initSettingsAndTheme = () => {
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
-    // SEARCH BAR ENGINE FIX: Instantly filters sidebar users
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
@@ -118,9 +113,6 @@ const initNavigation = () => {
             });
         });
     }
-
-    const callRailBtn = document.getElementById('rail-calls');
-    if (callRailBtn) callRailBtn.style.display = 'none';
 
     document.getElementById('rail-chats')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.add('active');
@@ -136,7 +128,7 @@ const initNavigation = () => {
             e.target.classList.add('active');
             appState.activeTab = e.target.getAttribute('data-tab');
             
-            if (searchInput) searchInput.value = ''; // Reset search on tab change
+            if (searchInput) searchInput.value = ''; 
             
             if (appState.activeTab === 'network') {
                 if (searchInput) searchInput.placeholder = "Search Network Directory...";
@@ -170,7 +162,7 @@ const initNavigation = () => {
             document.getElementById('active-room-name').innerText = groupName;
             document.getElementById('active-room-icon').innerText = 'groups';
             switchChatRoom(newGroupId);
-            alert("Group created! Click the Gear icon next to the Group Name to manage members and icon.");
+            alert("Group created! Click the Gear icon to manage members and icon.");
         } catch(e) { alert("Database Permission Error."); }
     });
 };
@@ -187,7 +179,6 @@ const fetchNetworkUsers = async () => {
         const myUid = String(currentUser?.id || "").trim();
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
         const myName = String(currentUser?.name || "").toLowerCase().trim();
-        const ownerEmail = 'akshat124.am12@gmail.com';
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
@@ -199,7 +190,7 @@ const fetchNetworkUsers = async () => {
             if (targetUid === myUid) return; 
             if (targetEmail === myEmail && myEmail !== "") return; 
             if (targetNameLower === myName && myName !== "") return;
-            if (currentUser.isOwner && targetEmail === ownerEmail) return;
+            if (currentUser.isOwner && targetEmail === 'akshat124.am12@gmail.com') return;
             
             const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
             
@@ -257,9 +248,6 @@ window.deleteSidebarChat = async (roomId) => {
         } catch(e) { alert("Delete failed. Check permissions."); }
     }
 };
-
-// Global helper to expose current rooms to the Forwarding Engine in chatEngine.js
-window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; };
 
 export const renderSidebarList = () => {
     const listContainer = document.getElementById('dynamic-user-list');
