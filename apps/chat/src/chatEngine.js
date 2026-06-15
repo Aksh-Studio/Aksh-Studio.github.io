@@ -40,7 +40,7 @@ const injectGroupAdminModal = () => {
                 
                 <div id="add-member-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                    <input type="text" id="search-member-input" placeholder="Search by exact name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                    <input type="text" id="search-member-input" placeholder="Search by exact name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
                     <div id="search-member-results" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
                 </div>
 
@@ -101,11 +101,7 @@ const injectGroupAdminModal = () => {
         if (newAdminId) updates.admins = [newAdminId]; 
         
         if (Object.keys(updates).length > 0) {
-            try { 
-                // Merge guarantees System Groups get created in the DB if they don't exist yet
-                await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true }); 
-                alert("Group settings saved."); 
-            } 
+            try { await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true }); alert("Group settings saved."); } 
             catch(e) { alert("Error saving settings."); }
         }
         document.getElementById('group-admin-modal').style.display = 'none';
@@ -177,13 +173,13 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- BUG FIX: AVOID STRING CRASHES DURING SEARCH LOOP ---
+    // --- SEARCH LOOP BUG FIX ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
-            const safeEmail = String(u.email || ''); // Guarantees no crashes
+            const safeEmail = u.email ? String(u.email) : ''; 
             const safeName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'User');
             allUsers.push({ id: d.id, name: safeName, email: safeEmail });
         });
@@ -207,9 +203,9 @@ const populateGroupManagement = async (participants, admins) => {
         filtered.forEach(u => {
             htmlString += `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border);">
-                    <div style="display: flex; flex-direction: column; text-align: left; overflow: hidden;">
+                    <div style="display: flex; flex-direction: column; text-align: left; overflow: hidden; max-width: 70%;">
                         <span style="font-size: 13px; color: var(--text-main); font-weight: 600; white-space: nowrap; text-overflow: ellipsis;">${u.name}</span>
-                        <span style="font-size: 11px; color: var(--text-muted);">${u.email}</span>
+                        <span style="font-size: 11px; color: var(--text-muted); white-space: nowrap; text-overflow: ellipsis;">${u.email}</span>
                     </div>
                     <button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0;">Add</button>
                 </div>
@@ -219,7 +215,11 @@ const populateGroupManagement = async (participants, admins) => {
     };
 
     renderSearch(); 
-    searchInput.oninput = (e) => renderSearch(e.target.value);
+    
+    // Purges old listeners to prevent duplication glitches
+    const newInput = searchInput.cloneNode(true);
+    searchInput.parentNode.replaceChild(newInput, searchInput);
+    newInput.addEventListener('input', (e) => renderSearch(e.target.value));
 };
 
 window.kickUser = async (targetUid) => {
@@ -278,12 +278,29 @@ const listenToRoomState = (roomId) => {
         const titleEl = document.getElementById('active-room-name');
         const iconBox = document.getElementById('active-room-icon-box');
 
+        // --- BUG FIX: CHAT HEADER DM NAMES AND LOGOS ---
         if (titleEl && iconBox) {
-            titleEl.innerText = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Chat');
+            let displayRoomName = currentRoomData.name || 'Chat';
+            let displayRoomIcon = currentRoomData.icon;
+            let isIconImage = false;
+
+            // Extracts the OTHER person's name and picture if it's a DM
+            if (currentRoomData.type === 'dm') {
+                const otherId = currentRoomData.participants?.find(id => id !== curId);
+                if (otherId) {
+                    displayRoomName = currentRoomData.names?.[otherId] || 'User';
+                    displayRoomIcon = currentRoomData.avatars?.[otherId];
+                    isIconImage = true; 
+                }
+            } else {
+                isIconImage = displayRoomIcon && (displayRoomIcon.startsWith('http') || displayRoomIcon.startsWith('data:image'));
+            }
+
+            titleEl.innerText = displayRoomName;
             
-            if (currentRoomData.icon && (currentRoomData.icon.startsWith('http') || currentRoomData.icon.startsWith('data:image'))) {
+            if (isIconImage && displayRoomIcon) {
                 iconBox.style.background = 'transparent';
-                iconBox.innerHTML = `<img src="${currentRoomData.icon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                iconBox.innerHTML = `<img src="${displayRoomIcon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
             } else {
                 iconBox.style.background = '#dfe5e7';
                 iconBox.innerHTML = `<span id="active-room-icon" class="material-symbols-rounded">${currentRoomData.type === 'group' || isSystemGroup ? 'groups' : 'person'}</span>`;
@@ -344,7 +361,6 @@ export const listenToMessages = (roomId) => {
         
         const now = Date.now();
 
-        // Dynamically update read receipt only if we haven't in the last 5 seconds to prevent loop-writes
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             const myLastRead = readReceipts[curId] || 0;
@@ -372,8 +388,6 @@ export const listenToMessages = (roomId) => {
                 if (isMe) {
                     let allRead = false;
                     if (otherParticipants.length > 0) {
-                        // --- BUG FIX: SOLVES RACE CONDITIONS AND CLOCK DRIFT ---
-                        // If they actively have the chat open, or read it after it was sent.
                         allRead = otherParticipants.every(pid => {
                             const rTime = readReceipts[pid] || 0;
                             return rTime >= (msgTime - 120000) || (now - rTime < 300000); 
@@ -502,7 +516,6 @@ window.forwardSelectedMessages = async () => {
                     if (msgDoc.exists()) {
                         const originalData = msgDoc.data();
                         
-                        // FIX: Forces visible italics and clear spacing for forwarded text
                         const prefix = "_▶ Forwarded_\n";
                         let finalizedText = originalData.text;
                         if (!finalizedText.includes("Forwarded")) finalizedText = prefix + finalizedText;
@@ -528,6 +541,9 @@ window.forwardSelectedMessages = async () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // PURGE CALL BUTTONS ON LOAD
+    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
+
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
@@ -572,10 +588,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fwdBtn = document.getElementById('btn-action-forward');
     if (fwdBtn) fwdBtn.addEventListener('click', window.forwardSelectedMessages);
-    
-    // Explicitly binds the HTML Cancel button. NO Double X!
-    const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
-    if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
@@ -667,30 +679,3 @@ window.replyToMessage = (msgId) => {
     window.toggleActionMenu(msgId);
 };
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
-
-// NO INJECTED BUTTONS: Strictly triggers native HTML
-window.enableSelectionMode = (enable = true) => {
-    const container = document.getElementById('chat-messages-container');
-    const selectionHeader = document.getElementById('selection-chat-header');
-    
-    if (enable) {
-        container.classList.add('selection-mode');
-        document.getElementById('standard-chat-header').style.display = 'none';
-        if (selectionHeader) selectionHeader.style.display = 'flex';
-        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
-    } else {
-        container.classList.remove('selection-mode');
-        document.getElementById('standard-chat-header').style.display = 'flex';
-        if (selectionHeader) selectionHeader.style.display = 'none';
-        document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
-        const countTxt = document.getElementById('selection-count');
-        if (countTxt) countTxt.innerText = `0 Selected`;
-    }
-};
-
-document.addEventListener('change', (e) => {
-    if (e.target.classList.contains('msg-checkbox')) {
-        const count = document.querySelectorAll('.msg-checkbox:checked').length;
-        document.getElementById('selection-count').innerText = `${count} Selected`;
-    }
-});
