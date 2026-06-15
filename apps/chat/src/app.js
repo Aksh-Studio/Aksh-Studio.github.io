@@ -13,9 +13,9 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
-// --- ABSOLUTE PURGE OF CALL BUTTONS ---
+// --- ABSOLUTE DOM PURGE FOR CALL BUTTONS ---
 const style = document.createElement('style');
-style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; }`;
+style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
 document.head.appendChild(style);
 
 const listenToCloudRooms = () => {
@@ -174,7 +174,7 @@ const fetchNetworkUsers = async () => {
             if (targetNameLower === myName && myName !== "") return;
             if (currentUser.isOwner && targetEmail === 'akshat124.am12@gmail.com') return;
             
-            const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
+            const pic = u.customProfilePic || u.photoURL || u.profilePic || u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
             
             const item = document.createElement('div');
             item.className = 'user-item';
