@@ -1,9 +1,10 @@
 // src/auth.js
-import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
+import { auth, db, doc, getDoc, getDocs, collection, query, where, onAuthStateChanged } from './firebase.js';
 
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
     
+    // STRICT OWNER LOCK
     get isOwner() { 
         const e = String(this.email).toLowerCase().trim();
         return e === 'akshat124.am12@gmail.com'; 
@@ -44,12 +45,23 @@ export const initAuth = (onSuccessBoot) => {
             let dName = user.displayName;
             let pUrl = null; 
             
+            // --- FIX: AGGRESSIVE PROFILE PIC EXTRACTOR ---
             try {
+                // 1. Try fetching by standard UID
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
                     const data = uDoc.data();
                     dName = data.fullName || data.name || dName;
-                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage;
+                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage || data.avatar;
+                } else {
+                    // 2. Fallback: Search the database by exact Email if UID fails
+                    const emailQuery = query(collection(db, "users"), where("email", "==", user.email));
+                    const snap = await getDocs(emailQuery);
+                    if (!snap.empty) {
+                        const data = snap.docs[0].data();
+                        dName = data.fullName || data.name || dName;
+                        pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage || data.avatar;
+                    }
                 }
             } catch (error) {}
             
