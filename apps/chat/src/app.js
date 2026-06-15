@@ -159,8 +159,9 @@ const fetchNetworkUsers = async () => {
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = String(docObj.id).trim();
-            const targetEmail = String(u.email || "").toLowerCase().trim();
-            const rawName = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
+            const safeEmail = String(u.email || '');
+            const targetEmail = safeEmail.toLowerCase().trim();
+            const rawName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Network User');
             const targetNameLower = String(rawName).toLowerCase().trim();
             
             if (targetUid === myUid) return; 
