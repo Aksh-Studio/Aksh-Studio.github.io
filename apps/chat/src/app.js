@@ -26,12 +26,10 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
-            // SYSTEM GROUP ICON FIX
             if (roomId === 'global_channel' || roomId === 'aksh_help') {
                 if(data.name) roomsInfo[roomId].name = data.name;
                 if(data.icon) {
                     roomsInfo[roomId].icon = data.icon;
-                    // Detect if uploaded icon is a real image URL
                     roomsInfo[roomId].isImage = data.icon.startsWith('http') || data.icon.startsWith('data:image');
                 }
             } 
@@ -96,7 +94,6 @@ const initNavigation = () => {
         });
     }
 
-    // CALL BUTTON TOTAL ANNIHILATION
     document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
 
     document.getElementById('rail-chats')?.addEventListener('click', () => {
@@ -145,7 +142,10 @@ const initNavigation = () => {
             
             appState.activeChatId = newGroupId;
             document.getElementById('active-room-name').innerText = groupName;
-            document.getElementById('active-room-icon').innerText = 'groups';
+            
+            const iconEl = document.getElementById('active-room-icon');
+            iconEl.innerHTML = `<span class="material-symbols-rounded">groups</span>`;
+            
             switchChatRoom(newGroupId);
             alert("Group created! Click the Gear icon to upload a logo and add members.");
         } catch(e) {}
@@ -203,7 +203,10 @@ const fetchNetworkUsers = async () => {
 
                 appState.activeChatId = deterministicId;
                 document.getElementById('active-room-name').innerText = rawName;
-                document.getElementById('active-room-icon').innerText = 'person';
+                
+                const iconEl = document.getElementById('active-room-icon');
+                iconEl.style.background = 'transparent';
+                iconEl.innerHTML = `<img src="${pic}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
@@ -226,7 +229,7 @@ window.deleteSidebarChat = async (roomId) => {
                 appState.activeChatId = null;
                 document.getElementById('chat-messages-container').innerHTML = '';
                 document.getElementById('active-room-name').innerText = 'Select a chat';
-                document.getElementById('active-room-icon').innerText = 'chat';
+                document.getElementById('active-room-icon').innerHTML = `<span class="material-symbols-rounded">chat</span>`;
             }
         } catch(e) { alert("Delete failed. Check permissions."); }
     }
@@ -286,8 +289,18 @@ export const renderSidebarList = () => {
                 document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 appState.activeChatId = id;
+                
+                // FIX 2: Dynamic Image Injection for the Chat Header
                 document.getElementById('active-room-name').innerText = room.name;
-                document.getElementById('active-room-icon').innerText = room.type === 'group' ? room.icon : 'person';
+                const iconEl = document.getElementById('active-room-icon');
+                
+                if (room.isImage) {
+                    iconEl.style.background = 'transparent';
+                    iconEl.innerHTML = `<img src="${room.icon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                } else {
+                    iconEl.style.background = 'var(--app-bg)';
+                    iconEl.innerHTML = `<span class="material-symbols-rounded">${room.type === 'group' ? room.icon : 'person'}</span>`;
+                }
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
