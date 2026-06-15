@@ -6,10 +6,11 @@ let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
 export let currentRoomData = null; 
-let currentMessagesSnapshot = null; // Global cache to allow reactive UI updates
+export let currentMessagesSnapshot = []; // Global Cache for Reactivity Redraws
 let replyContext = null; 
 let messageToPin = null; 
 let uploadedGroupIconBase64 = null; 
+let myLastReceiptUpdate = 0; 
 
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
@@ -126,12 +127,9 @@ window.addGroupMember = async (newMemberId) => {
         if (currentParticipants.includes(newMemberId)) return;
         const updatedParticipants = [...currentParticipants, newMemberId];
         await setDoc(doc(db, "chats", currentRoomId), { participants: updatedParticipants }, { merge: true });
-        
-        // Clear Search after adding
         document.getElementById('search-member-input').value = '';
         document.getElementById('search-member-results').innerHTML = '';
         document.getElementById('search-member-results').style.display = 'none';
-        alert("Member successfully added.");
     } catch(e) { alert("Failed to add member."); }
 };
 
@@ -145,8 +143,8 @@ const populateGroupManagement = async (participants, admins) => {
     
     listEl.innerHTML = '';
     transferSelectEl.innerHTML = '<option value="">Select a member to make Admin...</option>';
-    searchResults.innerHTML = '';
-    searchResults.style.display = 'none';
+    searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">Loading network...</p>';
+    searchResults.style.display = 'block';
     searchInput.value = '';
 
     const curId = currentUser?.id || currentUser?.uid;
@@ -179,37 +177,47 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- 1. THE FLAWLESS SEARCH ENGINE FIX ---
+    // --- BUG FIX: OMNI-SEARCH NETWORK ALGORITHM ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
-            const safeEmail = u.email ? String(u.email) : ''; 
+            const safeEmail = String(u.email || '').toLowerCase().trim(); 
             const safeName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'User');
-            allUsers.push({ id: d.id, name: safeName, email: safeEmail });
+            allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: `${safeName.toLowerCase()} ${safeEmail}` });
         });
     } catch(e) {}
+
+    // Fallback: If network fetch misses them, inject users directly from active sidebar history
+    const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
+    Object.keys(availableRooms).forEach(rId => {
+        const room = availableRooms[rId];
+        if (room.type === 'dm') {
+            const pId = rId.replace('dm_', '').replace(curId, '').replace('_', '');
+            if (pId && pId.length > 5 && !allUsers.find(u => u.id === pId)) {
+                allUsers.push({ id: pId, name: room.name, email: '', searchStr: room.name.toLowerCase() });
+            }
+        }
+    });
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
         const cleanTerm = term.trim().toLowerCase();
 
-        // Include ALL users. Filter strictly by typing.
         const filtered = allUsers.filter(u => {
             if (!cleanTerm) return true; 
-            return u.name.toLowerCase().includes(cleanTerm) || u.email.toLowerCase().includes(cleanTerm);
+            return u.searchStr.includes(cleanTerm);
         });
 
         if (filtered.length === 0) {
-            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No available users found in the network.</p>';
+            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No network users found.</p>';
             return;
         }
 
         let htmlString = '';
-        filtered.forEach(u => {
+        filtered.slice(0, 50).forEach(u => {
             const isAlreadyInGroup = safeParticipants.includes(u.id);
-            // Visual grey "Added" button guarantees you can see everyone in the network
             const btnHTML = isAlreadyInGroup 
                 ? `<button disabled style="background: var(--app-bg); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed; flex-shrink: 0;">Added</button>`
                 : `<button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0;">Add</button>`;
@@ -228,27 +236,30 @@ const populateGroupManagement = async (participants, admins) => {
     };
 
     renderSearch(); 
-    
-    // Purge old listeners to prevent duplication glitches
     const newInput = searchInput.cloneNode(true);
     searchInput.parentNode.replaceChild(newInput, searchInput);
     newInput.addEventListener('input', (e) => renderSearch(e.target.value));
 };
 
-window.kickUser = async (targetUid) => {
-    if (!confirm("Are you sure you want to remove this user from the group?")) return;
-    try {
-        const newParticipants = currentRoomData.participants.filter(id => id !== targetUid);
-        const newAdmins = (currentRoomData.admins || []).filter(id => id !== targetUid);
-        await setDoc(doc(db, "chats", currentRoomId), { participants: newParticipants, admins: newAdmins }, { merge: true });
-    } catch(e) { alert("Failed to kick user."); }
-};
-
-export const switchChatRoom = (roomId) => {
+export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
     
-    // Absolute purge of Call Buttons
+    // --- BUG FIX: INSTANT HEADER RENDERER ---
+    const titleEl = document.getElementById('active-room-name');
+    const iconBox = document.getElementById('active-room-icon-box');
+    
+    if (titleEl && passedName) titleEl.innerText = passedName;
+    if (iconBox && passedIcon) {
+        if (passedIcon.startsWith('http') || passedIcon.startsWith('data:image')) {
+            iconBox.style.background = 'transparent';
+            iconBox.innerHTML = `<img src="${passedIcon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+        } else {
+            iconBox.style.background = '#dfe5e7';
+            iconBox.innerHTML = `<span class="material-symbols-rounded">${passedType === 'group' ? 'groups' : 'person'}</span>`;
+        }
+    }
+
     document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
     
     listenToRoomState(roomId); 
@@ -257,109 +268,15 @@ export const switchChatRoom = (roomId) => {
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) {
-            setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+            myLastReceiptUpdate = Date.now();
+            setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
         }
     } catch(e) {}
 };
 
-const listenToRoomState = (roomId) => {
-    if (roomStateListener) roomStateListener();
-    roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
-        currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
-        
-        if (roomId.startsWith('dm_') && (!currentRoomData.participants || currentRoomData.participants.length === 0)) {
-            const splitIds = roomId.replace('dm_', '').split('_');
-            currentRoomData.participants = splitIds;
-        }
-        
-        const banner = document.getElementById('pinned-message-banner');
-        if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
-            document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(currentRoomData.pinnedMessage);
-            const titleEl = banner.querySelector('p');
-            if (titleEl) titleEl.innerText = "Pinned Message";
-            banner.style.display = 'flex';
-        } else if (banner) {
-            banner.style.display = 'none';
-        }
-
-        const curId = currentUser?.id || currentUser?.uid;
-        const isOwner = currentUser?.isOwner;
-        const isAdmin = currentRoomData?.admins?.includes(curId);
-        
-        const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
-        const canEditSystem = isSystemGroup ? isOwner : false; 
-        const canEditCustom = isOwner || isAdmin;
-        const canEdit = isSystemGroup ? canEditSystem : canEditCustom;
-        
-        const existingGear = document.getElementById('group-settings-btn');
-        if (existingGear) existingGear.remove();
-
-        const titleEl = document.getElementById('active-room-name');
-        const iconBox = document.getElementById('active-room-icon-box');
-
-        if (titleEl && iconBox) {
-            let displayRoomName = currentRoomData.name || 'Chat';
-            let displayRoomIcon = currentRoomData.icon;
-            let isIconImage = false;
-
-            if (currentRoomData.type === 'dm') {
-                const otherId = currentRoomData.participants?.find(id => id !== curId);
-                if (otherId) {
-                    displayRoomName = currentRoomData.names?.[otherId] || 'User';
-                    displayRoomIcon = currentRoomData.avatars?.[otherId];
-                    isIconImage = true; 
-                }
-            } else {
-                isIconImage = displayRoomIcon && (displayRoomIcon.startsWith('http') || displayRoomIcon.startsWith('data:image'));
-            }
-
-            titleEl.innerText = displayRoomName;
-            
-            if (isIconImage && displayRoomIcon) {
-                iconBox.style.background = 'transparent';
-                iconBox.innerHTML = `<img src="${displayRoomIcon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-            } else {
-                iconBox.style.background = '#dfe5e7';
-                iconBox.innerHTML = `<span id="active-room-icon" class="material-symbols-rounded">${currentRoomData.type === 'group' || isSystemGroup ? 'groups' : 'person'}</span>`;
-            }
-
-            if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
-                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
-                titleEl.insertAdjacentHTML('beforeend', gearHTML);
-                
-                document.getElementById('group-settings-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    injectGroupAdminModal(); 
-                    
-                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-
-                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
-                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
-
-                    if (canEdit) {
-                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
-                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-                    }
-                    
-                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
-                    document.getElementById('group-admin-modal').style.display = 'flex';
-                });
-            }
-        }
-        
-        // --- FIX 2: THE REACTIVITY ENGINE FOR BLUE TICKS ---
-        // Force the chat to redraw if someone updates the room state (e.g. readReceipts)
-        renderMessagesUI();
-    });
-};
-
-// Isolated UI Drawer to handle Reactivity
+// --- REACTIVE UI REDRAW ENGINE FOR BLUE TICKS ---
 const renderMessagesUI = () => {
-    if (!currentMessagesSnapshot || !currentRoomId) return;
+    if (!currentMessagesSnapshot || currentMessagesSnapshot.length === 0 || !currentRoomId) return;
     
     const container = document.getElementById('chat-messages-container');
     if (!container) return;
@@ -391,23 +308,30 @@ const renderMessagesUI = () => {
         let timeString = "Sending...";
         let tickHTML = "";
         
-        if (msg.timestamp) {
-            // Uses local timestamp fallback for flawless math logic
-            const msgTime = msg.localTimestamp || (msg.timestamp.toMillis ? msg.timestamp.toMillis() : Date.now());
-            timeString = msg.timestamp.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sent";
-            
-            if (isMe) {
-                let allRead = false;
-                if (otherParticipants.length > 0) {
-                    allRead = otherParticipants.every(pid => {
-                        const rTime = readReceipts[pid] || 0;
-                        // Blue Tick condition: Recipient's receipt is newer than the message
-                        return rTime >= (msgTime - 5000); 
-                    });
-                }
-                const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
-                tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
+        // --- BUG FIX: BULLETPROOF BLUE TICK MATH ---
+        let msgTime = 0;
+        if (msg.timestamp && msg.timestamp.toMillis) {
+            msgTime = msg.timestamp.toMillis();
+            timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (msg.localTimestamp) {
+            msgTime = msg.localTimestamp;
+        }
+
+        if (isMe && msgTime > 0) {
+            let allRead = false;
+            if (otherParticipants.length > 0) {
+                allRead = otherParticipants.every(pid => {
+                    const recObj = readReceipts[pid];
+                    let rTime = 0;
+                    if (recObj && recObj.toMillis) rTime = recObj.toMillis();
+                    else if (typeof recObj === 'number') rTime = recObj;
+
+                    // It is Blue if the recipient timestamp is perfectly equal to or newer than the message
+                    return rTime > 0 && rTime >= (msgTime - 5000); 
+                });
             }
+            const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
+            tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
         }
 
         let roleBadge = '';
@@ -460,21 +384,91 @@ const renderMessagesUI = () => {
     container.scrollTop = container.scrollHeight; 
 };
 
+const listenToRoomState = (roomId) => {
+    if (roomStateListener) roomStateListener();
+    roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
+        currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
+        
+        if (roomId.startsWith('dm_') && (!currentRoomData.participants || currentRoomData.participants.length === 0)) {
+            const splitIds = roomId.replace('dm_', '').split('_');
+            currentRoomData.participants = splitIds;
+        }
+        
+        const banner = document.getElementById('pinned-message-banner');
+        if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
+            document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(currentRoomData.pinnedMessage);
+            const titleEl = banner.querySelector('p');
+            if (titleEl) titleEl.innerText = "Pinned Message";
+            banner.style.display = 'flex';
+        } else if (banner) {
+            banner.style.display = 'none';
+        }
+
+        const curId = currentUser?.id || currentUser?.uid;
+        const isOwner = currentUser?.isOwner;
+        const isAdmin = currentRoomData?.admins?.includes(curId);
+        
+        const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
+        const canEditSystem = isSystemGroup ? isOwner : false; 
+        const canEditCustom = isOwner || isAdmin;
+        const canEdit = isSystemGroup ? canEditSystem : canEditCustom;
+        
+        const existingGear = document.getElementById('group-settings-btn');
+        if (existingGear) existingGear.remove();
+
+        const titleEl = document.getElementById('active-room-name');
+        const iconBox = document.getElementById('active-room-icon-box');
+
+        if (titleEl && iconBox) {
+            if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
+                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
+                if (!titleEl.innerHTML.includes('group-settings-btn')) titleEl.insertAdjacentHTML('beforeend', gearHTML);
+                
+                document.getElementById('group-settings-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    injectGroupAdminModal(); 
+                    
+                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+
+                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
+                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+
+                    if (canEdit) {
+                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                    }
+                    
+                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
+                    document.getElementById('group-admin-modal').style.display = 'flex';
+                });
+            }
+        }
+        
+        // --- REACTIVITY TRIGGER ---
+        // Forces UI to redraw and turn ticks blue instantly when the readReceipt payload arrives
+        if (currentMessagesSnapshot.length > 0) renderMessagesUI();
+    });
+};
+
 export const listenToMessages = (roomId) => {
     if (unsubscribeListener) unsubscribeListener();
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
     unsubscribeListener = onSnapshot(q, (snapshot) => {
-        // Cache globally so Reactivity Engine can pull it
+        // Cache messages globally for Reactivity Redraws
         currentMessagesSnapshot = snapshot.docs;
-        
         const curId = currentUser?.id || currentUser?.uid;
-
+        
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
-            // Automatically push a Read Receipt update if a new message comes in from someone else
-            if (lastMsg.senderId !== curId) {
-                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
+            // Push receipt immediately to Firebase so the sender's UI updates
+            if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
+                myLastReceiptUpdate = Date.now();
+                try { setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true }); } catch(e){}
             }
         }
         
@@ -492,8 +486,7 @@ export const sendMessage = async () => {
     const curId = currentUser?.id || currentUser?.uid;
     const payload = { 
         text, senderId: curId, senderName: currentUser?.name || 'User', 
-        isOwner: currentUser?.isOwner === true, 
-        timestamp: serverTimestamp(), localTimestamp: Date.now() 
+        isOwner: currentUser?.isOwner === true, timestamp: serverTimestamp(), localTimestamp: Date.now() 
     };
 
     if (replyContext) {
@@ -504,7 +497,8 @@ export const sendMessage = async () => {
     
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
-        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+        myLastReceiptUpdate = Date.now();
+        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
     } catch (error) {}
 };
 
@@ -611,7 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
-                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+                        myLastReceiptUpdate = Date.now();
+                        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
                     } catch (error) {}
                 };
                 img.src = event.target.result;
@@ -724,6 +719,7 @@ window.enableSelectionMode = (enable = true) => {
     if (enable) {
         container.classList.add('selection-mode');
         document.getElementById('standard-chat-header').style.display = 'none';
+        document.querySelectorAll('#injected-close-btn').forEach(b => b.remove());
         if (selectionHeader) selectionHeader.style.display = 'flex';
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
     } else {
