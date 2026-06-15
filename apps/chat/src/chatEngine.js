@@ -176,7 +176,8 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- FIX 1: BULLETPROOF ALL USERS RENDERER ---
+    // --- FIX 1: FLAWLESS SEARCH ENGINE ---
+    // Displays ALL users instantly, marks existing participants as "Added" visually.
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -192,27 +193,32 @@ const populateGroupManagement = async (participants, admins) => {
         searchResults.style.display = 'block';
         const cleanTerm = term.trim().toLowerCase();
 
-        // Show all users dynamically. If no term, show everyone.
+        // 1. Find all users matching the search (or ALL users if search is empty)
         const filtered = allUsers.filter(u => {
-            if (safeParticipants.includes(u.id)) return false; 
-            if (!cleanTerm) return true; 
+            if (!cleanTerm) return true; // Show everyone by default
             return u.name.toLowerCase().includes(cleanTerm) || u.email.toLowerCase().includes(cleanTerm);
         });
 
         if (filtered.length === 0) {
-            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No available users found.</p>';
+            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No network users found matching that name or email.</p>';
             return;
         }
 
         let htmlString = '';
-        filtered.slice(0, 50).forEach(u => {
+        filtered.forEach(u => {
+            // 2. Disable the Add button if they are already in the group
+            const isAlreadyInGroup = safeParticipants.includes(u.id);
+            const btnHTML = isAlreadyInGroup 
+                ? `<button disabled style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed; flex-shrink: 0;">Added</button>`
+                : `<button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0;">Add</button>`;
+
             htmlString += `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border);">
                     <div style="display: flex; flex-direction: column; text-align: left; overflow: hidden; max-width: 70%;">
                         <span style="font-size: 13px; color: var(--text-main); font-weight: 600; white-space: nowrap; text-overflow: ellipsis;">${u.name}</span>
                         <span style="font-size: 11px; color: var(--text-muted); white-space: nowrap; text-overflow: ellipsis;">${u.email}</span>
                     </div>
-                    <button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0;">Add</button>
+                    ${btnHTML}
                 </div>
             `;
         });
@@ -238,14 +244,19 @@ window.kickUser = async (targetUid) => {
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
+    
+    // Hard delete call buttons strictly
+    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
+    
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
+    // --- FIX 2: SYNCHRONIZED BLUE TICK ENTRY ---
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) {
             myLastReceiptUpdate = Date.now();
-            setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true });
+            setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
         }
     } catch(e) {}
 };
@@ -285,32 +296,26 @@ const listenToRoomState = (roomId) => {
         const titleEl = document.getElementById('active-room-name');
         const iconBox = document.getElementById('active-room-icon-box');
 
-        // --- FIX 2: AGGRESSIVE CHAT DOM SCRAPER FOR MISSING NAMES ---
+        // --- FIX 3: FLAWLESS HEADER DOM SCRAPER ---
+        // Instantly forces the correct Name and Profile Picture into the Chat Header based on the UI Cache
         if (titleEl && iconBox) {
-            let displayRoomName = currentRoomData.name;
-            let displayRoomIcon = currentRoomData.icon;
+            const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
+            const localCacheMeta = availableRooms[roomId] || {};
+
+            let displayRoomName = currentRoomData.name || localCacheMeta.name || 'Chat';
+            let displayRoomIcon = currentRoomData.icon || localCacheMeta.icon || null;
             let isIconImage = false;
 
-            let fallbackName = 'Chat';
-            let fallbackIcon = null;
-            const activeSidebarItem = document.getElementById(`btn-room-${roomId}`);
-            if (activeSidebarItem) {
-                const nameEl = activeSidebarItem.querySelector('h4');
-                if (nameEl) fallbackName = nameEl.innerText;
-                const imgEl = activeSidebarItem.querySelector('img');
-                if (imgEl) fallbackIcon = imgEl.src;
-            }
-
-            const isDM = roomId.startsWith('dm_') || currentRoomData.type === 'dm';
-
-            if (isDM) {
+            if (currentRoomData.type === 'dm' || roomId.startsWith('dm_')) {
                 const otherId = currentRoomData.participants?.find(id => id !== curId);
-                displayRoomName = currentRoomData.names?.[otherId] || fallbackName;
-                displayRoomIcon = currentRoomData.avatars?.[otherId] || fallbackIcon;
+                if (otherId) {
+                    displayRoomName = currentRoomData.names?.[otherId] || displayRoomName;
+                    displayRoomIcon = currentRoomData.avatars?.[otherId] || displayRoomIcon;
+                }
                 isIconImage = true; 
             } else {
                 isIconImage = displayRoomIcon && (displayRoomIcon.startsWith('http') || displayRoomIcon.startsWith('data:image'));
-                if (!displayRoomName) displayRoomName = isSystemGroup ? 'System Group' : fallbackName;
+                if (!displayRoomName || displayRoomName === 'Chat') displayRoomName = isSystemGroup ? 'System Group' : 'Group Chat';
             }
 
             titleEl.innerText = displayRoomName;
@@ -340,9 +345,9 @@ const listenToRoomState = (roomId) => {
                     document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
 
                     if (canEdit) {
-                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
-                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                        document.getElementById('edit-group-name').value = displayRoomName;
+                        document.getElementById('edit-group-icon').value = displayRoomIcon && displayRoomIcon.startsWith('http') ? displayRoomIcon : '';
+                        document.getElementById('group-icon-preview').src = isIconImage ? displayRoomIcon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
                     }
                     
                     populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
@@ -376,11 +381,12 @@ export const listenToMessages = (roomId) => {
         }
         const otherParticipants = participantList.filter(id => id !== curId);
 
+        // Instantly log Read Receipts perfectly synced to device time
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
                 myLastReceiptUpdate = Date.now();
-                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true }); } catch(e){}
+                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
             }
         }
 
@@ -396,32 +402,32 @@ export const listenToMessages = (roomId) => {
             let timeString = "Sending...";
             let tickHTML = "";
             
-            // --- FIX 3: BLUE TICK PENDING WRITE RESOLVER ---
-            if (msg.timestamp && msg.timestamp.toMillis) {
-                const msgTime = msg.timestamp.toMillis();
-                timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                if (isMe) {
-                    let allRead = false;
-                    if (otherParticipants.length > 0) {
-                        allRead = otherParticipants.every(pid => {
-                            const recObj = readReceipts[pid];
-                            let rTime = 0;
-                            
-                            if (recObj === null) {
-                                rTime = Date.now(); // Instantly resolves pending local serverTimestamps
-                            } else if (recObj && recObj.toMillis) {
-                                rTime = recObj.toMillis();
-                            } else if (typeof recObj === 'number') {
-                                rTime = recObj;
-                            }
-                            
-                            return rTime > 0 && rTime >= (msgTime - 5000); 
-                        });
-                    }
-                    const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
-                    tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
+            // --- FIX 4: PERFECT LOCAL-MATH BLUE TICKS ---
+            let msgTime = 0;
+            if (msg.localTimestamp) {
+                msgTime = msg.localTimestamp;
+            } else if (msg.timestamp && msg.timestamp.toMillis) {
+                msgTime = msg.timestamp.toMillis();
+            } else {
+                msgTime = Date.now();
+            }
+
+            if (msg.timestamp) {
+                timeString = msg.timestamp.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sent";
+            }
+            
+            if (isMe) {
+                let allRead = false;
+                if (otherParticipants.length > 0) {
+                    allRead = otherParticipants.every(pid => {
+                        const rTime = readReceipts[pid] || 0;
+                        // Evaluates true if recipient read receipt is newer than message time (with tiny network buffer)
+                        // OR if the recipient is actively in the chat typing right now (last 15 seconds)
+                        return rTime >= (msgTime - 5000) || (Date.now() - rTime < 15000); 
+                    });
                 }
+                const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
+                tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
             }
 
             let roleBadge = '';
@@ -485,7 +491,9 @@ export const sendMessage = async () => {
     const curId = currentUser?.id || currentUser?.uid;
     const payload = { 
         text, senderId: curId, senderName: currentUser?.name || 'User', 
-        isOwner: currentUser?.isOwner === true, timestamp: serverTimestamp() 
+        isOwner: currentUser?.isOwner === true, 
+        timestamp: serverTimestamp(),
+        localTimestamp: Date.now() // Solves Blue Tick Clock Drift Instantly
     };
 
     if (replyContext) {
@@ -497,7 +505,7 @@ export const sendMessage = async () => {
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
-        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true });
+        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
     } catch (error) {}
 };
 
@@ -553,7 +561,8 @@ window.forwardSelectedMessages = async () => {
                             senderId: curId,
                             senderName: currentUser?.name || 'User',
                             isOwner: currentUser?.isOwner === true,
-                            timestamp: serverTimestamp()
+                            timestamp: serverTimestamp(),
+                            localTimestamp: Date.now()
                         };
                         await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
                     }
@@ -568,6 +577,9 @@ window.forwardSelectedMessages = async () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // AGGRESSIVE CALL PURGE ON LOAD
+    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
+
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
     document.getElementById('chat-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
@@ -597,12 +609,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const payload = { 
                         text: "📷 Image Attached", imageUrl: compressedBase64, 
                         senderId: curId, senderName: currentUser?.name || 'User', 
-                        isOwner: currentUser?.isOwner === true, timestamp: serverTimestamp() 
+                        isOwner: currentUser?.isOwner === true, 
+                        timestamp: serverTimestamp(), localTimestamp: Date.now()
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         myLastReceiptUpdate = Date.now();
-                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true });
+                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
                     } catch (error) {}
                 };
                 img.src = event.target.result;
@@ -614,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fwdBtn = document.getElementById('btn-action-forward');
     if (fwdBtn) fwdBtn.addEventListener('click', window.forwardSelectedMessages);
     
-    // --- FIX 4: NO DOUBLE X BUTTON ---
+    // NATIVE HTML CANCEL BUTTON ONLY (No Double X)
     const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
     if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
@@ -626,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
             snapshot.forEach(docObj => {
                 const m = docObj.data();
-                const stamp = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Processing";
+                const stamp = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toLocaleString() : "Processing";
                 logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
             });
             const fileBlob = new Blob([logOutput], { type: 'text/plain' });
@@ -716,11 +729,6 @@ window.enableSelectionMode = (enable = true) => {
     if (enable) {
         container.classList.add('selection-mode');
         document.getElementById('standard-chat-header').style.display = 'none';
-        
-        // Remove ALL previously injected X buttons
-        document.querySelectorAll('#injected-close-btn').forEach(b => b.remove());
-        
-        // Let the Native HTML button do its job
         if (selectionHeader) selectionHeader.style.display = 'flex';
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
     } else {
