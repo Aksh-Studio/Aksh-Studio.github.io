@@ -21,7 +21,6 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- DYNAMIC GROUP MANAGEMENT MODAL ---
 const injectGroupAdminModal = () => {
     if (document.getElementById('group-admin-modal')) return;
     const modalHTML = `
@@ -151,7 +150,6 @@ const populateGroupManagement = async (participants, admins) => {
     const isAdmin = admins?.includes(curId);
     const canEdit = isOwner || isAdmin;
 
-    // 1. Participant List Rendering
     for (const uid of participants) {
         try {
             const userDoc = await getDoc(doc(db, "users", uid));
@@ -174,7 +172,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // 2. LIVE SEARCH ENGINE: Name + Email Display
+    // SEARCH BAR BUG FIX: Handles Trim & Case
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -188,9 +186,11 @@ const populateGroupManagement = async (participants, admins) => {
         searchResults.style.display = 'block';
         searchResults.innerHTML = '';
 
+        const cleanTerm = term.trim().toLowerCase(); // FIXED: Trims whitespace from typing
+
         const filtered = allUsers.filter(u => 
             !participants.includes(u.id) && 
-            (u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
+            (u.name.toLowerCase().includes(cleanTerm) || u.email.toLowerCase().includes(cleanTerm))
         );
 
         if (filtered.length === 0) {
@@ -200,7 +200,7 @@ const populateGroupManagement = async (participants, admins) => {
 
         filtered.forEach(u => {
             searchResults.innerHTML += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--app-bg);">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border);">
                     <div style="display: flex; flex-direction: column; text-align: left;">
                         <span style="font-size: 13px; color: var(--text-main); font-weight: 600;">${u.name}</span>
                         <span style="font-size: 11px; color: var(--text-muted);">${u.email}</span>
@@ -211,9 +211,8 @@ const populateGroupManagement = async (participants, admins) => {
         });
     };
 
-    // Load available members instantly when opened
     renderSearch(); 
-    searchInput.oninput = (e) => renderSearch(e.target.value.toLowerCase());
+    searchInput.oninput = (e) => renderSearch(e.target.value);
 };
 
 window.kickUser = async (targetUid) => {
@@ -256,7 +255,6 @@ const listenToRoomState = (roomId) => {
         const isOwner = currentUser?.isOwner;
         const isAdmin = currentRoomData?.admins?.includes(curId);
         
-        // --- SYSTEM GROUP LOGIC ---
         const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
         const canEditSystem = isSystemGroup ? isOwner : false; 
         const canEditCustom = isOwner || isAdmin;
@@ -267,9 +265,6 @@ const listenToRoomState = (roomId) => {
 
         const titleEl = document.getElementById('active-room-name');
         
-        // Access rules: 
-        // 1. If custom group, EVERYONE sees gear (to view participants/add).
-        // 2. If system group, ONLY Owner sees gear.
         if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
             const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
             const baseName = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Group');
@@ -279,13 +274,11 @@ const listenToRoomState = (roomId) => {
                 e.stopPropagation();
                 injectGroupAdminModal(); 
                 
-                // CONDITIONAL RENDERING BASED ON PERMISSIONS
                 document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
                 document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
                 document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
                 document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
 
-                // System groups do not have manual participants to add/manage
                 document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
                 document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
 
@@ -433,6 +426,7 @@ export const sendMessage = async () => {
     } catch (error) {}
 };
 
+// --- FIX 6: AUTHENTIC FORWARDING ENGINE ---
 const buildForwardModal = () => {
     if (document.getElementById('forward-modal')) return;
     const fModal = `
@@ -475,8 +469,14 @@ window.forwardSelectedMessages = async () => {
                     const msgDoc = await getDoc(doc(db, `chats/${currentRoomId}/messages`, box.value));
                     if (msgDoc.exists()) {
                         const originalData = msgDoc.data();
+                        
+                        // FORWARD TAG INJECTION
+                        const prefix = "_▶ Forwarded_\n\n";
+                        let finalizedText = originalData.text;
+                        if (!finalizedText.includes(prefix.trim())) finalizedText = prefix + finalizedText;
+
                         const fwdPayload = {
-                            text: originalData.text,
+                            text: finalizedText,
                             imageUrl: originalData.imageUrl || null,
                             senderId: curId,
                             senderName: currentUser?.name || 'User',
@@ -530,13 +530,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
-                    } catch (error) { console.error("Image Upload Failed", error); }
+                    } catch (error) {}
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file); 
         });
     }
+
+    // FIX 4: Bind the Action buttons correctly so Forward works globally!
+    const forwardBtnTop = document.getElementById('btn-action-forward');
+    if (forwardBtnTop) forwardBtnTop.addEventListener('click', window.forwardSelectedMessages);
 
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
@@ -594,8 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
-    document.getElementById('btn-action-forward')?.addEventListener('click', window.forwardSelectedMessages);
-
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             if (!messageToPin) return;
@@ -631,6 +633,7 @@ window.replyToMessage = (msgId) => {
 };
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
 
+// --- FIX 5: CANCEL SELECTION DUPLICATE X BUG ---
 window.enableSelectionMode = (enable = true) => {
     const container = document.getElementById('chat-messages-container');
     const selectionHeader = document.getElementById('selection-chat-header');
@@ -638,11 +641,16 @@ window.enableSelectionMode = (enable = true) => {
     if (enable) {
         container.classList.add('selection-mode');
         document.getElementById('standard-chat-header').style.display = 'none';
-        if (selectionHeader && !document.getElementById('btn-cancel-selection-header')) {
+        
+        if (selectionHeader) {
+            // Nuke all existing injected close buttons to prevent double 'X'
+            document.querySelectorAll('#btn-cancel-selection-header').forEach(b => b.remove());
+            
+            // Add a single, fresh button
             const cancelBtnHTML = `<span id="btn-cancel-selection-header" class="material-symbols-rounded" style="cursor: pointer; margin-right: 15px; color: var(--text-main);" onclick="window.enableSelectionMode(false)">close</span>`;
             selectionHeader.insertAdjacentHTML('afterbegin', cancelBtnHTML);
+            selectionHeader.style.display = 'flex';
         }
-        if (selectionHeader) selectionHeader.style.display = 'flex';
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
     } else {
         container.classList.remove('selection-mode');
