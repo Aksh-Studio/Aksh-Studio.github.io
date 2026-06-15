@@ -20,10 +20,8 @@ const listenToCloudRooms = () => {
     
     onSnapshot(q, (snapshot) => {
         dynamicRooms = {}; 
-        
         const myName = String(currentUser.name || "").toLowerCase().trim();
-        const ownerEmail1 = 'akshat124.am12@gmail.com';
-        const ownerEmail2 = 'akshat124am.12@gmail.com';
+        const ownerEmail = 'akshat124.am12@gmail.com';
 
         snapshot.forEach(docObj => {
             const data = docObj.data();
@@ -39,7 +37,6 @@ const listenToCloudRooms = () => {
                 const otherNameRaw = data.names[otherId] || 'User';
                 const otherNameLower = String(otherNameRaw).toLowerCase().trim();
                 
-                // SCORCHED-EARTH FILTER: Block any DM that is with an alter-ego
                 if (otherNameLower === myName) return; 
                 if (otherNameRaw === currentUser.email.split('@')[0]) return;
                 
@@ -55,7 +52,7 @@ const listenToCloudRooms = () => {
                     name: data.name || 'Custom Group',
                     icon: data.icon || 'groups',
                     type: 'group',
-                    isImage: !!(data.icon && data.icon.startsWith('http'))
+                    isImage: !!(data.icon && data.icon.startsWith('data:image') || data.icon.startsWith('http'))
                 };
             }
         });
@@ -111,7 +108,17 @@ const initSettingsAndTheme = () => {
 const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
     
-    // PURGED CALL TAB
+    // SEARCH BAR ENGINE FIX: Instantly filters sidebar users
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('#dynamic-user-list .user-item').forEach(item => {
+                const name = item.querySelector('.user-info h4').innerText.toLowerCase();
+                item.style.display = name.includes(term) ? 'flex' : 'none';
+            });
+        });
+    }
+
     const callRailBtn = document.getElementById('rail-calls');
     if (callRailBtn) callRailBtn.style.display = 'none';
 
@@ -128,6 +135,8 @@ const initNavigation = () => {
             document.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active'));
             e.target.classList.add('active');
             appState.activeTab = e.target.getAttribute('data-tab');
+            
+            if (searchInput) searchInput.value = ''; // Reset search on tab change
             
             if (appState.activeTab === 'network') {
                 if (searchInput) searchInput.placeholder = "Search Network Directory...";
@@ -161,7 +170,7 @@ const initNavigation = () => {
             document.getElementById('active-room-name').innerText = groupName;
             document.getElementById('active-room-icon').innerText = 'groups';
             switchChatRoom(newGroupId);
-            alert("Group created! Click the Gear icon next to the Group Name to manage members.");
+            alert("Group created! Click the Gear icon next to the Group Name to manage members and icon.");
         } catch(e) { alert("Database Permission Error."); }
     });
 };
@@ -178,9 +187,7 @@ const fetchNetworkUsers = async () => {
         const myUid = String(currentUser?.id || "").trim();
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
         const myName = String(currentUser?.name || "").toLowerCase().trim();
-        
-        const ownerEmail1 = 'akshat124.am12@gmail.com';
-        const ownerEmail2 = 'akshat124am.12@gmail.com';
+        const ownerEmail = 'akshat124.am12@gmail.com';
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
@@ -189,15 +196,10 @@ const fetchNetworkUsers = async () => {
             const rawName = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'Network User');
             const targetNameLower = String(rawName).toLowerCase().trim();
             
-            // --- THE SCORCHED-EARTH IDENTITY FILTER ---
-            // 1. Block exact UID matches
             if (targetUid === myUid) return; 
-            // 2. Block exact Email matches
             if (targetEmail === myEmail && myEmail !== "") return; 
-            // 3. Block exact Name matches (Stops testing duplicates)
             if (targetNameLower === myName && myName !== "") return;
-            // 4. Block alter-ego Owner accounts from rendering
-            if (currentUser.isOwner && (targetEmail === ownerEmail1 || targetEmail === ownerEmail2)) return;
+            if (currentUser.isOwner && targetEmail === ownerEmail) return;
             
             const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
             
@@ -213,7 +215,7 @@ const fetchNetworkUsers = async () => {
 
             item.addEventListener('click', async () => {
                 const deterministicId = myUid < targetUid ? `dm_${myUid}_${targetUid}` : `dm_${targetUid}_${myUid}`;
-                const myPic = currentUser.customProfilePic || currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
+                const myPic = currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
                 
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
@@ -229,6 +231,10 @@ const fetchNetworkUsers = async () => {
                 
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
+                
+                const searchInput = document.getElementById('chat-search');
+                if (searchInput) { searchInput.value = ''; searchInput.placeholder = "Search"; }
+                
                 switchChatRoom(deterministicId);
             });
             listContainer.appendChild(item);
@@ -252,6 +258,9 @@ window.deleteSidebarChat = async (roomId) => {
     }
 };
 
+// Global helper to expose current rooms to the Forwarding Engine in chatEngine.js
+window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; };
+
 export const renderSidebarList = () => {
     const listContainer = document.getElementById('dynamic-user-list');
     if (!listContainer) return;
@@ -264,7 +273,6 @@ export const renderSidebarList = () => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
-        // SCORCHED EARTH CACHE FILTER: Hide any leftover self-chats in memory
         if (room.type === 'dm') {
             const roomNameLower = String(room.name).toLowerCase().trim();
             if (roomNameLower === myName || room.name === currentUser.email.split('@')[0]) return;
