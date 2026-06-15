@@ -13,11 +13,6 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
-// --- ABSOLUTE DOM PURGE FOR CALL BUTTONS ---
-const style = document.createElement('style');
-style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
-document.head.appendChild(style);
-
 const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
@@ -142,7 +137,7 @@ const initNavigation = () => {
             });
             
             appState.activeChatId = newGroupId;
-            switchChatRoom(newGroupId);
+            switchChatRoom(newGroupId, groupName, 'groups', 'group');
             alert("Group created! Click the Gear icon to upload a logo and add members.");
         } catch(e) {}
     });
@@ -174,7 +169,7 @@ const fetchNetworkUsers = async () => {
             if (targetNameLower === myName && myName !== "") return;
             if (currentUser.isOwner && targetEmail === 'akshat124.am12@gmail.com') return;
             
-            const pic = u.customProfilePic || u.photoURL || u.profilePic || u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
+            const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
             
             const item = document.createElement('div');
             item.className = 'user-item';
@@ -205,7 +200,7 @@ const fetchNetworkUsers = async () => {
                 const searchInput = document.getElementById('chat-search');
                 if (searchInput) { searchInput.value = ''; searchInput.placeholder = "Search"; }
                 
-                switchChatRoom(deterministicId);
+                switchChatRoom(deterministicId, rawName, pic, 'dm');
             });
             listContainer.appendChild(item);
         });
@@ -286,7 +281,9 @@ export const renderSidebarList = () => {
                 appState.activeChatId = id;
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
-                switchChatRoom(id);
+                
+                // Explicitly send perfect display data to avoid loading-lag in chatEngine
+                switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
         }
