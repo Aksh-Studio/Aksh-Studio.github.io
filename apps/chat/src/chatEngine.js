@@ -39,12 +39,16 @@ const injectGroupAdminModal = () => {
                     </div>
                 </div>
                 
-                <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
-                <div id="search-member-results" style="max-height: 120px; overflow-y: auto; margin-bottom: 15px;"></div>
+                <div id="add-member-section">
+                    <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
+                    <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                    <div id="search-member-results" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
+                </div>
 
-                <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Participants</h4>
-                <div id="admin-member-list" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px;"></div>
+                <div id="manage-members-section">
+                    <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Participants</h4>
+                    <div id="admin-member-list" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px;"></div>
+                </div>
 
                 <div id="transfer-admin-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Transfer Admin Status</h4>
@@ -80,7 +84,7 @@ const injectGroupAdminModal = () => {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 uploadedGroupIconBase64 = canvas.toDataURL('image/jpeg', 0.8);
                 document.getElementById('group-icon-preview').src = uploadedGroupIconBase64;
-                document.getElementById('edit-group-icon').value = ''; // clear url if uploaded
+                document.getElementById('edit-group-icon').value = ''; 
             };
             img.src = event.target.result;
         };
@@ -93,7 +97,7 @@ const injectGroupAdminModal = () => {
         const newAdminId = document.getElementById('transfer-admin-select').value;
         const updates = {};
         if (newName) updates.name = newName;
-        if (urlIcon) updates.icon = urlIcon; // Prioritize URL if typed
+        if (urlIcon) updates.icon = urlIcon; 
         else if (uploadedGroupIconBase64) updates.icon = uploadedGroupIconBase64;
         if (newAdminId) updates.admins = [newAdminId]; 
         
@@ -116,7 +120,6 @@ const injectGroupAdminModal = () => {
     });
 };
 
-// GLOBAL: Add member directly from search results
 window.addGroupMember = async (newMemberId) => {
     try {
         const currentParticipants = currentRoomData?.participants || [];
@@ -125,6 +128,7 @@ window.addGroupMember = async (newMemberId) => {
         await setDoc(doc(db, "chats", currentRoomId), { participants: updatedParticipants }, { merge: true });
         document.getElementById('search-member-input').value = '';
         document.getElementById('search-member-results').innerHTML = '';
+        document.getElementById('search-member-results').style.display = 'none';
     } catch(e) { alert("Failed to add member."); }
 };
 
@@ -139,6 +143,7 @@ const populateGroupManagement = async (participants, admins) => {
     listEl.innerHTML = '';
     transferSelectEl.innerHTML = '<option value="">Select a member to make Admin...</option>';
     searchResults.innerHTML = '';
+    searchResults.style.display = 'none';
     searchInput.value = '';
 
     const curId = currentUser?.id || currentUser?.uid;
@@ -157,7 +162,6 @@ const populateGroupManagement = async (participants, admins) => {
                 
                 if (!isMemAdmin) transferSelectEl.innerHTML += `<option value="${uid}">${name}</option>`;
 
-                // ONLY Admins/Owner can see Kick Button
                 const kickBtnHTML = (uid !== curId && canEdit) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Kick</button>` : '';
 
                 listEl.innerHTML += `
@@ -170,7 +174,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // 2. Network Search Live Engine
+    // 2. LIVE SEARCH ENGINE: Name + Email Display
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -180,30 +184,36 @@ const populateGroupManagement = async (participants, admins) => {
         });
     } catch(e) {}
 
-    searchInput.oninput = (e) => {
-        const term = e.target.value.toLowerCase();
+    const renderSearch = (term = '') => {
+        searchResults.style.display = 'block';
         searchResults.innerHTML = '';
-        if (!term) return;
 
         const filtered = allUsers.filter(u => 
             !participants.includes(u.id) && 
             (u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
         );
 
-        if (filtered.length === 0) searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted);">No users found.</p>';
+        if (filtered.length === 0) {
+            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No available users found.</p>';
+            return;
+        }
 
         filtered.forEach(u => {
             searchResults.innerHTML += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border);">
-                    <div>
-                        <div style="font-size: 13px; color: var(--text-main); font-weight:600;">${u.name}</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">${u.email}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--app-bg);">
+                    <div style="display: flex; flex-direction: column; text-align: left;">
+                        <span style="font-size: 13px; color: var(--text-main); font-weight: 600;">${u.name}</span>
+                        <span style="font-size: 11px; color: var(--text-muted);">${u.email}</span>
                     </div>
                     <button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer;">Add</button>
                 </div>
             `;
         });
     };
+
+    // Load available members instantly when opened
+    renderSearch(); 
+    searchInput.oninput = (e) => renderSearch(e.target.value.toLowerCase());
 };
 
 window.kickUser = async (targetUid) => {
@@ -245,16 +255,22 @@ const listenToRoomState = (roomId) => {
         const curId = currentUser?.id || currentUser?.uid;
         const isOwner = currentUser?.isOwner;
         const isAdmin = currentRoomData?.admins?.includes(curId);
-        const canEdit = isOwner || isAdmin;
+        
+        // --- SYSTEM GROUP LOGIC ---
         const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
+        const canEditSystem = isSystemGroup ? isOwner : false; 
+        const canEditCustom = isOwner || isAdmin;
+        const canEdit = isSystemGroup ? canEditSystem : canEditCustom;
         
         const existingGear = document.getElementById('group-settings-btn');
         if (existingGear) existingGear.remove();
 
         const titleEl = document.getElementById('active-room-name');
         
-        // Settings Gear Logic: EVERYONE in a custom group gets it. ONLY Admins/Owner get it in System Groups.
-        if (currentRoomData.type === 'group' || (isSystemGroup && canEdit)) {
+        // Access rules: 
+        // 1. If custom group, EVERYONE sees gear (to view participants/add).
+        // 2. If system group, ONLY Owner sees gear.
+        if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
             const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
             const baseName = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Group');
             titleEl.innerHTML = `${baseName} ${gearHTML}`;
@@ -263,11 +279,15 @@ const listenToRoomState = (roomId) => {
                 e.stopPropagation();
                 injectGroupAdminModal(); 
                 
-                // --- PERMISSIONS LOCKDOWN ---
+                // CONDITIONAL RENDERING BASED ON PERMISSIONS
                 document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                document.getElementById('transfer-admin-section').style.display = canEdit ? 'block' : 'none';
+                document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
                 document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
                 document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+
+                // System groups do not have manual participants to add/manage
+                document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
+                document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
 
                 if (canEdit) {
                     document.getElementById('edit-group-name').value = currentRoomData.name || '';
@@ -413,7 +433,6 @@ export const sendMessage = async () => {
     } catch (error) {}
 };
 
-// --- THE FORWARDING ENGINE MODAL ---
 const buildForwardModal = () => {
     if (document.getElementById('forward-modal')) return;
     const fModal = `
@@ -511,13 +530,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
-                    } catch (error) {}
+                    } catch (error) { console.error("Image Upload Failed", error); }
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file); 
         });
     }
+
+    document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
+        if (!currentRoomId) return;
+        try {
+            const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
+            const snapshot = await getDocs(q);
+            let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
+            snapshot.forEach(docObj => {
+                const m = docObj.data();
+                const stamp = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Processing";
+                logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
+            });
+            const fileBlob = new Blob([logOutput], { type: 'text/plain' });
+            const fileUrl = URL.createObjectURL(fileBlob);
+            const anchor = document.createElement('a');
+            anchor.href = fileUrl;
+            anchor.download = `WhatsApp_Chat_${currentRoomId}.txt`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(fileUrl);
+        } catch(err) { alert("Export operational processing failure."); }
+    });
 
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
