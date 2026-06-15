@@ -150,7 +150,10 @@ const populateGroupManagement = async (participants, admins) => {
     const isAdmin = admins?.includes(curId);
     const canEdit = isOwner || isAdmin;
 
-    for (const uid of participants) {
+    // Secure array defaults
+    const safeParticipants = Array.isArray(participants) ? participants : [];
+
+    for (const uid of safeParticipants) {
         try {
             const userDoc = await getDoc(doc(db, "users", uid));
             if (userDoc.exists()) {
@@ -173,7 +176,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- SEARCH LOOP BUG FIX ---
+    // --- FIX 1: BULLETPROOF SEARCH ARRAY ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -189,8 +192,9 @@ const populateGroupManagement = async (participants, admins) => {
         searchResults.style.display = 'block';
         const cleanTerm = term.trim().toLowerCase();
 
+        // Safely filter against participants
         const filtered = allUsers.filter(u => 
-            !participants.includes(u.id) && 
+            !safeParticipants.includes(u.id) && 
             (u.name.toLowerCase().includes(cleanTerm) || u.email.toLowerCase().includes(cleanTerm))
         );
 
@@ -216,7 +220,6 @@ const populateGroupManagement = async (participants, admins) => {
 
     renderSearch(); 
     
-    // Purges old listeners to prevent duplication glitches
     const newInput = searchInput.cloneNode(true);
     searchInput.parentNode.replaceChild(newInput, searchInput);
     newInput.addEventListener('input', (e) => renderSearch(e.target.value));
@@ -237,9 +240,10 @@ export const switchChatRoom = (roomId) => {
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
+    // Server Timestamp explicitly links client to server math
     try {
         const curId = currentUser?.id || currentUser?.uid;
-        if (curId) setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+        if (curId) setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true });
     } catch(e) {}
 };
 
@@ -278,25 +282,31 @@ const listenToRoomState = (roomId) => {
         const titleEl = document.getElementById('active-room-name');
         const iconBox = document.getElementById('active-room-icon-box');
 
-        // --- BUG FIX: CHAT HEADER DM NAMES AND LOGOS ---
         if (titleEl && iconBox) {
-            let displayRoomName = currentRoomData.name || 'Chat';
+            let displayRoomName = currentRoomData.name;
             let displayRoomIcon = currentRoomData.icon;
             let isIconImage = false;
 
-            // Extracts the OTHER person's name and picture if it's a DM
+            // --- FIX 2: CHAT HEADER NAME BUG ---
             if (currentRoomData.type === 'dm') {
+                // Fallback 1: Extract from Database Map
                 const otherId = currentRoomData.participants?.find(id => id !== curId);
                 if (otherId) {
-                    displayRoomName = currentRoomData.names?.[otherId] || 'User';
+                    displayRoomName = currentRoomData.names?.[otherId];
                     displayRoomIcon = currentRoomData.avatars?.[otherId];
                     isIconImage = true; 
+                }
+                
+                // Fallback 2: Extract directly from Visual DOM if DB Map failed
+                if (!displayRoomName || displayRoomName === 'User') {
+                    const activeSidebarItem = document.querySelector(`.user-item.active .user-info h4`);
+                    if (activeSidebarItem) displayRoomName = activeSidebarItem.innerText;
                 }
             } else {
                 isIconImage = displayRoomIcon && (displayRoomIcon.startsWith('http') || displayRoomIcon.startsWith('data:image'));
             }
 
-            titleEl.innerText = displayRoomName;
+            titleEl.innerText = displayRoomName || (isSystemGroup ? 'System Group' : 'Chat');
             
             if (isIconImage && displayRoomIcon) {
                 iconBox.style.background = 'transparent';
@@ -358,14 +368,12 @@ export const listenToMessages = (roomId) => {
             participantList = roomId.replace('dm_', '').split('_');
         }
         const otherParticipants = participantList.filter(id => id !== curId);
-        
-        const now = Date.now();
 
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
-            const myLastRead = readReceipts[curId] || 0;
-            if (lastMsg.senderId !== curId && (now - myLastRead > 5000)) {
-                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: now }, { merge: true }); } catch(e){}
+            if (lastMsg.senderId !== curId) {
+                // Instantly update receipt when receiving new message
+                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true }); } catch(e){}
             }
         }
 
@@ -381,6 +389,7 @@ export const listenToMessages = (roomId) => {
             let timeString = "Sending...";
             let tickHTML = "";
             
+            // --- FIX 3: BULLETPROOF BLUE TICKS MATRICES ---
             if (msg.timestamp) {
                 const msgTime = msg.timestamp.toMillis();
                 timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -389,8 +398,13 @@ export const listenToMessages = (roomId) => {
                     let allRead = false;
                     if (otherParticipants.length > 0) {
                         allRead = otherParticipants.every(pid => {
-                            const rTime = readReceipts[pid] || 0;
-                            return rTime >= (msgTime - 120000) || (now - rTime < 300000); 
+                            // Extract Server Timestamp if available, or fall back to local logic
+                            const receiptObj = readReceipts[pid];
+                            const rTime = receiptObj && receiptObj.toMillis ? receiptObj.toMillis() : (receiptObj || 0);
+                            
+                            // It is read if their receipt timestamp is strictly newer than the message
+                            // OR if they triggered a receipt within 2 minutes of the message sending
+                            return rTime >= msgTime || (rTime >= (msgTime - 120000));
                         });
                     }
                     const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -470,7 +484,7 @@ export const sendMessage = async () => {
     
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
-        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true });
     } catch (error) {}
 };
 
@@ -577,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
-                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
+                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp() }, { merge: true });
                     } catch (error) {}
                 };
                 img.src = event.target.result;
@@ -588,6 +602,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fwdBtn = document.getElementById('btn-action-forward');
     if (fwdBtn) fwdBtn.addEventListener('click', window.forwardSelectedMessages);
+    
+    // NATIVE HTML CANCEL BUTTON
+    const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
+    if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
@@ -679,3 +697,29 @@ window.replyToMessage = (msgId) => {
     window.toggleActionMenu(msgId);
 };
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
+
+window.enableSelectionMode = (enable = true) => {
+    const container = document.getElementById('chat-messages-container');
+    const selectionHeader = document.getElementById('selection-chat-header');
+    
+    if (enable) {
+        container.classList.add('selection-mode');
+        document.getElementById('standard-chat-header').style.display = 'none';
+        if (selectionHeader) selectionHeader.style.display = 'flex';
+        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
+    } else {
+        container.classList.remove('selection-mode');
+        document.getElementById('standard-chat-header').style.display = 'flex';
+        if (selectionHeader) selectionHeader.style.display = 'none';
+        document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
+        const countTxt = document.getElementById('selection-count');
+        if (countTxt) countTxt.innerText = `0 Selected`;
+    }
+};
+
+document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('msg-checkbox')) {
+        const count = document.querySelectorAll('.msg-checkbox:checked').length;
+        document.getElementById('selection-count').innerText = `${count} Selected`;
+    }
+});
