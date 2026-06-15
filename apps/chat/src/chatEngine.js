@@ -8,8 +8,7 @@ export let currentRoomId = null;
 export let currentRoomData = null; 
 let replyContext = null; 
 let messageToPin = null; 
-
-let uploadedGroupIconBase64 = null; // Stores group icon locally before save
+let uploadedGroupIconBase64 = null; 
 
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
@@ -22,37 +21,37 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- DYNAMIC GROUP MANAGEMENT DASHBOARD (UPGRADED) ---
+// --- DYNAMIC GROUP MANAGEMENT MODAL ---
 const injectGroupAdminModal = () => {
     if (document.getElementById('group-admin-modal')) return;
     const modalHTML = `
         <div id="group-admin-modal" class="guest-overlay" style="display: none; z-index: 10002;">
             <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto;">
-                <h3 style="margin-bottom: 15px; color: var(--primary);">Group Settings</h3>
+                <h3 style="margin-bottom: 15px; color: var(--primary);">Group Information</h3>
                 
-                <input type="text" id="edit-group-name" placeholder="Group Name" style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
-                
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                    <img id="group-icon-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
-                    <button id="btn-upload-group-icon" style="flex: 1; padding: 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); border-radius: 8px; cursor: pointer; font-size: 12px;">Upload Group Icon</button>
-                    <input type="file" id="hidden-group-icon-input" accept="image/*" style="display: none;">
+                <div id="group-edit-section">
+                    <input type="text" id="edit-group-name" placeholder="Group Name" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                    <input type="text" id="edit-group-icon" placeholder="Or paste Logo URL here..." style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                        <img id="group-icon-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
+                        <button id="btn-upload-group-icon" style="flex: 1; padding: 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); border-radius: 8px; cursor: pointer; font-size: 12px;">Upload Device Logo</button>
+                        <input type="file" id="hidden-group-icon-input" accept="image/*" style="display: none;">
+                    </div>
                 </div>
                 
                 <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <select id="add-member-select-list" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
-                        <option value="">Select User...</option>
-                    </select>
-                    <button id="btn-add-group-member" style="padding: 10px 15px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Add</button>
-                </div>
+                <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                <div id="search-member-results" style="max-height: 120px; overflow-y: auto; margin-bottom: 15px;"></div>
 
-                <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Manage Members</h4>
+                <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Participants</h4>
                 <div id="admin-member-list" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px;"></div>
 
-                <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Transfer Admin Status</h4>
-                <select id="transfer-admin-select" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
-                    <option value="">Select a member...</option>
-                </select>
+                <div id="transfer-admin-section">
+                    <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Transfer Admin Status</h4>
+                    <select id="transfer-admin-select" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                        <option value="">Select a member...</option>
+                    </select>
+                </div>
 
                 <button id="btn-save-group" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Save Changes</button>
                 <button id="btn-delete-group" style="width: 100%; padding: 12px; background: #ea0038; color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Delete Group</button>
@@ -64,7 +63,6 @@ const injectGroupAdminModal = () => {
 
     document.getElementById('btn-cancel-group').addEventListener('click', () => { document.getElementById('group-admin-modal').style.display = 'none'; uploadedGroupIconBase64 = null; });
 
-    // FIX 1: Group Icon Upload Logic
     document.getElementById('btn-upload-group-icon').addEventListener('click', () => document.getElementById('hidden-group-icon-input').click());
     document.getElementById('hidden-group-icon-input').addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -82,34 +80,21 @@ const injectGroupAdminModal = () => {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 uploadedGroupIconBase64 = canvas.toDataURL('image/jpeg', 0.8);
                 document.getElementById('group-icon-preview').src = uploadedGroupIconBase64;
+                document.getElementById('edit-group-icon').value = ''; // clear url if uploaded
             };
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
     });
 
-    // FIX 2: Add Member via Dropdown (No more typing emails)
-    document.getElementById('btn-add-group-member').addEventListener('click', async () => {
-        const selectEl = document.getElementById('add-member-select-list');
-        const newMemberId = selectEl.value;
-        if (!newMemberId) return alert("Please select a user first.");
-        
-        try {
-            const currentParticipants = currentRoomData?.participants || [];
-            if (currentParticipants.includes(newMemberId)) return alert("User is already in this group.");
-            const updatedParticipants = [...currentParticipants, newMemberId];
-            await setDoc(doc(db, "chats", currentRoomId), { participants: updatedParticipants }, { merge: true });
-            alert("Member added successfully!");
-            selectEl.value = ""; // Reset
-        } catch(e) { alert("Failed to add member."); }
-    });
-
     document.getElementById('btn-save-group').addEventListener('click', async () => {
         const newName = document.getElementById('edit-group-name').value.trim();
+        const urlIcon = document.getElementById('edit-group-icon').value.trim();
         const newAdminId = document.getElementById('transfer-admin-select').value;
         const updates = {};
         if (newName) updates.name = newName;
-        if (uploadedGroupIconBase64) updates.icon = uploadedGroupIconBase64;
+        if (urlIcon) updates.icon = urlIcon; // Prioritize URL if typed
+        else if (uploadedGroupIconBase64) updates.icon = uploadedGroupIconBase64;
         if (newAdminId) updates.admins = [newAdminId]; 
         
         if (Object.keys(updates).length > 0) {
@@ -131,34 +116,53 @@ const injectGroupAdminModal = () => {
     });
 };
 
+// GLOBAL: Add member directly from search results
+window.addGroupMember = async (newMemberId) => {
+    try {
+        const currentParticipants = currentRoomData?.participants || [];
+        if (currentParticipants.includes(newMemberId)) return;
+        const updatedParticipants = [...currentParticipants, newMemberId];
+        await setDoc(doc(db, "chats", currentRoomId), { participants: updatedParticipants }, { merge: true });
+        document.getElementById('search-member-input').value = '';
+        document.getElementById('search-member-results').innerHTML = '';
+    } catch(e) { alert("Failed to add member."); }
+};
+
 const populateGroupManagement = async (participants, admins) => {
     const listEl = document.getElementById('admin-member-list');
     const transferSelectEl = document.getElementById('transfer-admin-select');
-    const addSelectEl = document.getElementById('add-member-select-list');
+    const searchInput = document.getElementById('search-member-input');
+    const searchResults = document.getElementById('search-member-results');
     
-    if (!listEl || !transferSelectEl || !addSelectEl) return;
+    if (!listEl || !transferSelectEl || !searchInput) return;
     
     listEl.innerHTML = '';
     transferSelectEl.innerHTML = '<option value="">Select a member to make Admin...</option>';
-    addSelectEl.innerHTML = '<option value="">Loading Network...</option>';
-    
-    // 1. Populate current members
+    searchResults.innerHTML = '';
+    searchInput.value = '';
+
+    const curId = currentUser?.id || currentUser?.uid;
+    const isOwner = currentUser?.isOwner;
+    const isAdmin = admins?.includes(curId);
+    const canEdit = isOwner || isAdmin;
+
+    // 1. Participant List Rendering
     for (const uid of participants) {
         try {
             const userDoc = await getDoc(doc(db, "users", uid));
             if (userDoc.exists()) {
                 const u = userDoc.data();
                 const name = u.fullName || u.firstName || u.email.split('@')[0];
-                const isAdmin = admins?.includes(uid);
+                const isMemAdmin = admins?.includes(uid);
                 
-                if (!isAdmin) transferSelectEl.innerHTML += `<option value="${uid}">${name}</option>`;
+                if (!isMemAdmin) transferSelectEl.innerHTML += `<option value="${uid}">${name}</option>`;
 
-                const myId = currentUser?.id || currentUser?.uid;
-                const kickBtnHTML = (uid !== myId) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Kick</button>` : '';
+                // ONLY Admins/Owner can see Kick Button
+                const kickBtnHTML = (uid !== curId && canEdit) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Kick</button>` : '';
 
                 listEl.innerHTML += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--app-bg);">
-                        <span style="font-size: 13px; color: var(--text-main);">${name} <span style="color:var(--primary); font-size:10px;">${isAdmin ? '(Admin)' : ''}</span></span>
+                        <span style="font-size: 13px; color: var(--text-main);">${name} <span style="color:var(--primary); font-size:10px;">${isMemAdmin ? '(Admin)' : ''}</span></span>
                         ${kickBtnHTML}
                     </div>
                 `;
@@ -166,19 +170,40 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // 2. Fetch all network users to populate the "Add Member" dropdown
+    // 2. Network Search Live Engine
+    let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
-        addSelectEl.innerHTML = '<option value="">Select User to Add...</option>';
-        snap.forEach(docObj => {
-            const uid = docObj.id;
-            if (!participants.includes(uid)) { // Only show users NOT in the group
-                const u = docObj.data();
-                const name = u.fullName || u.firstName || u.name || (u.email ? u.email.split('@')[0] : 'User');
-                addSelectEl.innerHTML += `<option value="${uid}">${name}</option>`;
-            }
+        snap.forEach(d => {
+            const u = d.data();
+            allUsers.push({ id: d.id, name: u.fullName || u.firstName || u.name || u.email.split('@')[0], email: u.email || '' });
         });
-    } catch(e) { addSelectEl.innerHTML = '<option value="">Error loading users</option>'; }
+    } catch(e) {}
+
+    searchInput.oninput = (e) => {
+        const term = e.target.value.toLowerCase();
+        searchResults.innerHTML = '';
+        if (!term) return;
+
+        const filtered = allUsers.filter(u => 
+            !participants.includes(u.id) && 
+            (u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
+        );
+
+        if (filtered.length === 0) searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted);">No users found.</p>';
+
+        filtered.forEach(u => {
+            searchResults.innerHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <div style="font-size: 13px; color: var(--text-main); font-weight:600;">${u.name}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">${u.email}</div>
+                    </div>
+                    <button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer;">Add</button>
+                </div>
+            `;
+        });
+    };
 };
 
 window.kickUser = async (targetUid) => {
@@ -192,7 +217,7 @@ window.kickUser = async (targetUid) => {
 
 export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
-    window.enableSelectionMode(false); // Reset any glitched headers safely
+    window.enableSelectionMode(false); 
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
@@ -219,7 +244,8 @@ const listenToRoomState = (roomId) => {
 
         const curId = currentUser?.id || currentUser?.uid;
         const isOwner = currentUser?.isOwner;
-        const isGroupAdmin = currentRoomData?.admins?.includes(curId);
+        const isAdmin = currentRoomData?.admins?.includes(curId);
+        const canEdit = isOwner || isAdmin;
         const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
         
         const existingGear = document.getElementById('group-settings-btn');
@@ -227,9 +253,9 @@ const listenToRoomState = (roomId) => {
 
         const titleEl = document.getElementById('active-room-name');
         
-        if ((currentRoomData.type === 'group' || isSystemGroup) && (isGroupAdmin || isOwner)) {
+        // Settings Gear Logic: EVERYONE in a custom group gets it. ONLY Admins/Owner get it in System Groups.
+        if (currentRoomData.type === 'group' || (isSystemGroup && canEdit)) {
             const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
-            
             const baseName = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Group');
             titleEl.innerHTML = `${baseName} ${gearHTML}`;
             
@@ -237,11 +263,17 @@ const listenToRoomState = (roomId) => {
                 e.stopPropagation();
                 injectGroupAdminModal(); 
                 
-                const delBtn = document.getElementById('btn-delete-group');
-                if (delBtn) delBtn.style.display = isSystemGroup ? 'none' : 'block';
+                // --- PERMISSIONS LOCKDOWN ---
+                document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
+                document.getElementById('transfer-admin-section').style.display = canEdit ? 'block' : 'none';
+                document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
+                document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
 
-                document.getElementById('edit-group-name').value = currentRoomData.name || '';
-                document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                if (canEdit) {
+                    document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                    document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                    document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                }
                 
                 populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
                 document.getElementById('group-admin-modal').style.display = 'flex';
@@ -381,13 +413,13 @@ export const sendMessage = async () => {
     } catch (error) {}
 };
 
-// --- FIX 4: THE FORWARDING ENGINE MODAL ---
+// --- THE FORWARDING ENGINE MODAL ---
 const buildForwardModal = () => {
     if (document.getElementById('forward-modal')) return;
     const fModal = `
         <div id="forward-modal" class="guest-overlay" style="display: none; z-index: 10003;">
             <div class="guest-modal" style="padding: 20px; width: 90%; max-width: 350px;">
-                <h3 style="margin-bottom: 15px; color: var(--primary);">Forward Message To:</h3>
+                <h3 style="margin-bottom: 15px; color: var(--primary);">Forward To:</h3>
                 <div id="forward-rooms-list" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;"></div>
                 <button onclick="document.getElementById('forward-modal').style.display='none'" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
             </div>
@@ -404,11 +436,10 @@ window.forwardSelectedMessages = async () => {
     const listEl = document.getElementById('forward-rooms-list');
     listEl.innerHTML = '';
     
-    // Grabs active chats from app.js globally
     const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
     
     if (Object.keys(availableRooms).length === 0) {
-        listEl.innerHTML = '<p style="padding: 10px; text-align:center; color: var(--text-muted);">No chats available to forward to.</p>';
+        listEl.innerHTML = '<p style="padding: 10px; text-align:center; color: var(--text-muted);">No chats available.</p>';
     }
 
     Object.keys(availableRooms).forEach(roomId => {
@@ -435,7 +466,7 @@ window.forwardSelectedMessages = async () => {
                         };
                         await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
                     }
-                } catch(e) { console.error("Forward Error"); }
+                } catch(e) {}
             }
             window.enableSelectionMode(false);
             alert("Messages forwarded successfully.");
@@ -444,7 +475,6 @@ window.forwardSelectedMessages = async () => {
     });
     document.getElementById('forward-modal').style.display = 'flex';
 };
-
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
@@ -481,36 +511,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
-                    } catch (error) { console.error("Image Upload Failed", error); }
+                    } catch (error) {}
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file); 
         });
     }
-
-    document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
-        if (!currentRoomId) return;
-        try {
-            const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
-            const snapshot = await getDocs(q);
-            let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
-            snapshot.forEach(docObj => {
-                const m = docObj.data();
-                const stamp = m.timestamp ? m.timestamp.toDate().toLocaleString() : "Processing";
-                logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
-            });
-            const fileBlob = new Blob([logOutput], { type: 'text/plain' });
-            const fileUrl = URL.createObjectURL(fileBlob);
-            const anchor = document.createElement('a');
-            anchor.href = fileUrl;
-            anchor.download = `WhatsApp_Chat_${currentRoomId}.txt`;
-            document.body.appendChild(anchor);
-            anchor.click();
-            document.body.removeChild(anchor);
-            URL.revokeObjectURL(fileUrl);
-        } catch(err) { alert("Export operational processing failure."); }
-    });
 
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
@@ -545,7 +552,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.enableSelectionMode(false);
     });
 
-    // Attach Forward Action to Selection Bar
     document.getElementById('btn-action-forward')?.addEventListener('click', window.forwardSelectedMessages);
 
     document.querySelectorAll('.pin-duration-btn').forEach(btn => {
@@ -583,7 +589,6 @@ window.replyToMessage = (msgId) => {
 };
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
 
-// --- FIX 3: SELECTION MODE GLITCH (CANCELLATION) ---
 window.enableSelectionMode = (enable = true) => {
     const container = document.getElementById('chat-messages-container');
     const selectionHeader = document.getElementById('selection-chat-header');
@@ -591,13 +596,10 @@ window.enableSelectionMode = (enable = true) => {
     if (enable) {
         container.classList.add('selection-mode');
         document.getElementById('standard-chat-header').style.display = 'none';
-        
-        // Dynamically inject the "X" cancel button if it's missing from your HTML
         if (selectionHeader && !document.getElementById('btn-cancel-selection-header')) {
             const cancelBtnHTML = `<span id="btn-cancel-selection-header" class="material-symbols-rounded" style="cursor: pointer; margin-right: 15px; color: var(--text-main);" onclick="window.enableSelectionMode(false)">close</span>`;
             selectionHeader.insertAdjacentHTML('afterbegin', cancelBtnHTML);
         }
-        
         if (selectionHeader) selectionHeader.style.display = 'flex';
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
     } else {
