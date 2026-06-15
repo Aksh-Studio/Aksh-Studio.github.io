@@ -101,7 +101,11 @@ const injectGroupAdminModal = () => {
         if (newAdminId) updates.admins = [newAdminId]; 
         
         if (Object.keys(updates).length > 0) {
-            try { await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true }); alert("Group settings saved."); } 
+            try { 
+                // Merge guarantees System Groups get created in the DB if they don't exist yet
+                await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true }); 
+                alert("Group settings saved."); 
+            } 
             catch(e) { alert("Error saving settings."); }
         }
         document.getElementById('group-admin-modal').style.display = 'none';
@@ -155,7 +159,8 @@ const populateGroupManagement = async (participants, admins) => {
             const userDoc = await getDoc(doc(db, "users", uid));
             if (userDoc.exists()) {
                 const u = userDoc.data();
-                const name = u.fullName || u.firstName || u.email.split('@')[0];
+                const safeEmail = String(u.email || '');
+                const name = u.fullName || u.firstName || (safeEmail ? safeEmail.split('@')[0] : 'User');
                 const isMemAdmin = admins?.includes(uid);
                 
                 if (!isMemAdmin) transferSelectEl.innerHTML += `<option value="${uid}">${name}</option>`;
@@ -172,12 +177,15 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
+    // --- BUG FIX: AVOID STRING CRASHES DURING SEARCH LOOP ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
-            allUsers.push({ id: d.id, name: u.fullName || u.firstName || u.name || u.email.split('@')[0], email: u.email || '' });
+            const safeEmail = String(u.email || ''); // Guarantees no crashes
+            const safeName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'User');
+            allUsers.push({ id: d.id, name: safeName, email: safeEmail });
         });
     } catch(e) {}
 
@@ -229,7 +237,6 @@ export const switchChatRoom = (roomId) => {
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
-    // Explicitly update read receipt when you open the room
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
@@ -271,11 +278,9 @@ const listenToRoomState = (roomId) => {
         const titleEl = document.getElementById('active-room-name');
         const iconBox = document.getElementById('active-room-icon-box');
 
-        // CHAT HEADER LOGO INJECTION
         if (titleEl && iconBox) {
             titleEl.innerText = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Chat');
             
-            // Check if logo exists in database and replace text icon with image
             if (currentRoomData.icon && (currentRoomData.icon.startsWith('http') || currentRoomData.icon.startsWith('data:image'))) {
                 iconBox.style.background = 'transparent';
                 iconBox.innerHTML = `<img src="${currentRoomData.icon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
@@ -336,12 +341,15 @@ export const listenToMessages = (roomId) => {
             participantList = roomId.replace('dm_', '').split('_');
         }
         const otherParticipants = participantList.filter(id => id !== curId);
+        
+        const now = Date.now();
 
-        // Update read receipt dynamically if you are in the room looking at a new message
+        // Dynamically update read receipt only if we haven't in the last 5 seconds to prevent loop-writes
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
-            if (lastMsg.senderId !== curId) {
-                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
+            const myLastRead = readReceipts[curId] || 0;
+            if (lastMsg.senderId !== curId && (now - myLastRead > 5000)) {
+                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: now }, { merge: true }); } catch(e){}
             }
         }
 
@@ -364,8 +372,12 @@ export const listenToMessages = (roomId) => {
                 if (isMe) {
                     let allRead = false;
                     if (otherParticipants.length > 0) {
-                        // FIXED: Applies 120-second active buffer to defeat race-conditions
-                        allRead = otherParticipants.every(pid => readReceipts[pid] && readReceipts[pid] >= (msgTime - 120000));
+                        // --- BUG FIX: SOLVES RACE CONDITIONS AND CLOCK DRIFT ---
+                        // If they actively have the chat open, or read it after it was sent.
+                        allRead = otherParticipants.every(pid => {
+                            const rTime = readReceipts[pid] || 0;
+                            return rTime >= (msgTime - 120000) || (now - rTime < 300000); 
+                        });
                     }
                     const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
                     tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
@@ -471,7 +483,6 @@ window.forwardSelectedMessages = async () => {
     listEl.innerHTML = '';
     
     const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
-    
     if (Object.keys(availableRooms).length === 0) {
         listEl.innerHTML = '<p style="padding: 10px; text-align:center; color: var(--text-muted);">No chats available.</p>';
     }
@@ -491,10 +502,10 @@ window.forwardSelectedMessages = async () => {
                     if (msgDoc.exists()) {
                         const originalData = msgDoc.data();
                         
-                        // FIX: Forces visible italics for the forwarded tag
-                        const prefix = "_▶ Forwarded_ \n\n";
+                        // FIX: Forces visible italics and clear spacing for forwarded text
+                        const prefix = "_▶ Forwarded_\n";
                         let finalizedText = originalData.text;
-                        if (!finalizedText.includes("▶ Forwarded")) finalizedText = prefix + finalizedText;
+                        if (!finalizedText.includes("Forwarded")) finalizedText = prefix + finalizedText;
 
                         const fwdPayload = {
                             text: finalizedText,
@@ -559,11 +570,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Explicitly binds the HTML buttons to the JS Execution Logic
     const fwdBtn = document.getElementById('btn-action-forward');
     if (fwdBtn) fwdBtn.addEventListener('click', window.forwardSelectedMessages);
     
-    // Explicitly binds the Native HTML Cancel Selection button to remove the Double X bug
+    // Explicitly binds the HTML Cancel button. NO Double X!
     const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
     if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
@@ -658,7 +668,7 @@ window.replyToMessage = (msgId) => {
 };
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
 
-// NO MORE INJECTED BUTTONS: Strictly hooks into the HTML to prevent duplicates
+// NO INJECTED BUTTONS: Strictly triggers native HTML
 window.enableSelectionMode = (enable = true) => {
     const container = document.getElementById('chat-messages-container');
     const selectionHeader = document.getElementById('selection-chat-header');
