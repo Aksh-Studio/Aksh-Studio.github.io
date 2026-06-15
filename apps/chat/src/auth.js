@@ -4,10 +4,10 @@ import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
     
-    // BULLETPROOF OWNER VALIDATION
+    // STRICT OWNER LOCK
     get isOwner() { 
         const e = String(this.email).toLowerCase().trim();
-        return e === 'akshat124.am12@gmail.com' || e === 'akshat124am.12@gmail.com'; 
+        return e === 'akshat124.am12@gmail.com'; 
     },
     get isGuest() { return !this.id; }
 };
@@ -24,12 +24,12 @@ export const initAuth = (onSuccessBoot) => {
         currentUser.id = uid;
         currentUser.email = email;
         currentUser.name = name || email.split('@')[0];
+        // PROFILE PIC BUG FIX: Prioritize the passed photo (from DB) before fallback
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
         if (overlay) overlay.style.display = 'none';
         if (root) root.classList.remove('guest-blur');
 
-        // INJECT OWNER TAG DIRECTLY INTO NAVBAR
         const nameEl = document.getElementById('nav-profile-name');
         if (nameEl) nameEl.innerHTML = `Name: ${currentUser.name} <span style="color:var(--primary); font-size:12px;">${currentUser.isOwner ? '(Owner)' : ''}</span>`;
         
@@ -37,7 +37,10 @@ export const initAuth = (onSuccessBoot) => {
         if (emailEl) emailEl.innerText = `Email: ${currentUser.email}`;
         
         const picEl = document.getElementById('nav-profile-pic');
-        if (picEl) picEl.src = currentUser.photoURL;
+        if (picEl) {
+            picEl.src = currentUser.photoURL;
+            picEl.onerror = () => { picEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`; };
+        }
 
         if (onSuccessBoot) onSuccessBoot();
     };
@@ -47,10 +50,11 @@ export const initAuth = (onSuccessBoot) => {
             let dName = user.displayName;
             let pUrl = user.photoURL;
             try {
+                // PROFILE PIC BUG FIX: Strictly fetch custom profile pic from Firestore
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
                     dName = uDoc.data().fullName || dName;
-                    pUrl = uDoc.data().customProfilePic || pUrl;
+                    pUrl = uDoc.data().customProfilePic || uDoc.data().photoURL || pUrl;
                 }
             } catch (error) {}
             forceBoot(user.uid, user.email, dName, pUrl);
