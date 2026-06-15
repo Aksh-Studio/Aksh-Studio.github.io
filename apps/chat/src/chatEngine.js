@@ -6,11 +6,10 @@ let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
 export let currentRoomData = null; 
-export let currentRoomMeta = { name: 'Chat', icon: '', type: 'dm' }; // Caches the Header state locally
+let currentMessagesSnapshot = null; // Global cache to allow reactive UI updates
 let replyContext = null; 
 let messageToPin = null; 
 let uploadedGroupIconBase64 = null; 
-let myLastReceiptUpdate = 0; 
 
 const parseWhatsAppFormatting = (text) => {
     if (!text) return "";
@@ -42,7 +41,7 @@ const injectGroupAdminModal = () => {
                 
                 <div id="add-member-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                    <input type="text" id="search-member-input" placeholder="Search network name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
+                    <input type="text" id="search-member-input" placeholder="Search by exact name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
                     <div id="search-member-results" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
                 </div>
 
@@ -127,9 +126,12 @@ window.addGroupMember = async (newMemberId) => {
         if (currentParticipants.includes(newMemberId)) return;
         const updatedParticipants = [...currentParticipants, newMemberId];
         await setDoc(doc(db, "chats", currentRoomId), { participants: updatedParticipants }, { merge: true });
+        
+        // Clear Search after adding
         document.getElementById('search-member-input').value = '';
         document.getElementById('search-member-results').innerHTML = '';
         document.getElementById('search-member-results').style.display = 'none';
+        alert("Member successfully added.");
     } catch(e) { alert("Failed to add member."); }
 };
 
@@ -177,7 +179,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- FIX: HYBRID SEARCH ALGORITHM (Pulls Users + Active DMs) ---
+    // --- 1. THE FLAWLESS SEARCH ENGINE FIX ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -185,41 +187,31 @@ const populateGroupManagement = async (participants, admins) => {
             const u = d.data();
             const safeEmail = u.email ? String(u.email) : ''; 
             const safeName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'User');
-            allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}` });
+            allUsers.push({ id: d.id, name: safeName, email: safeEmail });
         });
     } catch(e) {}
-
-    // Failsafe: Include users from visual UI cache if missing from 'users' collection
-    const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
-    Object.keys(availableRooms).forEach(rId => {
-        const room = availableRooms[rId];
-        if (room.type === 'dm') {
-            const potentialId = rId.replace('dm_', '').replace(curId, '').replace('_', '');
-            if (potentialId && !allUsers.find(u => u.id === potentialId)) {
-                allUsers.push({ id: potentialId, name: room.name, email: '', searchStr: room.name.toLowerCase() });
-            }
-        }
-    });
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
         const cleanTerm = term.trim().toLowerCase();
 
+        // Include ALL users. Filter strictly by typing.
         const filtered = allUsers.filter(u => {
             if (!cleanTerm) return true; 
-            return u.searchStr.includes(cleanTerm);
+            return u.name.toLowerCase().includes(cleanTerm) || u.email.toLowerCase().includes(cleanTerm);
         });
 
         if (filtered.length === 0) {
-            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No available users found.</p>';
+            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No available users found in the network.</p>';
             return;
         }
 
         let htmlString = '';
-        filtered.slice(0, 40).forEach(u => { // Limit to 40 renders for speed
+        filtered.forEach(u => {
             const isAlreadyInGroup = safeParticipants.includes(u.id);
+            // Visual grey "Added" button guarantees you can see everyone in the network
             const btnHTML = isAlreadyInGroup 
-                ? `<button disabled style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed; flex-shrink: 0;">Added</button>`
+                ? `<button disabled style="background: var(--app-bg); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed; flex-shrink: 0;">Added</button>`
                 : `<button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0;">Add</button>`;
 
             htmlString += `
@@ -236,6 +228,8 @@ const populateGroupManagement = async (participants, admins) => {
     };
 
     renderSearch(); 
+    
+    // Purge old listeners to prevent duplication glitches
     const newInput = searchInput.cloneNode(true);
     searchInput.parentNode.replaceChild(newInput, searchInput);
     newInput.addEventListener('input', (e) => renderSearch(e.target.value));
@@ -250,40 +244,20 @@ window.kickUser = async (targetUid) => {
     } catch(e) { alert("Failed to kick user."); }
 };
 
-export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
+export const switchChatRoom = (roomId) => {
     currentRoomId = roomId;
-    
-    // --- FIX: INSTANT UI RENDERER FOR CHAT HEADER ---
-    if (passedName) {
-        currentRoomMeta = { name: passedName, icon: passedIcon, type: passedType };
-        
-        const titleEl = document.getElementById('active-room-name');
-        const iconBox = document.getElementById('active-room-icon-box');
-        
-        if (titleEl) titleEl.innerText = passedName;
-        if (iconBox) {
-            if (passedIcon && (passedIcon.startsWith('http') || passedIcon.startsWith('data:'))) {
-                iconBox.style.background = 'transparent';
-                iconBox.innerHTML = `<img src="${passedIcon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-            } else {
-                iconBox.style.background = '#dfe5e7';
-                iconBox.innerHTML = `<span class="material-symbols-rounded">${passedType === 'group' ? 'groups' : 'person'}</span>`;
-            }
-        }
-    }
-
     window.enableSelectionMode(false); 
+    
+    // Absolute purge of Call Buttons
     document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
     
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
-    // Push Read Receipt with strict Nested Object Map
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) {
-            myLastReceiptUpdate = Date.now();
-            setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: Date.now() } }, { merge: true });
+            setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
         }
     } catch(e) {}
 };
@@ -321,152 +295,190 @@ const listenToRoomState = (roomId) => {
         if (existingGear) existingGear.remove();
 
         const titleEl = document.getElementById('active-room-name');
-        
-        if (titleEl && (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem))) {
-            const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
-            
-            if (!titleEl.innerHTML.includes('group-settings-btn')) {
-                titleEl.insertAdjacentHTML('beforeend', gearHTML);
-            }
-            
-            document.getElementById('group-settings-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                injectGroupAdminModal(); 
-                
-                document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
-                document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+        const iconBox = document.getElementById('active-room-icon-box');
 
-                document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
-                document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+        if (titleEl && iconBox) {
+            let displayRoomName = currentRoomData.name || 'Chat';
+            let displayRoomIcon = currentRoomData.icon;
+            let isIconImage = false;
 
-                if (canEdit) {
-                    document.getElementById('edit-group-name').value = currentRoomMeta.name || currentRoomData.name || '';
-                    const iconUrl = currentRoomData.icon || currentRoomMeta.icon;
-                    document.getElementById('edit-group-icon').value = iconUrl && iconUrl.startsWith('http') ? iconUrl : '';
-                    document.getElementById('group-icon-preview').src = iconUrl && (iconUrl.startsWith('data:image') || iconUrl.startsWith('http')) ? iconUrl : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            if (currentRoomData.type === 'dm') {
+                const otherId = currentRoomData.participants?.find(id => id !== curId);
+                if (otherId) {
+                    displayRoomName = currentRoomData.names?.[otherId] || 'User';
+                    displayRoomIcon = currentRoomData.avatars?.[otherId];
+                    isIconImage = true; 
                 }
+            } else {
+                isIconImage = displayRoomIcon && (displayRoomIcon.startsWith('http') || displayRoomIcon.startsWith('data:image'));
+            }
+
+            titleEl.innerText = displayRoomName;
+            
+            if (isIconImage && displayRoomIcon) {
+                iconBox.style.background = 'transparent';
+                iconBox.innerHTML = `<img src="${displayRoomIcon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+            } else {
+                iconBox.style.background = '#dfe5e7';
+                iconBox.innerHTML = `<span id="active-room-icon" class="material-symbols-rounded">${currentRoomData.type === 'group' || isSystemGroup ? 'groups' : 'person'}</span>`;
+            }
+
+            if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
+                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
+                titleEl.insertAdjacentHTML('beforeend', gearHTML);
                 
-                populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
-                document.getElementById('group-admin-modal').style.display = 'flex';
-            });
+                document.getElementById('group-settings-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    injectGroupAdminModal(); 
+                    
+                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+
+                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
+                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+
+                    if (canEdit) {
+                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                    }
+                    
+                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
+                    document.getElementById('group-admin-modal').style.display = 'flex';
+                });
+            }
         }
+        
+        // --- FIX 2: THE REACTIVITY ENGINE FOR BLUE TICKS ---
+        // Force the chat to redraw if someone updates the room state (e.g. readReceipts)
+        renderMessagesUI();
     });
 };
 
-export const listenToMessages = (roomId) => {
+// Isolated UI Drawer to handle Reactivity
+const renderMessagesUI = () => {
+    if (!currentMessagesSnapshot || !currentRoomId) return;
+    
     const container = document.getElementById('chat-messages-container');
+    if (!container) return;
+
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
-
     const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer"><span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>Messages are end-to-end encrypted. No one outside of this chat can read them.</div></div>`;
-    container.innerHTML = disclaimerHTML;
+    
+    let messagesHTML = disclaimerHTML; 
+    let previousSenderId = null; 
+    
+    const readReceipts = currentRoomData?.readReceipts || {};
+    const curId = currentUser?.id || currentUser?.uid;
+    
+    let participantList = currentRoomData?.participants || [];
+    if (currentRoomId.startsWith('dm_') && participantList.length === 0) {
+        participantList = currentRoomId.replace('dm_', '').split('_');
+    }
+    const otherParticipants = participantList.filter(id => id !== curId);
 
-    if (unsubscribeListener) unsubscribeListener();
-    const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
+    currentMessagesSnapshot.forEach((documentObj) => {
+        const msgId = documentObj.id;
+        if (hiddenMsgs.includes(msgId)) return;
 
-    unsubscribeListener = onSnapshot(q, (snapshot) => {
-        let messagesHTML = disclaimerHTML; 
-        let previousSenderId = null; 
+        const msg = documentObj.data();
+        const isMe = msg.senderId === curId; 
+        const isFirstInGroup = previousSenderId !== msg.senderId;
+        const isSystemAdminMsg = msg.isOwner === true && (currentRoomId === 'global_channel' || currentRoomId === 'aksh_help');
+
+        let timeString = "Sending...";
+        let tickHTML = "";
         
-        const readReceipts = currentRoomData?.readReceipts || {};
-        const curId = currentUser?.id || currentUser?.uid;
-        
-        let participantList = currentRoomData?.participants || [];
-        if (roomId.startsWith('dm_') && participantList.length === 0) {
-            participantList = roomId.replace('dm_', '').split('_');
-        }
-        const otherParticipants = participantList.filter(id => id !== curId);
-
-        // Update read receipt dynamically to Database Map Map Structure
-        if (snapshot.docs.length > 0) {
-            const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
-            const myLastRead = readReceipts[curId] || 0;
-            if (lastMsg.senderId !== curId && (Date.now() - myLastRead > 4000)) {
-                try { setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: Date.now() } }, { merge: true }); } catch(e){}
-            }
-        }
-
-        snapshot.forEach((documentObj) => {
-            const msgId = documentObj.id;
-            if (hiddenMsgs.includes(msgId)) return;
-
-            const msg = documentObj.data();
-            const isMe = msg.senderId === curId; 
-            const isFirstInGroup = previousSenderId !== msg.senderId;
-            const isSystemAdminMsg = msg.isOwner === true && (roomId === 'global_channel' || roomId === 'aksh_help');
-
-            let timeString = "Sending...";
-            let tickHTML = "";
-            
-            // --- FIX: FLAWLESS BLUE TICK RELATIVE MATH ---
-            let msgTime = msg.localTimestamp || (msg.timestamp && msg.timestamp.toMillis ? msg.timestamp.toMillis() : Date.now());
-            
-            if (msg.timestamp) {
-                timeString = msg.timestamp.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sent";
-            }
+        if (msg.timestamp) {
+            // Uses local timestamp fallback for flawless math logic
+            const msgTime = msg.localTimestamp || (msg.timestamp.toMillis ? msg.timestamp.toMillis() : Date.now());
+            timeString = msg.timestamp.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sent";
             
             if (isMe) {
                 let allRead = false;
                 if (otherParticipants.length > 0) {
                     allRead = otherParticipants.every(pid => {
                         const rTime = readReceipts[pid] || 0;
-                        // Blue tick triggers if their receipt stamp is greater than sent stamp (with a tiny 5 sec buffer)
+                        // Blue Tick condition: Recipient's receipt is newer than the message
                         return rTime >= (msgTime - 5000); 
                     });
                 }
                 const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
                 tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
             }
+        }
 
-            let roleBadge = '';
-            if (msg.isOwner === true) {
-                roleBadge = ' <span style="color:var(--primary); font-size:11px; font-weight:700;">(Owner)</span>';
-            } else if (currentRoomData?.admins?.includes(msg.senderId)) {
-                roleBadge = ' <span style="color:var(--text-muted); font-size:11px; font-weight:700;">(Admin)</span>';
+        let roleBadge = '';
+        if (msg.isOwner === true) {
+            roleBadge = ' <span style="color:var(--primary); font-size:11px; font-weight:700;">(Owner)</span>';
+        } else if (currentRoomData?.admins?.includes(msg.senderId)) {
+            roleBadge = ' <span style="color:var(--text-muted); font-size:11px; font-weight:700;">(Admin)</span>';
+        }
+
+        const showName = isSystemAdminMsg || (!isMe && isFirstInGroup);
+        const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
+        const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
+        
+        const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
+
+        const actionMenuHTML = `
+            <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
+                <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
+            </div>
+            <div class="msg-action-menu" id="menu-${msgId}">
+                <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
+                <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
+                <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Delete</button>
+                <button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>
+            </div>
+        `;
+
+        const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
+        const alignmentClass = isSystemAdminMsg ? 'admin' : (isMe ? 'me' : 'other');
+        const bubbleClass = isSystemAdminMsg ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
+        
+        const formattedTextContent = parseWhatsAppFormatting(msg.text);
+        const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
+
+        messagesHTML += `
+            <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
+                ${checkboxHTML}
+                <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
+                    ${actionMenuHTML} ${senderNameHTML} ${replyHTML}
+                    ${imageAttachmentHTML}
+                    <span id="text-${msgId}">${formattedTextContent}</span>
+                    <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
+                </div>
+            </div>
+        `;
+        previousSenderId = msg.senderId;
+    });
+
+    container.innerHTML = messagesHTML;
+    container.scrollTop = container.scrollHeight; 
+};
+
+export const listenToMessages = (roomId) => {
+    if (unsubscribeListener) unsubscribeListener();
+    const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
+
+    unsubscribeListener = onSnapshot(q, (snapshot) => {
+        // Cache globally so Reactivity Engine can pull it
+        currentMessagesSnapshot = snapshot.docs;
+        
+        const curId = currentUser?.id || currentUser?.uid;
+
+        if (snapshot.docs.length > 0) {
+            const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
+            // Automatically push a Read Receipt update if a new message comes in from someone else
+            if (lastMsg.senderId !== curId) {
+                try { setDoc(doc(db, "chats", roomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
             }
-
-            const showName = isSystemAdminMsg || (!isMe && isFirstInGroup);
-            const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
-            const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
-            
-            const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
-
-            const actionMenuHTML = `
-                <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
-                    <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
-                </div>
-                <div class="msg-action-menu" id="menu-${msgId}">
-                    <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
-                    <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
-                    <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Delete</button>
-                    <button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>
-                </div>
-            `;
-
-            const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
-            const alignmentClass = isSystemAdminMsg ? 'admin' : (isMe ? 'me' : 'other');
-            const bubbleClass = isSystemAdminMsg ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
-            
-            const formattedTextContent = parseWhatsAppFormatting(msg.text);
-            const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
-
-            messagesHTML += `
-                <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
-                    ${checkboxHTML}
-                    <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
-                        ${actionMenuHTML} ${senderNameHTML} ${replyHTML}
-                        ${imageAttachmentHTML}
-                        <span id="text-${msgId}">${formattedTextContent}</span>
-                        <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
-                    </div>
-                </div>
-            `;
-            previousSenderId = msg.senderId;
-        });
-
-        container.innerHTML = messagesHTML;
-        container.scrollTop = container.scrollHeight; 
+        }
+        
+        renderMessagesUI();
     });
 };
 
@@ -480,7 +492,8 @@ export const sendMessage = async () => {
     const curId = currentUser?.id || currentUser?.uid;
     const payload = { 
         text, senderId: curId, senderName: currentUser?.name || 'User', 
-        isOwner: currentUser?.isOwner === true, timestamp: serverTimestamp(), localTimestamp: Date.now() 
+        isOwner: currentUser?.isOwner === true, 
+        timestamp: serverTimestamp(), localTimestamp: Date.now() 
     };
 
     if (replyContext) {
@@ -491,8 +504,7 @@ export const sendMessage = async () => {
     
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
-        myLastReceiptUpdate = Date.now();
-        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: Date.now() } }, { merge: true });
+        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
     } catch (error) {}
 };
 
@@ -599,8 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
-                        myLastReceiptUpdate = Date.now();
-                        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: Date.now() } }, { merge: true });
+                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true });
                     } catch (error) {}
                 };
                 img.src = event.target.result;
@@ -713,7 +724,6 @@ window.enableSelectionMode = (enable = true) => {
     if (enable) {
         container.classList.add('selection-mode');
         document.getElementById('standard-chat-header').style.display = 'none';
-        document.querySelectorAll('#injected-close-btn').forEach(b => b.remove());
         if (selectionHeader) selectionHeader.style.display = 'flex';
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
     } else {
