@@ -4,6 +4,7 @@ import { auth, db, doc, getDoc, onAuthStateChanged } from './firebase.js';
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
     
+    // STRICT OWNER LOCK
     get isOwner() { 
         const e = String(this.email).toLowerCase().trim();
         return e === 'akshat124.am12@gmail.com'; 
@@ -14,20 +15,8 @@ export const currentUser = {
 export const initAuth = (onSuccessBoot) => {
     const overlay = document.getElementById('guest-overlay');
     const root = document.getElementById('app-root');
-    let isBooted = false;
 
     const forceBoot = (uid, email, name, photo) => {
-        if (isBooted) {
-            // Late-arriving Firestore photo patch
-            if (photo && photo !== currentUser.photoURL) {
-                currentUser.photoURL = photo;
-                const picEl = document.getElementById('nav-profile-pic');
-                if (picEl) picEl.src = photo;
-            }
-            return;
-        }
-        isBooted = true;
-
         currentUser.id = uid;
         currentUser.email = email;
         currentUser.name = name || email.split('@')[0];
@@ -54,17 +43,20 @@ export const initAuth = (onSuccessBoot) => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             let dName = user.displayName;
-            let pUrl = user.photoURL;
+            let pUrl = null; // Start null to force custom fetch
             
-            // PROFILE BUG FIX: Await Firestore rigidly before rendering avatar
+            // PROFILE PIC BUG FIX: Rigidly await Firestore BEFORE booting UI
             try {
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
                     const data = uDoc.data();
                     dName = data.fullName || data.name || dName;
-                    pUrl = data.customProfilePic || data.photoURL || pUrl;
+                    pUrl = data.customProfilePic || data.photoURL; // Prioritize Database Image
                 }
             } catch (error) {}
+            
+            // Fallback to Google photo only if DB is empty
+            pUrl = pUrl || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(dName || 'User')}&background=00a884&color=fff`;
             
             forceBoot(user.uid, user.email, dName, pUrl);
         } else {
@@ -81,11 +73,4 @@ export const initAuth = (onSuccessBoot) => {
             }
         }
     });
-
-    setTimeout(() => {
-        if (!isBooted) {
-            const backupEmail = localStorage.getItem('aksh_user_email') || localStorage.getItem('email');
-            if (backupEmail) forceBoot(backupEmail, backupEmail, localStorage.getItem('aksh_user_name'), null);
-        }
-    }, 1500);
 };
