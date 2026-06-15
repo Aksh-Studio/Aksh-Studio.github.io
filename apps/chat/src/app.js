@@ -13,6 +13,10 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
+const style = document.createElement('style');
+style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
+document.head.appendChild(style);
+
 const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
@@ -200,6 +204,7 @@ const fetchNetworkUsers = async () => {
                 const searchInput = document.getElementById('chat-search');
                 if (searchInput) { searchInput.value = ''; searchInput.placeholder = "Search"; }
                 
+                // INJECTS INSTANT HEADER STATE
                 switchChatRoom(deterministicId, rawName, pic, 'dm');
             });
             listContainer.appendChild(item);
@@ -282,7 +287,7 @@ export const renderSidebarList = () => {
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
-                // Explicitly send perfect display data to avoid loading-lag in chatEngine
+                // INJECTS INSTANT HEADER STATE
                 switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
