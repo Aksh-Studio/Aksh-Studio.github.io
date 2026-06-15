@@ -5,10 +5,9 @@ import { switchChatRoom } from './chatEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
-// UNIVERSAL BROADCAST NODES: Pre-installed for everyone
 export const roomsInfo = {
-    'global_channel': { name: 'Global Channel', icon: 'public', type: 'group' },
-    'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group' }
+    'global_channel': { name: 'Global Channel', icon: 'public', type: 'group', isImage: false },
+    'aksh_help': { name: 'Aksh Help Centre', icon: 'support_agent', type: 'group', isImage: false }
 };
 
 export let dynamicRooms = {}; 
@@ -19,10 +18,6 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
-    // Listen to chats you are specifically added to
-    const q = query(collection(db, "chats"), where("participants", "array-contains", curId));
-    
-    // Also explicitly listen to the System Broadcast nodes so the Owner's changes update live
     onSnapshot(collection(db, "chats"), (snapshot) => {
         dynamicRooms = {}; 
         const myName = String(currentUser.name || "").toLowerCase().trim();
@@ -31,12 +26,15 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
-            // 1. Update System Rooms natively
+            // SYSTEM GROUP ICON FIX
             if (roomId === 'global_channel' || roomId === 'aksh_help') {
                 if(data.name) roomsInfo[roomId].name = data.name;
-                if(data.icon) roomsInfo[roomId].icon = data.icon;
+                if(data.icon) {
+                    roomsInfo[roomId].icon = data.icon;
+                    // Detect if uploaded icon is a real image URL
+                    roomsInfo[roomId].isImage = data.icon.startsWith('http') || data.icon.startsWith('data:image');
+                }
             } 
-            // 2. Load DMs you are a part of
             else if (data.type === 'dm' && data.participants?.includes(curId)) {
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
@@ -50,7 +48,6 @@ const listenToCloudRooms = () => {
                     isImage: true 
                 };
             }
-            // 3. Load Custom Groups you are a part of
             else if (data.type === 'group' && data.participants?.includes(curId)) {
                 dynamicRooms[roomId] = {
                     name: data.name || 'Custom Group',
@@ -82,31 +79,8 @@ const initSettingsAndTheme = () => {
         if (targetPanel) {
             targetPanel.style.backgroundImage = `url(${savedWallpaper})`;
             targetPanel.style.backgroundSize = 'cover';
-            targetPanel.style.backgroundPosition = 'center';
         }
     }
-
-    document.getElementById('btn-settings')?.addEventListener('click', () => {
-        const hasWallpaper = !!localStorage.getItem('chat_wallpaper');
-        let optionsMsg = "Settings Menu:\n\nEnter a direct image URL to set a new chat background.";
-        if (hasWallpaper) optionsMsg += "\n\nType the word 'REMOVE' in the box below to wipe out your custom wallpaper.";
-        
-        const userInput = prompt(optionsMsg);
-        if (userInput === null) return; 
-        
-        const targetPanel = document.getElementById('chat-main-panel');
-        if (userInput.trim().toUpperCase() === 'REMOVE') {
-            localStorage.removeItem('chat_wallpaper');
-            if (targetPanel) targetPanel.style.backgroundImage = 'none';
-        } else if (userInput.trim() !== '') {
-            localStorage.setItem('chat_wallpaper', userInput.trim());
-            if (targetPanel) {
-                targetPanel.style.backgroundImage = `url(${userInput.trim()})`;
-                targetPanel.style.backgroundSize = 'cover';
-                targetPanel.style.backgroundPosition = 'center';
-            }
-        }
-    });
 };
 
 const initNavigation = () => {
@@ -114,7 +88,7 @@ const initNavigation = () => {
     
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
+            const term = e.target.value.toLowerCase().trim();
             document.querySelectorAll('#dynamic-user-list .user-item').forEach(item => {
                 const name = item.querySelector('.user-info h4').innerText.toLowerCase();
                 item.style.display = name.includes(term) ? 'flex' : 'none';
@@ -122,9 +96,8 @@ const initNavigation = () => {
         });
     }
 
-    // CALL ENGINE PURGED
-    const callRailBtn = document.getElementById('rail-calls');
-    if (callRailBtn) callRailBtn.style.display = 'none';
+    // CALL BUTTON TOTAL ANNIHILATION
+    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
 
     document.getElementById('rail-chats')?.addEventListener('click', () => {
         document.getElementById('rail-chats')?.classList.add('active');
@@ -143,7 +116,7 @@ const initNavigation = () => {
             if (searchInput) searchInput.value = ''; 
             
             if (appState.activeTab === 'network') {
-                if (searchInput) searchInput.placeholder = "Search Network Directory...";
+                if (searchInput) searchInput.placeholder = "Search Network...";
                 fetchNetworkUsers();
             } else {
                 if (searchInput) searchInput.placeholder = "Search";
@@ -175,7 +148,7 @@ const initNavigation = () => {
             document.getElementById('active-room-icon').innerText = 'groups';
             switchChatRoom(newGroupId);
             alert("Group created! Click the Gear icon to upload a logo and add members.");
-        } catch(e) { alert("Database Permission Error."); }
+        } catch(e) {}
     });
 };
 
@@ -296,7 +269,7 @@ export const renderSidebarList = () => {
             if (room.isImage) {
                 item.innerHTML = `
                     <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
-                    <div class="user-info"><h4>${room.name}</h4><p>Direct Message</p></div>
+                    <div class="user-info"><h4>${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
                     ${deleteActionHTML}
                 `;
             } else {
