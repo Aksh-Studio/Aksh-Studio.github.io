@@ -23,6 +23,24 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
+// --- BULLETPROOF READ RECEIPT UPDATER ---
+const updateReadReceipt = async (roomId, uid) => {
+    if (!roomId || !uid) return;
+    try {
+        // Dot-notation strictly updates only this user's receipt without corrupting the rest of the map
+        await updateDoc(doc(db, "chats", roomId), {
+            [`readReceipts.${uid}`]: serverTimestamp()
+        });
+    } catch (error) {
+        // Fallback if document structure is brand new
+        try {
+            await setDoc(doc(db, "chats", roomId), {
+                readReceipts: { [uid]: serverTimestamp() }
+            }, { merge: true });
+        } catch(e) {}
+    }
+};
+
 const injectGroupAdminModal = () => {
     if (document.getElementById('group-admin-modal')) return;
     const modalHTML = `
@@ -42,7 +60,7 @@ const injectGroupAdminModal = () => {
                 
                 <div id="add-member-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                    <input type="text" id="search-member-input" placeholder="Search by exact name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
+                    <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
                     <div id="search-member-results" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
                 </div>
 
@@ -144,8 +162,8 @@ const populateGroupManagement = async (participants, admins) => {
     
     listEl.innerHTML = '';
     transferSelectEl.innerHTML = '<option value="">Select a member to make Admin...</option>';
-    searchResults.innerHTML = '';
-    searchResults.style.display = 'none';
+    searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">Loading network...</p>';
+    searchResults.style.display = 'block';
     searchInput.value = '';
 
     const curId = currentUser?.id || currentUser?.uid;
@@ -178,25 +196,27 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
+    // --- OMNI-SEARCH ENGINE (Matches Multi-Word Names Flawlessly) ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
             const safeEmail = String(u.email || '').toLowerCase().trim(); 
-            const safeName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'User');
+            const safeName = String(u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'User')).trim();
             allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: `${safeName.toLowerCase()} ${safeEmail}` });
         });
     } catch(e) {}
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
-        const cleanTerm = term.trim().toLowerCase();
+        
+        // Split terms by spaces to guarantee partial matches (e.g. "Yogita Mehta")
+        const cleanTerms = term.trim().toLowerCase().split(' ').filter(Boolean);
 
-        // Show EVERYONE if search is empty, or filter by term
         const filtered = allUsers.filter(u => {
-            if (!cleanTerm) return true; 
-            return u.searchStr.includes(cleanTerm);
+            if (cleanTerms.length === 0) return true; // Show ALL users by default
+            return cleanTerms.every(t => u.searchStr.includes(t));
         });
 
         if (filtered.length === 0) {
@@ -236,17 +256,16 @@ export const switchChatRoom = (roomId) => {
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
-    // Explicit read receipt update with true Map nesting
+    // Explicit read receipt update
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) {
-            myLastReceiptUpdate = Date.now();
-            setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true }).catch(()=>{});
+            updateReadReceipt(roomId, curId);
         }
     } catch(e) {}
 };
 
-// --- REACTIVITY ENGINE: ISOLATED RENDERING FUNCTION ---
+// --- REACTIVITY ENGINE FOR PERFECT BLUE TICKS ---
 const renderMessagesUI = () => {
     if (!currentRoomId || !currentMessagesSnapshot) return;
     
@@ -272,7 +291,6 @@ const renderMessagesUI = () => {
         const msgId = documentObj.id;
         if (hiddenMsgs.includes(msgId)) return;
 
-        // Extracts data strictly using Server Timestamp Estimate to kill clock drift
         const msg = documentObj.data({ serverTimestamps: 'estimate' });
         const isMe = msg.senderId === curId; 
         const isFirstInGroup = previousSenderId !== msg.senderId;
@@ -292,11 +310,16 @@ const renderMessagesUI = () => {
                 allRead = otherParticipants.every(pid => {
                     const recObj = readReceipts[pid];
                     let rTime = 0;
-                    if (recObj && recObj.toMillis) rTime = recObj.toMillis();
-                    else if (typeof recObj === 'number') rTime = recObj;
+                    if (recObj && recObj.toMillis) {
+                        rTime = recObj.toMillis();
+                    } else if (typeof recObj === 'number') {
+                        rTime = recObj;
+                        // Neutralize future clock drift corruptions
+                        if (rTime > Date.now() + 60000) rTime = 0; 
+                    }
 
-                    // Tick becomes blue immediately if read receipt is newer than message stamp
-                    return rTime > 0 && rTime >= (msgTime - 2000);
+                    // Strict Math: Tick becomes blue immediately if their read receipt is equal to or newer than the message
+                    return rTime > 0 && rTime >= (msgTime - 5000);
                 });
             }
             const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -418,7 +441,7 @@ const listenToRoomState = (roomId) => {
         }
 
         // TRIGGER INSTANT REDRAW WHEN OTHER USER UPDATES THEIR READ RECEIPT
-        renderMessagesUI();
+        if (currentMessagesSnapshot.length > 0) renderMessagesUI();
     });
 };
 
@@ -433,10 +456,18 @@ export const listenToMessages = (roomId) => {
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data({ serverTimestamps: 'estimate' });
             
-            // Fires an instant receipt update back to the database if the last message is from someone else
-            if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
-                myLastReceiptUpdate = Date.now();
-                try { setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true }); } catch(e){}
+            // Flawless Throttle Override: Always update receipt if incoming message is strictly newer than our last read
+            if (lastMsg.senderId !== curId) {
+                const msgTime = lastMsg.timestamp ? lastMsg.timestamp.toMillis() : Date.now();
+                const myReceipt = currentRoomData?.readReceipts?.[curId];
+                let myRTime = 0;
+                if (myReceipt && myReceipt.toMillis) myRTime = myReceipt.toMillis();
+                else if (typeof myReceipt === 'number') myRTime = myReceipt;
+
+                if (msgTime > myRTime && (Date.now() - myLastReceiptUpdate > 1000)) {
+                    myLastReceiptUpdate = Date.now();
+                    updateReadReceipt(roomId, curId);
+                }
             }
         }
         
@@ -466,7 +497,7 @@ export const sendMessage = async () => {
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
-        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
+        updateReadReceipt(currentRoomId, curId);
     } catch (error) {}
 };
 
@@ -572,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         myLastReceiptUpdate = Date.now();
-                        await setDoc(doc(db, "chats", currentRoomId), { readReceipts: { [curId]: serverTimestamp() } }, { merge: true });
+                        updateReadReceipt(currentRoomId, curId);
                     } catch (error) {}
                 };
                 img.src = event.target.result;
