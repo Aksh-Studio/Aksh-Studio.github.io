@@ -172,7 +172,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // SEARCH BAR BUG FIX: Handles Trim & Case
+    // --- FIX 4: ROBUST SEARCH ARRAY BUILDER ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -184,9 +184,7 @@ const populateGroupManagement = async (participants, admins) => {
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
-        searchResults.innerHTML = '';
-
-        const cleanTerm = term.trim().toLowerCase(); // FIXED: Trims whitespace from typing
+        const cleanTerm = term.trim().toLowerCase();
 
         const filtered = allUsers.filter(u => 
             !participants.includes(u.id) && 
@@ -198,17 +196,19 @@ const populateGroupManagement = async (participants, admins) => {
             return;
         }
 
+        let htmlString = '';
         filtered.forEach(u => {
-            searchResults.innerHTML += `
+            htmlString += `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border);">
-                    <div style="display: flex; flex-direction: column; text-align: left;">
-                        <span style="font-size: 13px; color: var(--text-main); font-weight: 600;">${u.name}</span>
+                    <div style="display: flex; flex-direction: column; text-align: left; overflow: hidden;">
+                        <span style="font-size: 13px; color: var(--text-main); font-weight: 600; white-space: nowrap; text-overflow: ellipsis;">${u.name}</span>
                         <span style="font-size: 11px; color: var(--text-muted);">${u.email}</span>
                     </div>
-                    <button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer;">Add</button>
+                    <button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0;">Add</button>
                 </div>
             `;
         });
+        searchResults.innerHTML = htmlString;
     };
 
     renderSearch(); 
@@ -241,6 +241,12 @@ const listenToRoomState = (roomId) => {
     roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
         
+        // Ensure legacy DMs map fallback participants directly from the deterministic ID
+        if (roomId.startsWith('dm_') && (!currentRoomData.participants || currentRoomData.participants.length === 0)) {
+            const splitIds = roomId.replace('dm_', '').split('_');
+            currentRoomData.participants = splitIds;
+        }
+        
         const banner = document.getElementById('pinned-message-banner');
         if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
             document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(currentRoomData.pinnedMessage);
@@ -267,8 +273,10 @@ const listenToRoomState = (roomId) => {
         
         if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
             const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
-            const baseName = currentRoomData.name || (isSystemGroup ? 'System Group' : 'Group');
-            titleEl.innerHTML = `${baseName} ${gearHTML}`;
+            
+            // Cleanly strips old HTML artifacts from the title string
+            const rawTitle = titleEl.innerText.replace('settings', '').trim();
+            titleEl.innerHTML = `${rawTitle} ${gearHTML}`;
             
             document.getElementById('group-settings-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -291,10 +299,6 @@ const listenToRoomState = (roomId) => {
                 populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
                 document.getElementById('group-admin-modal').style.display = 'flex';
             });
-        } else {
-            if (titleEl && titleEl.innerHTML.includes('group-settings-btn')) {
-                titleEl.innerHTML = currentRoomData.name || 'Chat';
-            }
         }
     });
 };
@@ -315,7 +319,13 @@ export const listenToMessages = (roomId) => {
         
         const readReceipts = currentRoomData?.readReceipts || {};
         const curId = currentUser?.id || currentUser?.uid;
-        const otherParticipants = (currentRoomData?.participants || []).filter(id => id !== curId);
+        
+        // Ensures DM participant isolation
+        let participantList = currentRoomData?.participants || [];
+        if (roomId.startsWith('dm_') && participantList.length === 0) {
+            participantList = roomId.replace('dm_', '').split('_');
+        }
+        const otherParticipants = participantList.filter(id => id !== curId);
 
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
@@ -336,6 +346,7 @@ export const listenToMessages = (roomId) => {
             let timeString = "Sending...";
             let tickHTML = "";
             
+            // --- FIX 3: BLUE TICK LATENCY MATH ---
             if (msg.timestamp) {
                 const msgTime = msg.timestamp.toMillis();
                 timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -343,7 +354,8 @@ export const listenToMessages = (roomId) => {
                 if (isMe) {
                     let allRead = false;
                     if (otherParticipants.length > 0) {
-                        allRead = otherParticipants.every(pid => readReceipts[pid] >= msgTime);
+                        // Math buffer: Assumes it was read if the receipt stamp is roughly equal to or newer than the message stamp
+                        allRead = otherParticipants.every(pid => readReceipts[pid] && readReceipts[pid] >= (msgTime - 2000));
                     }
                     const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
                     tickHTML = `<span class="material-symbols-rounded tick-icon tick-read" style="color: ${tickColor}; font-size: 16px; margin-left: 2px;">done_all</span>`;
@@ -426,7 +438,6 @@ export const sendMessage = async () => {
     } catch (error) {}
 };
 
-// --- FIX 6: AUTHENTIC FORWARDING ENGINE ---
 const buildForwardModal = () => {
     if (document.getElementById('forward-modal')) return;
     const fModal = `
@@ -470,7 +481,6 @@ window.forwardSelectedMessages = async () => {
                     if (msgDoc.exists()) {
                         const originalData = msgDoc.data();
                         
-                        // FORWARD TAG INJECTION
                         const prefix = "_▶ Forwarded_\n\n";
                         let finalizedText = originalData.text;
                         if (!finalizedText.includes(prefix.trim())) finalizedText = prefix + finalizedText;
@@ -538,7 +548,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // FIX 4: Bind the Action buttons correctly so Forward works globally!
     const forwardBtnTop = document.getElementById('btn-action-forward');
     if (forwardBtnTop) forwardBtnTop.addEventListener('click', window.forwardSelectedMessages);
 
@@ -633,7 +642,7 @@ window.replyToMessage = (msgId) => {
 };
 window.cancelReply = () => { replyContext = null; document.getElementById('reply-preview-banner').style.display = 'none'; };
 
-// --- FIX 5: CANCEL SELECTION DUPLICATE X BUG ---
+// --- FIX 1: DUPLICATE 'X' BUTTON REMOVED ---
 window.enableSelectionMode = (enable = true) => {
     const container = document.getElementById('chat-messages-container');
     const selectionHeader = document.getElementById('selection-chat-header');
@@ -643,12 +652,12 @@ window.enableSelectionMode = (enable = true) => {
         document.getElementById('standard-chat-header').style.display = 'none';
         
         if (selectionHeader) {
-            // Nuke all existing injected close buttons to prevent double 'X'
-            document.querySelectorAll('#btn-cancel-selection-header').forEach(b => b.remove());
-            
-            // Add a single, fresh button
-            const cancelBtnHTML = `<span id="btn-cancel-selection-header" class="material-symbols-rounded" style="cursor: pointer; margin-right: 15px; color: var(--text-main);" onclick="window.enableSelectionMode(false)">close</span>`;
-            selectionHeader.insertAdjacentHTML('afterbegin', cancelBtnHTML);
+            // Uniquely target our injected button and replace safely if missing
+            const oldCloseBtn = document.getElementById('injected-close-btn');
+            if (!oldCloseBtn) {
+                const cancelBtnHTML = `<span id="injected-close-btn" class="material-symbols-rounded" style="cursor: pointer; margin-right: 15px; color: var(--text-main);" onclick="window.enableSelectionMode(false)">close</span>`;
+                selectionHeader.insertAdjacentHTML('afterbegin', cancelBtnHTML);
+            }
             selectionHeader.style.display = 'flex';
         }
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
