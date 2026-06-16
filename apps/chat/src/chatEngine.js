@@ -135,6 +135,13 @@ const injectGroupAdminModal = () => {
     document.getElementById('btn-delete-group').addEventListener('click', async () => {
         if (confirm("WARNING: This will permanently destroy this group and all messages for everyone. Proceed?")) {
             try {
+                // --- THE DEEP DELETE FIX ---
+                // Forces the UI to destroy all orphaned sub-messages before the group goes down
+                const msgsSnap = await getDocs(collection(db, `chats/${currentRoomId}/messages`));
+                const deletePromises = [];
+                msgsSnap.forEach(d => deletePromises.push(deleteDoc(doc(db, `chats/${currentRoomId}/messages`, d.id))));
+                await Promise.all(deletePromises);
+
                 await deleteDoc(doc(db, "chats", currentRoomId));
                 document.getElementById('group-admin-modal').style.display = 'none';
                 window.location.reload(); 
@@ -199,37 +206,30 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- HYBRID GROUP SEARCH FIX ---
-    // Uses Map logic to combine the global users collection AND the local chat cache smoothly
-    let allUsersMap = new Map();
+    let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
             const safeEmail = u.email ? String(u.email).trim() : '';
-            const safeName = (u.fullName || u.name || u.firstName || (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')).trim();
+            
+            const safeName = (
+                u.fullName || 
+                u.name || 
+                u.firstName || 
+                (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')
+            ).trim();
             
             if (!safeName || (safeName === 'Unknown User' && !safeEmail)) return;
             
             const searchStr = `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}`;
-            allUsersMap.set(d.id, { id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
+            allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
         });
-    } catch(e) {}
-
-    // Fallback Hybrid Scraper: Checks existing DMs if network API rules blocked a user
-    const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
-    Object.keys(availableRooms).forEach(rId => {
-        const room = availableRooms[rId];
-        if (room.type === 'dm') {
-            const pId = rId.replace('dm_', '').replace(curId, '').replace('_', '');
-            if (pId && pId.length > 5 && !allUsersMap.has(pId)) {
-                allUsersMap.set(pId, { id: pId, name: room.name, email: 'From Chats', searchStr: room.name.toLowerCase() });
-            }
-        }
-    });
-
-    let allUsers = Array.from(allUsersMap.values());
-    allUsers.sort((a, b) => a.name.localeCompare(b.name));
+        
+        allUsers.sort((a, b) => a.name.localeCompare(b.name));
+    } catch(e) {
+        console.error("Failed to fetch users:", e);
+    }
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
@@ -355,8 +355,7 @@ const renderMessagesUI = () => {
                         else if (typeof recObj === 'number') rTime = recObj;
                     }
                     
-                    // The pure integer logic lock for accurate read receipts
-                    return rTime > 0 && rTime >= (msgTime - 1000);
+                    return rTime > 0 && rTime >= (msgTime - 5000);
                 });
             }
             const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -863,6 +862,3 @@ document.addEventListener('visibilitychange', () => {
         }
     }
 });
-
-
-Once you push this update, I recommend creating a brand new dummy account to test it. The new account will instantly push its identity into `users`, confirming that it resolves permanently.
