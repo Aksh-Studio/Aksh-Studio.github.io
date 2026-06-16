@@ -21,21 +21,21 @@ export const initAuth = (onSuccessBoot) => {
         currentUser.name = name || (email ? email.split('@')[0] : 'User');
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
-        // CRITICAL BUG FIX: Force user into the 'users' database every single time they load the app.
-        // This guarantees they will always appear in the Search Network and Add Members list.
+        // --- THE MASTER IDENTITY SYNC ---
+        // Forces the authenticated user's profile into the public Firestore 'users' collection.
+        // This completely fixes the bug where users were invisible to the Network Search.
         if (uid) {
             try {
                 await setDoc(doc(db, "users", uid), {
                     uid: uid,
                     email: String(currentUser.email).toLowerCase().trim(),
-                    name: currentUser.name,
                     fullName: currentUser.name,
-                    firstName: currentUser.name.split(' ')[0],
+                    name: currentUser.name, 
                     photoURL: currentUser.photoURL,
-                    updatedAt: Date.now()
+                    lastLogin: Date.now()
                 }, { merge: true });
             } catch(e) {
-                console.error("Failed to sync user to global directory:", e);
+                console.error("Firestore Identity Sync Blocked by Permissions:", e);
             }
         }
 
