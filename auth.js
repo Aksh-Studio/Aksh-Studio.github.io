@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, sendEmailVerification, signOut, updateProfile, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -19,14 +19,12 @@ const isLoginPage = (window.location.pathname === "/" || window.location.pathnam
 
 const loginSec = document.getElementById('login-section');
 const forgotSec = document.getElementById('forgot-password-section');
+const phoneSec = document.getElementById('phone-auth-section');
 const authError = document.getElementById('auth-error');
-const googleBtn = document.getElementById("google-login-btn");
-const emailAuthBtn = document.getElementById("email-auth-btn");
-const toggleModeText = document.getElementById("toggle-mode-text");
-const signupSecurityFields = document.getElementById("signup-security-fields");
-const authSubtitle = document.getElementById("auth-subtitle");
 
 let isSignUpMode = false;
+let confirmationResult = null;
+let recaptchaVerifier = null;
 
 function showError(msg) {
     if (!authError) return;
@@ -37,7 +35,6 @@ function showError(msg) {
 async function handleUserRouting(user) {
     if (!isLoginPage) return;
 
-    // Email Verification Check
     if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
         authError.style.display = "block";
         authError.style.color = "#d9534f";
@@ -67,12 +64,15 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+// ==========================================
+// EMAIL/PASSWORD & GOOGLE AUTH
+// ==========================================
+const googleBtn = document.getElementById("google-login-btn");
 if (googleBtn) {
     googleBtn.onclick = async () => {
         try {
             const result = await signInWithPopup(auth, new GoogleAuthProvider());
             const user = result.user;
-            // For new Google logins, ensure they have a basic Firestore profile
             const userDoc = await getDoc(doc(db, "users", user.uid));
             if (!userDoc.exists()) {
                 await setDoc(doc(db, "users", user.uid), {
@@ -82,34 +82,31 @@ if (googleBtn) {
                     createdAt: new Date()
                 });
             }
-        } catch(err) {
-            showError(err.message);
-        }
+        } catch(err) { showError(err.message); }
     };
 }
 
+const toggleModeText = document.getElementById("toggle-mode-text");
 if (toggleModeText) {
     toggleModeText.onclick = () => {
         isSignUpMode = !isSignUpMode;
         if (authError) authError.style.display = "none";
-        emailAuthBtn.textContent = isSignUpMode ? "Create Account" : "Sign In";
-        authSubtitle.textContent = isSignUpMode ? "Create your personal profile" : "Sign in to access your utilities";
-        signupSecurityFields.style.display = isSignUpMode ? "block" : "none";
+        document.getElementById("email-auth-btn").textContent = isSignUpMode ? "Create Account" : "Sign In";
+        document.getElementById("auth-subtitle").textContent = isSignUpMode ? "Create your personal profile" : "Sign in to access your utilities";
+        document.getElementById("signup-security-fields").style.display = isSignUpMode ? "block" : "none";
         toggleModeText.innerHTML = isSignUpMode ? 'Already have an account? <span>Sign In</span>' : 'New here? <span>Create an account</span>';
     };
 }
 
+const emailAuthBtn = document.getElementById("email-auth-btn");
 if (emailAuthBtn) {
     emailAuthBtn.onclick = async () => {
         const e = document.getElementById("email-input").value.trim();
         const p = document.getElementById("password-input").value.trim();
-        
         if (!e || !p) return showError("auth/missing-credentials");
 
         if (isSignUpMode) {
             const first = document.getElementById("signup-first-name").value.trim();
-            const middle = document.getElementById("signup-middle-name").value.trim();
-            const last = document.getElementById("signup-last-name").value.trim();
             const dob = document.getElementById("signup-dob").value;
             const gender = document.getElementById("signup-gender").value;
             const phone = document.getElementById("signup-phone").value.trim();
@@ -119,17 +116,12 @@ if (emailAuthBtn) {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, e, p);
                 const user = userCredential.user;
-                
-                // Update the Dashboard Name immediately
-                const fullName = `${first} ${last}`.trim();
+                const fullName = `${first} ${document.getElementById("signup-last-name").value.trim()}`.trim();
                 await updateProfile(user, { displayName: fullName });
 
-                // Save full personal details to Firestore
                 await setDoc(doc(db, "users", user.uid), {
                     email: user.email,
                     firstName: first,
-                    middleName: middle,
-                    lastName: last,
                     fullName: fullName,
                     dob: dob,
                     gender: gender,
@@ -141,33 +133,101 @@ if (emailAuthBtn) {
                 alert("Account created! A verification link has been sent to your email.");
                 await signOut(auth);
                 window.location.reload();
-            } catch (err) {
-                showError(err.message);
-            }
+            } catch (err) { showError(err.message); }
         } else {
-            try {
-                await signInWithEmailAndPassword(auth, e, p);
-            } catch (err) {
-                showError("Invalid Email or Password.");
-            }
+            try { await signInWithEmailAndPassword(auth, e, p); } 
+            catch (err) { showError("Invalid Email or Password."); }
         }
     };
 }
 
-if (document.getElementById('link-forgot-password')) {
-    document.getElementById('link-forgot-password').onclick = () => {
+// ==========================================
+// PHONE AUTHENTICATION & LIMITER
+// ==========================================
+function initRecaptcha() {
+    if (!recaptchaVerifier) {
+        recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'normal',
+            'callback': (response) => { /* Recaptcha solved */ }
+        });
+    }
+}
+
+const phoneLoginBtn = document.getElementById('phone-login-btn');
+if (phoneLoginBtn) {
+    phoneLoginBtn.onclick = () => {
         loginSec.style.display = "none";
-        forgotSec.style.display = "block";
+        phoneSec.style.display = "block";
+        if(authError) authError.style.display = "none";
+        initRecaptcha();
     };
 }
 
+const btnSendCode = document.getElementById('btn-send-code');
+if (btnSendCode) {
+    btnSendCode.onclick = () => {
+        const phone = document.getElementById('phone-number-input').value.trim();
+        if (!phone) return showError("Please enter a valid phone number with country code.");
+        
+        btnSendCode.disabled = true;
+        btnSendCode.innerText = "Sending SMS...";
+
+        signInWithPhoneNumber(auth, phone, recaptchaVerifier)
+            .then((confResult) => {
+                confirmationResult = confResult;
+                document.getElementById('recaptcha-container').style.display = 'none';
+                btnSendCode.style.display = 'none';
+                document.getElementById('otp-group').style.display = 'flex';
+                if(authError) authError.style.display = "none";
+            }).catch((error) => {
+                btnSendCode.disabled = false;
+                btnSendCode.innerText = "Send OTP Code";
+                
+                // 10 SMS PER DAY LIMIT CATCHER
+                if (error.code === 'auth/quota-exceeded' || error.message.includes('quota')) {
+                    showError("🛑 ALL 10 SMS USED FOR TODAY. Please use 'Continue with Google' or 'Email' option.");
+                } else {
+                    showError(error.message);
+                }
+            });
+    };
+}
+
+const btnVerifyOtp = document.getElementById('btn-verify-otp');
+if (btnVerifyOtp) {
+    btnVerifyOtp.onclick = () => {
+        const code = document.getElementById('otp-input').value.trim();
+        if (!code) return showError("Enter the OTP.");
+        
+        confirmationResult.confirm(code).then(async (result) => {
+            const user = result.user;
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (!userDoc.exists()) {
+                await setDoc(doc(db, "users", user.uid), {
+                    phone: user.phoneNumber,
+                    firstName: "Phone User",
+                    createdAt: new Date()
+                });
+            }
+        }).catch((error) => {
+            showError("Invalid OTP Code. Try again.");
+        });
+    };
+}
+
+document.getElementById('link-back-from-phone')?.addEventListener('click', () => {
+    phoneSec.style.display = "none";
+    loginSec.style.display = "block";
+    if(authError) authError.style.display = "none";
+});
+
+// Forgot Password Logic
+if (document.getElementById('link-forgot-password')) {
+    document.getElementById('link-forgot-password').onclick = () => { loginSec.style.display = "none"; forgotSec.style.display = "block"; };
+}
 if (document.getElementById('link-back-login')) {
-    document.getElementById('link-back-login').onclick = () => {
-        forgotSec.style.display = "none";
-        loginSec.style.display = "block";
-    };
+    document.getElementById('link-back-login').onclick = () => { forgotSec.style.display = "none"; loginSec.style.display = "block"; };
 }
-
 if (document.getElementById('btn-send-reset')) {
     document.getElementById('btn-send-reset').onclick = () => {
         const email = document.getElementById('reset-email').value;
