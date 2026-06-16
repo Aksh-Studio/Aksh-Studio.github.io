@@ -18,26 +18,20 @@ export const initAuth = (onSuccessBoot) => {
     const forceBoot = async (uid, email, name, photo) => {
         currentUser.id = uid;
         currentUser.email = email;
-        currentUser.name = name || email.split('@')[0];
+        currentUser.name = name || (email ? email.split('@')[0] : 'User');
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
-        // --- BUG 2 FIX: GUARANTEED NETWORK REGISTRATION (ENHANCED) ---
-        // Forces the user into the global DB instantly with ALL required fields
-        if (uid) {
+        // BUG 2 FIX: Aggressively register user so they ALWAYS appear in searches
+        if (uid && email) {
             try {
                 await setDoc(doc(db, "users", uid), {
                     uid: uid,
-                    email: String(currentUser.email).toLowerCase().trim(),
+                    email: String(email).toLowerCase().trim(),
                     fullName: currentUser.name,
-                    firstName: currentUser.name.split(' ')[0],
-                    name: currentUser.name,  // Fallback field
                     photoURL: currentUser.photoURL,
-                    customProfilePic: currentUser.photoURL,  // Fallback field
-                    createdAt: Date.now()
+                    updatedAt: Date.now()
                 }, { merge: true });
-            } catch(e) {
-                console.error("Failed to register user profile:", e);
-            }
+            } catch(e) { console.warn("Failed to register user to directory"); }
         }
 
         if (overlay) overlay.style.display = 'none';
@@ -60,19 +54,19 @@ export const initAuth = (onSuccessBoot) => {
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            let dName = user.displayName || user.email.split('@')[0];
+            let dName = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
             let pUrl = user.photoURL || ''; 
             
             try {
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
                     const data = uDoc.data();
-                    dName = data.fullName || data.name || dName;
+                    dName = data.fullName || data.name || data.firstName || dName;
                     pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.avatar || pUrl;
                 }
             } catch (error) {}
             
-            pUrl = pUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(dName || 'User')}&background=00a884&color=fff`;
+            pUrl = pUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(dName)}&background=00a884&color=fff`;
             
             forceBoot(user.uid, user.email, dName, pUrl);
         } else {
