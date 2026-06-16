@@ -1,5 +1,5 @@
 // src/app.js
-import { db, collection, getDocs, onSnapshot, query, setDoc, doc, deleteDoc } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc, deleteDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
 
@@ -13,7 +13,6 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
-// --- CALL BUTTON PURGE ---
 const style = document.createElement('style');
 style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
 document.head.appendChild(style);
@@ -30,14 +29,17 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
-            // --- BUG 3 FIX: FLAWLESS UNREAD LOGIC ---
+            // BUG 3 FIX: Flawless Unread Detection logic prevents alerting self
             let isUnread = false;
             let roomLastMsgTime = data.lastMessageTime || 0;
 
-            // Strict mathematical comparison ensures unread logic triggers ONLY for received messages
-            if (data.lastMessageTime && data.readReceipts && data.lastMessageSenderId !== curId) {
-                const myReceipt = data.readReceipts[curId] || 0;
-                if (data.lastMessageTime > myReceipt) {
+            if (data.lastMessageTime && data.lastMessageSenderId !== curId) {
+                const myReceipt = (data.readReceipts && data.readReceipts[curId]) || 0;
+                let rTime = 0;
+                if (myReceipt && typeof myReceipt.toMillis === 'function') rTime = myReceipt.toMillis();
+                else if (typeof myReceipt === 'number') rTime = myReceipt;
+                
+                if (data.lastMessageTime > rTime) {
                     isUnread = true;
                 }
             }
@@ -92,13 +94,13 @@ const initSettingsAndTheme = () => {
         });
     }
 
-    // --- BUG 6 FIX: BACKGROUND WALLPAPER OVERRIDE ---
+    // BUG 6 FIX: Flawless override of background
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
     if (savedWallpaper) {
         const bgStyle = document.createElement('style');
         bgStyle.innerHTML = `
-            .chat-main::before { display: none !important; }
-            #chat-main-panel { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
+            .chat-main::before { display: none !important; opacity: 0 !important; }
+            .chat-main, #chat-main-panel { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
         `;
         document.head.appendChild(bgStyle);
     }
@@ -163,7 +165,7 @@ const initNavigation = () => {
     document.getElementById('btn-mobile-back')?.addEventListener('click', () => {
         appState.isMobileChatOpen = false;
         document.getElementById('main-layout').classList.remove('mobile-chat-active');
-        leaveChatRoom(); // Ensures blue ticks stop processing in background
+        leaveChatRoom(); 
     });
 
     document.getElementById('btn-create-group')?.addEventListener('click', async () => {
@@ -199,32 +201,19 @@ const fetchNetworkUsers = async () => {
         
         const myUid = String(currentUser?.id || "").trim();
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
-        const myName = String(currentUser?.name || "").toLowerCase().trim();
 
-        // FIX 1: Collect ALL users including owner - NO filtering except self
         const allNetworkUsers = [];
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = String(docObj.id).trim();
+            const safeEmail = String(u.email || '').toLowerCase().trim();
             
-            // CRITICAL: Get all possible email variations
-            const rawEmail = String(u.email || '').toLowerCase().trim();
-            const safeEmail = rawEmail || targetUid; // Fallback to UID if no email
+            const rawName = (u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Network User')).trim();
             
-            // FIX 2: Try ALL possible name fields in order
-            const rawName = (
-                u.fullName || 
-                u.firstName ||
-                u.name || 
-                (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')
-            ).trim();
-            
-            // Skip ONLY self - never skip based on name or email
-            if (targetUid === myUid) return;
-            
-            // Skip only if both name AND email are missing
-            if (!rawName || !safeEmail) return;
+            if (targetUid === myUid) return; 
+            if (!rawName) return;
+            if (currentUser.isOwner && safeEmail === 'akshat124.am12@gmail.com') return;
             
             allNetworkUsers.push({
                 uid: targetUid,
@@ -234,20 +223,13 @@ const fetchNetworkUsers = async () => {
             });
         });
 
-        // FIX 3: Sort alphabetically for better UX
         allNetworkUsers.sort((a, b) => a.name.localeCompare(b.name));
-
-        // FIX 4: Render ALL users
-        if (allNetworkUsers.length === 0) {
-            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">No network users found.</p>';
-            return;
-        }
 
         allNetworkUsers.forEach(user => {
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=00a884&color=fff'" />
+                <img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=00a884&color=fff'">
                 <div class="user-info">
                     <h4>${user.name}</h4>
                     <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
@@ -260,8 +242,7 @@ const fetchNetworkUsers = async () => {
                 
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
-                        type: 'dm', 
-                        participants: [myUid, user.uid],
+                        type: 'dm', participants: [myUid, user.uid],
                         names: { [myUid]: currentUser.name, [user.uid]: user.name },
                         avatars: { [myUid]: myPic, [user.uid]: user.pic }
                     }, { merge: true });
@@ -278,10 +259,11 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
-    } catch (e) { 
-        console.error("Network fetch error:", e);
-        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; 
-    }
+        
+        if (allNetworkUsers.length === 0) {
+            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
+        }
+    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
 window.deleteSidebarChat = async (roomId) => {
@@ -310,7 +292,6 @@ export const renderSidebarList = () => {
 
     const combinedRooms = { ...roomsInfo, ...dynamicRooms };
 
-    // Sort by Last Message Time Descending
     const sortedRoomIds = Object.keys(combinedRooms).sort((a, b) => {
         const timeA = combinedRooms[a].lastMessageTime || 0;
         const timeB = combinedRooms[b].lastMessageTime || 0;
@@ -319,11 +300,16 @@ export const renderSidebarList = () => {
 
     sortedRoomIds.forEach(id => {
         const room = combinedRooms[id];
+        
+        // --- BUG 3 FIX: Correct rendering logic for All vs Unread Tabs ---
         let displayQualifies = false;
-
-        if (appState.activeTab === 'all') displayQualifies = true;
-        if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
-        if (appState.activeTab === 'unread' && room.unread === true) displayQualifies = true;
+        if (appState.activeTab === 'all') {
+            displayQualifies = true;
+        } else if (appState.activeTab === 'groups') {
+            if (room.type === 'group') displayQualifies = true;
+        } else if (appState.activeTab === 'unread') {
+            if (room.unread === true) displayQualifies = true;
+        }
 
         if (displayQualifies) {
             const isActive = appState.activeChatId === id ? 'active' : '';
@@ -333,18 +319,17 @@ export const renderSidebarList = () => {
             item.style.position = 'relative'; 
             
             const deleteActionHTML = room.type === 'dm' ? `
-                <div class="chat-menu-trigger" onclick="event.stopPropagation(); window.deleteSidebarChat('${id}')" style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); display: none; cursor: pointer;">
+                <div class="chat-menu-trigger" onclick="event.stopPropagation(); window.deleteSidebarChat('${id}')" style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); display: none; z-index: 10;" title="Delete Chat">
                     <span class="material-symbols-rounded">keyboard_arrow_down</span>
                 </div>
             ` : '';
 
-            // Apply unread UI styles explicitly
-            const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
+            const nameStyle = room.unread ? 'font-weight: 700; color: var(--text-main);' : 'font-weight: 500; color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
             if (room.isImage) {
                 item.innerHTML = `
-                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'" />
+                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
                     <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
                     ${badgeHTML}
                     ${deleteActionHTML}
@@ -367,7 +352,7 @@ export const renderSidebarList = () => {
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
-                // --- FIX 1: PASS EXACT NAME & ICON FOR INSTANT HEADER RENDER ---
+                // BUG 1 FIX: Pushes explicit Name into the engine perfectly
                 switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
@@ -382,7 +367,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initNavigation();
         renderSidebarList();
         
-        // --- BUG FIX 5: PREVENT MOBILE AUTO-SKIP ---
-        // Absolutely deletes the default click if the user is on a mobile viewport
+        // BUG 5 FIX: Auto-Skip Mobile is blocked
+        setTimeout(() => {
+            const defaultBtn = document.getElementById(`btn-room-global_channel`);
+            if(defaultBtn && window.innerWidth > 900) {
+                defaultBtn.click();
+            }
+        }, 300);
     });
 });
