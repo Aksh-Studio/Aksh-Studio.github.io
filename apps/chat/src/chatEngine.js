@@ -6,6 +6,7 @@ let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
 export let currentRoomData = null; 
+export let currentRoomMeta = { name: '', icon: '', type: '' }; 
 export let currentMessagesSnapshot = []; 
 let replyContext = null; 
 let messageToPin = null; 
@@ -198,7 +199,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // Try multiple name fields to ensure we get every user and avoid dropping them
+    // --- BUG 4 FIX: SAFE OMNI-SEARCH WITHOUT LIMITS ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -206,20 +207,20 @@ const populateGroupManagement = async (participants, admins) => {
             const u = d.data();
             const safeEmail = u.email ? String(u.email).trim() : '';
             
+            // Extracts whatever name component is active and prevents dropped users.
             const safeName = (
                 u.fullName || 
                 u.name || 
                 u.firstName || 
-                (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')
+                (safeEmail ? safeEmail.split('@')[0] : 'Unknown')
             ).trim();
             
-            if (!safeName || (safeName === 'Unknown User' && !safeEmail)) return;
+            if (!safeName && !safeEmail) return;
             
             const searchStr = `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}`;
             allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
         });
         
-        // Sort by name for better UX
         allUsers.sort((a, b) => a.name.localeCompare(b.name));
     } catch(e) {
         console.error("Failed to fetch users:", e);
@@ -268,6 +269,9 @@ const populateGroupManagement = async (participants, admins) => {
 export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
+    
+    // BUG 1 FIX: Immediately override DOM using exactly passed variables
+    currentRoomMeta = { name: passedName, icon: passedIcon, type: passedType };
     
     const titleEl = document.getElementById('active-room-name');
     const iconBox = document.getElementById('active-room-icon-box');
@@ -385,13 +389,16 @@ const renderMessagesUI = () => {
         
         const formattedTextContent = parseWhatsAppFormatting(msg.text);
         
+        // --- BUG 8 & 9 FIX: NATIVE MEDIA/PDF SUPPORT WITH DOWNLOAD BUTTON ---
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
             if (msg.fileType && msg.fileType.startsWith('image')) {
                 mediaAttachmentHTML = `
-                    <div style="position:relative;">
-                        <img src="${msg.fileUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:4px; text-decoration:none; font-size:11px;">Download</a>
+                    <div style="position:relative; margin-bottom: 5px;">
+                        <img src="${msg.fileUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
+                        <a href="${msg.fileUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;" title="Download Image">
+                            <span class="material-symbols-rounded" style="font-size:16px;">download</span>
+                        </a>
                     </div>`;
             } else {
                 mediaAttachmentHTML = `
@@ -400,17 +407,18 @@ const renderMessagesUI = () => {
                         <div style="flex: 1; overflow: hidden;">
                             <p style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${msg.fileName || 'Document'}</p>
                         </div>
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'document'}" target="_blank" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center;">
-                            <span class="material-symbols-rounded">download</span>
+                        <a href="${msg.fileUrl}" download="${msg.fileName || 'document'}" target="_blank" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; background: rgba(0, 168, 132, 0.1); width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;" title="Download Document">
+                            <span class="material-symbols-rounded" style="font-size:16px;">download</span>
                         </a>
-                    </div>
-                `;
+                    </div>`;
             }
         } else if (msg.imageUrl) {
             mediaAttachmentHTML = `
-                <div style="position:relative;">
-                    <img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">
-                    <a href="${msg.imageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:4px; text-decoration:none; font-size:11px;">Download</a>
+                <div style="position:relative; margin-bottom: 5px;">
+                    <img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
+                    <a href="${msg.imageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;" title="Download Image">
+                        <span class="material-symbols-rounded" style="font-size:16px;">download</span>
+                    </a>
                 </div>`;
         }
 
@@ -654,10 +662,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             
             const isImage = file.type.startsWith('image/');
-            const isDoc = file.type === 'application/pdf' || file.type.startsWith('text/') || file.type.includes('document');
+            const isDoc = file.type === 'application/pdf' || file.type.startsWith('text/') || file.name.match(/\.(doc|docx|txt|pdf|csv)$/i);
             
             if (!isImage && !isDoc) {
-                return alert("Only Images, PDFs, and Text files are supported.");
+                return alert("Only Images, PDFs, and Text documents are supported.");
             }
 
             const reader = new FileReader();
@@ -718,6 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
     if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
+    // --- BUG 7 FIX: CHAT EXPORT NAMING ---
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
@@ -795,11 +804,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.triggerPinModal = (msgId) => { messageToPin = msgId; window.toggleActionMenu(msgId); document.getElementById('pin-modal').style.display = 'flex'; };
+
 window.toggleActionMenu = (msgId) => { 
     document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); 
     const menu = document.getElementById(`menu-${msgId}`); 
     if(menu) menu.classList.add('active'); 
 };
+
 document.addEventListener('click', (e) => { if (!e.target.closest('.msg-bubble')) { document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active')); } });
 
 window.replyToMessage = (msgId) => {
