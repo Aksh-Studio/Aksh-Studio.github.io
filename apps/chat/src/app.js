@@ -13,6 +13,7 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
+// Absolute DOM Purge for Calls
 const style = document.createElement('style');
 style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
 document.head.appendChild(style);
@@ -21,8 +22,8 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
-    // --- BUG FIX 2: SELF-HEALING NETWORK REGISTRATION ---
-    // Forces the current user into the global 'users' collection so they appear in everyone's search
+    // --- FIX 2: SELF-HEALING REGISTRATION ---
+    // Forces your exact Name & Email into the public directory instantly upon load
     setDoc(doc(db, "users", curId), {
         email: currentUser.email,
         fullName: currentUser.name,
@@ -37,11 +38,11 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
-            // --- BUG FIX 3: FLAWLESS UNREAD NOTIFICATIONS ---
+            // --- FIX 3: FLAWLESS UNREAD SENDER LOGIC ---
             let isUnread = false;
             let roomLastMsgTime = data.lastMessageTime || 0;
 
-            // Only mark unread if the LAST message was NOT sent by the current user
+            // Strict check: Only unread if the LAST message was NOT sent by ME
             if (data.lastMessageTime && data.readReceipts && data.lastMessageSenderId !== curId) {
                 const myReceipt = data.readReceipts[curId];
                 let rTime = 0;
@@ -101,17 +102,14 @@ const initSettingsAndTheme = () => {
         });
     }
 
-    // --- BUG FIX 6: BACKGROUND WALLPAPER FORCED OVERRIDE ---
+    // --- FIX 6: HARD WALLPAPER INJECTION ---
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
     if (savedWallpaper) {
-        const targetPanel = document.getElementById('chat-main-panel');
-        if (targetPanel) {
-            targetPanel.style.backgroundImage = `url("${savedWallpaper}")`;
-            targetPanel.style.backgroundSize = 'cover';
-            targetPanel.style.backgroundPosition = 'center';
-        }
         const bgStyle = document.createElement('style');
-        bgStyle.innerHTML = `.chat-main::before { display: none !important; }`;
+        bgStyle.innerHTML = `
+            .chat-main::before { display: none !important; }
+            #chat-main-panel { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
+        `;
         document.head.appendChild(bgStyle);
     }
 
@@ -189,7 +187,8 @@ const initNavigation = () => {
                 type: 'group', name: groupName, icon: 'groups',
                 participants: [curId], admins: [curId], 
                 createdBy: curId, createdAt: Date.now(),
-                lastMessageTime: Date.now()
+                lastMessageTime: Date.now(),
+                lastMessageSenderId: curId
             });
             
             appState.activeChatId = newGroupId;
@@ -322,6 +321,7 @@ export const renderSidebarList = () => {
                 </div>
             ` : '';
 
+            // Apply unread UI bolding
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initNavigation();
         renderSidebarList();
         
-        // --- BUG FIX 5: PREVENT MOBILE AUTO-SKIP ---
+        // --- FIX 5: PREVENT MOBILE AUTO-SKIP ---
         setTimeout(() => {
             const defaultBtn = document.getElementById(`btn-room-global_channel`);
             if(defaultBtn && window.innerWidth > 900) {
