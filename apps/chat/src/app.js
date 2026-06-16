@@ -21,6 +21,12 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
+    setDoc(doc(db, "users", curId), {
+        email: currentUser.email,
+        fullName: currentUser.name,
+        photoURL: currentUser.photoURL || ''
+    }, { merge: true }).catch(()=>{});
+
     onSnapshot(collection(db, "chats"), (snapshot) => {
         dynamicRooms = {}; 
         const myName = String(currentUser.name || "").toLowerCase().trim();
@@ -196,9 +202,8 @@ const fetchNetworkUsers = async () => {
         listContainer.innerHTML = '';
         
         const myUid = String(currentUser?.id || "").trim();
-        const allNetworkUsers = new Map(); // Unique Map structure
+        const allNetworkUsers = new Map(); 
 
-        // 1. Fetch from Global Directory
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = String(docObj.id).trim();
@@ -214,7 +219,6 @@ const fetchNetworkUsers = async () => {
             });
         });
 
-        // 2. Hybrid Backup: Scrape missing users from known DMs
         Object.keys(dynamicRooms).forEach(roomId => {
             const room = dynamicRooms[roomId];
             if (room.type === 'dm') {
@@ -275,7 +279,16 @@ const fetchNetworkUsers = async () => {
 window.deleteSidebarChat = async (roomId) => {
     if (confirm("Permanently delete this chat history for everyone?")) {
         try {
+            // --- THE DEEP DELETE FIX ---
+            // Destroys all orphaned messages in the sub-folder first
+            const msgsSnap = await getDocs(collection(db, `chats/${roomId}/messages`));
+            const deletePromises = [];
+            msgsSnap.forEach(d => deletePromises.push(deleteDoc(doc(db, `chats/${roomId}/messages`, d.id))));
+            await Promise.all(deletePromises);
+
+            // Now safely delete the parent group
             await deleteDoc(doc(db, "chats", roomId));
+            
             if (appState.activeChatId === roomId) {
                 appState.activeChatId = null;
                 document.getElementById('chat-messages-container').innerHTML = '';
