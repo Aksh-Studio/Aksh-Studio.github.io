@@ -309,8 +309,18 @@ const renderMessagesUI = () => {
     if (!container) return;
 
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
-    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer"><span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: middle;">lock</span> <strong>End-to-End Encrypted</strong><br><span style="font-size: 11px;">Messages are secured and private.</span></div></div>`;
-    
+const disclaimerHTML = `
+        <div class="chat-disclaimer-wrapper">
+            <div class="chat-disclaimer">
+                <span class="material-symbols-rounded lock-icon" style="font-size: 13px; vertical-align: middle;">lock</span> 
+                <strong>End-to-End Encrypted</strong><br>
+                <span style="font-size: 11px;">
+                    Messages are secured and private. <br>
+                    Note: Messages are stored for 3 months only. <br>
+                    For support: <a href="mailto:akshstudioofficial@gmail.com" style="color:var(--primary);">akshstudioofficial@gmail.com</a>
+                </span>
+            </div>
+        </div>`;    
     let messagesHTML = disclaimerHTML; 
     let previousSenderId = null; 
     
