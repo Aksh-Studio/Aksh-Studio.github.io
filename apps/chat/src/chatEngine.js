@@ -27,12 +27,10 @@ const parseWhatsAppFormatting = (text) => {
 const updateReadReceipt = async (roomId, uid) => {
     if (!roomId || !uid) return;
     try {
-        // Dot-notation strictly updates only this user's receipt without corrupting the rest of the map
         await updateDoc(doc(db, "chats", roomId), {
             [`readReceipts.${uid}`]: serverTimestamp()
         });
     } catch (error) {
-        // Fallback if document structure is brand new
         try {
             await setDoc(doc(db, "chats", roomId), {
                 readReceipts: { [uid]: serverTimestamp() }
@@ -60,8 +58,8 @@ const injectGroupAdminModal = () => {
                 
                 <div id="add-member-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                    <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
-                    <div id="search-member-results" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
+                    <input type="text" id="search-member-input" placeholder="Search by exact name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
+                    <div id="search-member-results" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
                 </div>
 
                 <div id="manage-members-section">
@@ -196,36 +194,38 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- OMNI-SEARCH ENGINE (Matches Multi-Word Names Flawlessly) ---
+    // --- FLAWLESS OMNI-SEARCH ENGINE ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
-            const safeEmail = String(u.email || '').toLowerCase().trim(); 
-            const safeName = String(u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'User')).trim();
-            allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: `${safeName.toLowerCase()} ${safeEmail}` });
+            const originalEmail = String(u.email || '').trim();
+            const originalName = String(u.fullName || u.firstName || u.name || (originalEmail ? originalEmail.split('@')[0] : 'User')).trim();
+            
+            // Build an invisible lower-cased string for perfectly accurate matching
+            const searchStr = `${originalName.toLowerCase()} ${originalEmail.toLowerCase()}`;
+            
+            allUsers.push({ id: d.id, name: originalName, email: originalEmail, searchStr: searchStr });
         });
     } catch(e) {}
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
-        
-        // Split terms by spaces to guarantee partial matches (e.g. "Yogita Mehta")
         const cleanTerms = term.trim().toLowerCase().split(' ').filter(Boolean);
 
         const filtered = allUsers.filter(u => {
-            if (cleanTerms.length === 0) return true; // Show ALL users by default
+            if (cleanTerms.length === 0) return true; 
             return cleanTerms.every(t => u.searchStr.includes(t));
         });
 
         if (filtered.length === 0) {
-            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No network users found.</p>';
+            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No available users found in the network.</p>';
             return;
         }
 
         let htmlString = '';
-        filtered.slice(0, 50).forEach(u => {
+        filtered.slice(0, 100).forEach(u => {
             const isAlreadyInGroup = safeParticipants.includes(u.id);
             const btnHTML = isAlreadyInGroup 
                 ? `<button disabled style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed; flex-shrink: 0;">Added</button>`
@@ -250,13 +250,27 @@ const populateGroupManagement = async (participants, admins) => {
     newInput.addEventListener('input', (e) => renderSearch(e.target.value));
 };
 
-export const switchChatRoom = (roomId) => {
+export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
+    
+    const titleEl = document.getElementById('active-room-name');
+    const iconBox = document.getElementById('active-room-icon-box');
+    
+    if (titleEl && passedName) titleEl.innerText = passedName;
+    if (iconBox && passedIcon) {
+        if (passedIcon.startsWith('http') || passedIcon.startsWith('data:image')) {
+            iconBox.style.background = 'transparent';
+            iconBox.innerHTML = `<img src="${passedIcon}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+        } else {
+            iconBox.style.background = '#dfe5e7';
+            iconBox.innerHTML = `<span class="material-symbols-rounded">${passedType === 'group' ? 'groups' : 'person'}</span>`;
+        }
+    }
+
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
-    // Explicit read receipt update
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) {
@@ -265,7 +279,7 @@ export const switchChatRoom = (roomId) => {
     } catch(e) {}
 };
 
-// --- REACTIVITY ENGINE FOR PERFECT BLUE TICKS ---
+// --- REACTIVITY UI ENGINE ---
 const renderMessagesUI = () => {
     if (!currentRoomId || !currentMessagesSnapshot) return;
     
@@ -291,7 +305,7 @@ const renderMessagesUI = () => {
         const msgId = documentObj.id;
         if (hiddenMsgs.includes(msgId)) return;
 
-        const msg = documentObj.data({ serverTimestamps: 'estimate' });
+        const msg = documentObj.data();
         const isMe = msg.senderId === curId; 
         const isFirstInGroup = previousSenderId !== msg.senderId;
         const isSystemAdminMsg = msg.isOwner === true && (currentRoomId === 'global_channel' || currentRoomId === 'aksh_help');
@@ -299,9 +313,21 @@ const renderMessagesUI = () => {
         let timeString = "Sending...";
         let tickHTML = "";
         
-        let msgTime = msg.timestamp ? msg.timestamp.toMillis() : Date.now();
+        // --- BULLETPROOF TIME EXTRACTOR ---
+        // Guaranteed to extract an accurate timestamp so old messages never falsely read as 0
+        let msgTime = 0;
         if (msg.timestamp) {
+            if (typeof msg.timestamp.toMillis === 'function') msgTime = msg.timestamp.toMillis();
+            else if (msg.timestamp.seconds) msgTime = msg.timestamp.seconds * 1000;
+            else if (typeof msg.timestamp === 'number') msgTime = msg.timestamp;
+        }
+        if (!msgTime && msg.localTimestamp) msgTime = msg.localTimestamp;
+        if (!msgTime) msgTime = Date.now(); // Ultimate safety net
+
+        if (msg.timestamp && typeof msg.timestamp.toDate === 'function') {
             timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+            timeString = "Sent";
         }
 
         if (isMe) {
@@ -310,15 +336,13 @@ const renderMessagesUI = () => {
                 allRead = otherParticipants.every(pid => {
                     const recObj = readReceipts[pid];
                     let rTime = 0;
-                    if (recObj && recObj.toMillis) {
-                        rTime = recObj.toMillis();
-                    } else if (typeof recObj === 'number') {
-                        rTime = recObj;
-                        // Neutralize future clock drift corruptions
-                        if (rTime > Date.now() + 60000) rTime = 0; 
+                    if (recObj) {
+                        if (typeof recObj.toMillis === 'function') rTime = recObj.toMillis();
+                        else if (recObj.seconds) rTime = recObj.seconds * 1000;
+                        else if (typeof recObj === 'number') rTime = recObj;
                     }
-
-                    // Strict Math: Tick becomes blue immediately if their read receipt is equal to or newer than the message
+                    
+                    // True Blue logic: Must be strictly greater than 0, and newer than the message
                     return rTime > 0 && rTime >= (msgTime - 5000);
                 });
             }
@@ -379,7 +403,7 @@ const renderMessagesUI = () => {
 const listenToRoomState = (roomId) => {
     if (roomStateListener) roomStateListener();
     roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
-        currentRoomData = documentObj.data({ serverTimestamps: 'estimate' }) || { type: 'group', participants: [] }; 
+        currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
         
         if (roomId.startsWith('dm_') && (!currentRoomData.participants || currentRoomData.participants.length === 0)) {
             const splitIds = roomId.replace('dm_', '').split('_');
@@ -409,38 +433,38 @@ const listenToRoomState = (roomId) => {
         if (existingGear) existingGear.remove();
 
         const titleEl = document.getElementById('active-room-name');
-        const iconBox = document.getElementById('active-room-icon-box');
-
-        if (titleEl && iconBox) {
-            if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
-                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
-                if (!titleEl.innerHTML.includes('group-settings-btn')) titleEl.insertAdjacentHTML('beforeend', gearHTML);
-                
-                document.getElementById('group-settings-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    injectGroupAdminModal(); 
-                    
-                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-
-                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
-                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
-
-                    if (canEdit) {
-                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
-                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-                    }
-                    
-                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
-                    document.getElementById('group-admin-modal').style.display = 'flex';
-                });
+        
+        if (titleEl && (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem))) {
+            const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
+            
+            if (!titleEl.innerHTML.includes('group-settings-btn')) {
+                titleEl.insertAdjacentHTML('beforeend', gearHTML);
             }
-        }
+            
+            document.getElementById('group-settings-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                injectGroupAdminModal(); 
+                
+                document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
+                document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
+                document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
 
-        // TRIGGER INSTANT REDRAW WHEN OTHER USER UPDATES THEIR READ RECEIPT
+                document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
+                document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+
+                if (canEdit) {
+                    document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                    document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                    document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                }
+                
+                populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
+                document.getElementById('group-admin-modal').style.display = 'flex';
+            });
+        }
+        
+        // INSTANT REACTIVITY: If the room updates (e.g. readReceipt maps), forcefully redraw the UI to turn ticks Blue
         if (currentMessagesSnapshot.length > 0) renderMessagesUI();
     });
 };
@@ -454,20 +478,12 @@ export const listenToMessages = (roomId) => {
         const curId = currentUser?.id || currentUser?.uid;
 
         if (snapshot.docs.length > 0) {
-            const lastMsg = snapshot.docs[snapshot.docs.length - 1].data({ serverTimestamps: 'estimate' });
+            const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             
-            // Flawless Throttle Override: Always update receipt if incoming message is strictly newer than our last read
-            if (lastMsg.senderId !== curId) {
-                const msgTime = lastMsg.timestamp ? lastMsg.timestamp.toMillis() : Date.now();
-                const myReceipt = currentRoomData?.readReceipts?.[curId];
-                let myRTime = 0;
-                if (myReceipt && myReceipt.toMillis) myRTime = myReceipt.toMillis();
-                else if (typeof myReceipt === 'number') myRTime = myReceipt;
-
-                if (msgTime > myRTime && (Date.now() - myLastReceiptUpdate > 1000)) {
-                    myLastReceiptUpdate = Date.now();
-                    updateReadReceipt(roomId, curId);
-                }
+            // Only update receipt if someone ELSE sent a message and 2 seconds have passed since our last stamp
+            if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
+                myLastReceiptUpdate = Date.now();
+                updateReadReceipt(roomId, curId);
             }
         }
         
@@ -485,7 +501,7 @@ export const sendMessage = async () => {
     const curId = currentUser?.id || currentUser?.uid;
     const payload = { 
         text, senderId: curId, senderName: currentUser?.name || 'User', 
-        isOwner: currentUser?.isOwner === true, timestamp: serverTimestamp() 
+        isOwner: currentUser?.isOwner === true, timestamp: serverTimestamp(), localTimestamp: Date.now() 
     };
 
     if (replyContext) {
@@ -553,7 +569,7 @@ window.forwardSelectedMessages = async () => {
                             senderId: curId,
                             senderName: currentUser?.name || 'User',
                             isOwner: currentUser?.isOwner === true,
-                            timestamp: serverTimestamp()
+                            timestamp: serverTimestamp(), localTimestamp: Date.now()
                         };
                         await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
                     }
@@ -598,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         text: "📷 Image Attached", imageUrl: compressedBase64, 
                         senderId: curId, senderName: currentUser?.name || 'User', 
                         isOwner: currentUser?.isOwner === true, 
-                        timestamp: serverTimestamp()
+                        timestamp: serverTimestamp(), localTimestamp: Date.now()
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
