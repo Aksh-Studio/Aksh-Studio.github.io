@@ -1,7 +1,7 @@
 // src/app.js
 import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc, deleteDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
-import { switchChatRoom } from './chatEngine.js';
+import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
@@ -31,13 +31,15 @@ const listenToCloudRooms = () => {
             
             // --- FIX 3: DYNAMIC UNREAD NOTIFICATIONS ---
             let isUnread = false;
+            let roomLastMsgTime = data.lastMessageTime || 0;
+
             if (data.lastMessageTime && data.readReceipts) {
                 const myReceipt = data.readReceipts[curId];
                 let rTime = 0;
                 if (myReceipt && typeof myReceipt.toMillis === 'function') rTime = myReceipt.toMillis();
                 else if (typeof myReceipt === 'number') rTime = myReceipt;
                 
-                // If a message arrived AFTER our last read receipt, mark as unread
+                // Unread if a message arrived AFTER our last read receipt
                 if (data.lastMessageTime > rTime) isUnread = true;
             }
 
@@ -48,6 +50,7 @@ const listenToCloudRooms = () => {
                     roomsInfo[roomId].isImage = data.icon.startsWith('http') || data.icon.startsWith('data:image');
                 }
                 roomsInfo[roomId].unread = isUnread;
+                roomsInfo[roomId].lastMessageTime = roomLastMsgTime;
             } 
             else if (data.type === 'dm' && data.participants?.includes(curId)) {
                 const otherId = data.participants.find(id => id !== curId);
@@ -59,7 +62,8 @@ const listenToCloudRooms = () => {
                     icon: data.avatars?.[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherNameRaw)}&background=00a884&color=fff`,
                     type: 'dm',
                     isImage: true,
-                    unread: isUnread
+                    unread: isUnread,
+                    lastMessageTime: roomLastMsgTime
                 };
             }
             else if (data.type === 'group' && data.participants?.includes(curId)) {
@@ -68,7 +72,8 @@ const listenToCloudRooms = () => {
                     icon: data.icon || 'groups',
                     type: 'group',
                     isImage: !!(data.icon && (data.icon.startsWith('data:image') || data.icon.startsWith('http'))),
-                    unread: isUnread
+                    unread: isUnread,
+                    lastMessageTime: roomLastMsgTime
                 };
             }
         });
@@ -159,6 +164,7 @@ const initNavigation = () => {
     document.getElementById('btn-mobile-back')?.addEventListener('click', () => {
         appState.isMobileChatOpen = false;
         document.getElementById('main-layout').classList.remove('mobile-chat-active');
+        leaveChatRoom(); // STOP READING MESSAGES IN BACKGROUND
     });
 
     document.getElementById('btn-create-group')?.addEventListener('click', async () => {
@@ -171,7 +177,8 @@ const initNavigation = () => {
             await setDoc(doc(db, "chats", newGroupId), {
                 type: 'group', name: groupName, icon: 'groups',
                 participants: [curId], admins: [curId], 
-                createdBy: curId, createdAt: Date.now()
+                createdBy: curId, createdAt: Date.now(),
+                lastMessageTime: Date.now()
             });
             
             appState.activeChatId = newGroupId;
@@ -192,7 +199,6 @@ const fetchNetworkUsers = async () => {
         
         const myUid = String(currentUser?.id || "").trim();
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
-        const myName = String(currentUser?.name || "").toLowerCase().trim();
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
@@ -200,11 +206,10 @@ const fetchNetworkUsers = async () => {
             const safeEmail = String(u.email || '');
             const targetEmail = safeEmail.toLowerCase().trim();
             const rawName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Network User');
-            const targetNameLower = String(rawName).toLowerCase().trim();
             
+            // --- FIX 2: EXCLUSION BUG DESTROYED ---
             if (targetUid === myUid) return; 
             if (targetEmail === myEmail && myEmail !== "") return; 
-            if (targetNameLower === myName && myName !== "") return;
             if (currentUser.isOwner && targetEmail === 'akshat124.am12@gmail.com') return;
             
             const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
@@ -258,6 +263,7 @@ window.deleteSidebarChat = async (roomId) => {
                     iconBox.style.background = '#dfe5e7';
                     iconBox.innerHTML = `<span class="material-symbols-rounded">chat</span>`;
                 }
+                leaveChatRoom();
             }
         } catch(e) { alert("Delete failed. Check permissions."); }
     }
@@ -271,7 +277,14 @@ export const renderSidebarList = () => {
     const combinedRooms = { ...roomsInfo, ...dynamicRooms };
     const myName = String(currentUser.name || "").toLowerCase().trim();
 
-    Object.keys(combinedRooms).forEach(id => {
+    // Sort heavily by last message time
+    const sortedRoomIds = Object.keys(combinedRooms).sort((a, b) => {
+        const timeA = combinedRooms[a].lastMessageTime || 0;
+        const timeB = combinedRooms[b].lastMessageTime || 0;
+        return timeB - timeA;
+    });
+
+    sortedRoomIds.forEach(id => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
@@ -299,17 +312,20 @@ export const renderSidebarList = () => {
 
             // Apply unread UI bolding
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
+            const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
             if (room.isImage) {
                 item.innerHTML = `
                     <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
                     <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
+                    ${badgeHTML}
                     ${deleteActionHTML}
                 `;
             } else {
                 item.innerHTML = `
                     <div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div>
                     <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>Tap to view messages</p></div>
+                    ${badgeHTML}
                 `;
             }
 
@@ -338,7 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSidebarList();
         
         // --- FIX 5: MOBILE SKIP DROPDOWN ---
-        // Only trigger the default chat window click if the user is on a Desktop
         const defaultBtn = document.getElementById(`btn-room-global_channel`);
         if(defaultBtn && window.innerWidth > 900) {
             defaultBtn.click();
