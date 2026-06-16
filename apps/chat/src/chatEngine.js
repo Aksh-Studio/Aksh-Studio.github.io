@@ -6,6 +6,7 @@ let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
 export let currentRoomData = null; 
+export let currentRoomMeta = { name: '', icon: '', type: '' }; // Caches the Header State
 export let currentMessagesSnapshot = []; 
 let replyContext = null; 
 let messageToPin = null; 
@@ -194,7 +195,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- FLAWLESS OMNI-SEARCH ENGINE ---
+    // --- FIX 2 & 4: TRUE OMNI-SEARCH ENGINE (Matches Multi-Word Names Flawlessly without hard limits) ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -203,9 +204,7 @@ const populateGroupManagement = async (participants, admins) => {
             const originalEmail = String(u.email || '').trim();
             const originalName = String(u.fullName || u.firstName || u.name || (originalEmail ? originalEmail.split('@')[0] : 'User')).trim();
             
-            // Build an invisible lower-cased string for perfectly accurate matching
             const searchStr = `${originalName.toLowerCase()} ${originalEmail.toLowerCase()}`;
-            
             allUsers.push({ id: d.id, name: originalName, email: originalEmail, searchStr: searchStr });
         });
     } catch(e) {}
@@ -215,7 +214,7 @@ const populateGroupManagement = async (participants, admins) => {
         const cleanTerms = term.trim().toLowerCase().split(' ').filter(Boolean);
 
         const filtered = allUsers.filter(u => {
-            if (cleanTerms.length === 0) return true; 
+            if (cleanTerms.length === 0) return true; // Show ALL users unconditionally
             return cleanTerms.every(t => u.searchStr.includes(t));
         });
 
@@ -225,7 +224,7 @@ const populateGroupManagement = async (participants, admins) => {
         }
 
         let htmlString = '';
-        filtered.slice(0, 100).forEach(u => {
+        filtered.forEach(u => {
             const isAlreadyInGroup = safeParticipants.includes(u.id);
             const btnHTML = isAlreadyInGroup 
                 ? `<button disabled style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed; flex-shrink: 0;">Added</button>`
@@ -253,6 +252,9 @@ const populateGroupManagement = async (participants, admins) => {
 export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
+    
+    // --- FIX 1: EXPLICIT HEADER INJECTION WITH METADATA CACHE ---
+    currentRoomMeta = { name: passedName, icon: passedIcon, type: passedType };
     
     const titleEl = document.getElementById('active-room-name');
     const iconBox = document.getElementById('active-room-icon-box');
@@ -313,8 +315,7 @@ const renderMessagesUI = () => {
         let timeString = "Sending...";
         let tickHTML = "";
         
-        // --- BULLETPROOF TIME EXTRACTOR ---
-        // Guaranteed to extract an accurate timestamp so old messages never falsely read as 0
+        // Ensure robust time extraction
         let msgTime = 0;
         if (msg.timestamp) {
             if (typeof msg.timestamp.toMillis === 'function') msgTime = msg.timestamp.toMillis();
@@ -322,7 +323,7 @@ const renderMessagesUI = () => {
             else if (typeof msg.timestamp === 'number') msgTime = msg.timestamp;
         }
         if (!msgTime && msg.localTimestamp) msgTime = msg.localTimestamp;
-        if (!msgTime) msgTime = Date.now(); // Ultimate safety net
+        if (!msgTime) msgTime = Date.now(); 
 
         if (msg.timestamp && typeof msg.timestamp.toDate === 'function') {
             timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -342,7 +343,8 @@ const renderMessagesUI = () => {
                         else if (typeof recObj === 'number') rTime = recObj;
                     }
                     
-                    // True Blue logic: Must be strictly greater than 0, and newer than the message
+                    // --- FIX 8: THE FLAWLESS BLUE TICK LOGIC ---
+                    // It must be strictly > 0, and greater than the message creation time (minus sync buffer).
                     return rTime > 0 && rTime >= (msgTime - 5000);
                 });
             }
@@ -380,14 +382,35 @@ const renderMessagesUI = () => {
         const bubbleClass = isSystemAdminMsg ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
         
         const formattedTextContent = parseWhatsAppFormatting(msg.text);
-        const imageAttachmentHTML = msg.imageUrl ? `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">` : '';
+        
+        // --- FIX 8 & 9: UNIVERSAL MEDIA ATTACHMENTS WITH DOWNLOAD BUTTONS ---
+        let mediaAttachmentHTML = '';
+        if (msg.fileUrl) {
+            if (msg.fileType && msg.fileType.startsWith('image')) {
+                mediaAttachmentHTML = `<img src="${msg.fileUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">`;
+            } else {
+                mediaAttachmentHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; margin-bottom: 5px;">
+                        <span class="material-symbols-rounded" style="font-size: 32px; color: var(--primary);">description</span>
+                        <div style="flex: 1; overflow: hidden;">
+                            <p style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${msg.fileName || 'Document'}</p>
+                        </div>
+                        <a href="${msg.fileUrl}" download="${msg.fileName || 'download'}" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; background: rgba(0, 168, 132, 0.1); width: 36px; height: 36px; border-radius: 50%;">
+                            <span class="material-symbols-rounded">download</span>
+                        </a>
+                    </div>
+                `;
+            }
+        } else if (msg.imageUrl) {
+            mediaAttachmentHTML = `<img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">`;
+        }
 
         messagesHTML += `
             <div class="msg-container ${isFirstInGroup ? 'first-in-group' : ''} ${alignmentClass}" id="container-${msgId}">
                 ${checkboxHTML}
                 <div class="msg-bubble ${bubbleClass} ${isFirstInGroup ? '' : 'grouped'}">
                     ${actionMenuHTML} ${senderNameHTML} ${replyHTML}
-                    ${imageAttachmentHTML}
+                    ${mediaAttachmentHTML}
                     <span id="text-${msgId}">${formattedTextContent}</span>
                     <div class="msg-meta"><span>${timeString}</span>${tickHTML}</div>
                 </div>
@@ -434,37 +457,48 @@ const listenToRoomState = (roomId) => {
 
         const titleEl = document.getElementById('active-room-name');
         
-        if (titleEl && (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem))) {
-            const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
-            
-            if (!titleEl.innerHTML.includes('group-settings-btn')) {
-                titleEl.insertAdjacentHTML('beforeend', gearHTML);
-            }
-            
-            document.getElementById('group-settings-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                injectGroupAdminModal(); 
-                
-                document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
-                document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-
-                document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
-                document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
-
-                if (canEdit) {
-                    document.getElementById('edit-group-name').value = currentRoomData.name || '';
-                    document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                    document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        if (titleEl) {
+            // Re-apply correct header metadata robustly from the local cache or incoming database map
+            let displayRoomName = currentRoomData.name || currentRoomMeta.name || 'Chat';
+            if (currentRoomData.type === 'dm') {
+                const otherId = currentRoomData.participants?.find(id => id !== curId);
+                if (otherId && currentRoomData.names?.[otherId]) {
+                    displayRoomName = currentRoomData.names[otherId];
+                } else if (currentRoomMeta.name) {
+                    displayRoomName = currentRoomMeta.name;
                 }
+            }
+            titleEl.innerText = displayRoomName;
+            
+            if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
+                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
+                if (!titleEl.innerHTML.includes('group-settings-btn')) titleEl.insertAdjacentHTML('beforeend', gearHTML);
                 
-                populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
-                document.getElementById('group-admin-modal').style.display = 'flex';
-            });
+                document.getElementById('group-settings-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    injectGroupAdminModal(); 
+                    
+                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+
+                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
+                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+
+                    if (canEdit) {
+                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                    }
+                    
+                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
+                    document.getElementById('group-admin-modal').style.display = 'flex';
+                });
+            }
         }
         
-        // INSTANT REACTIVITY: If the room updates (e.g. readReceipt maps), forcefully redraw the UI to turn ticks Blue
+        // Redraw UI aggressively to display live Blue Ticks
         if (currentMessagesSnapshot.length > 0) renderMessagesUI();
     });
 };
@@ -479,8 +513,6 @@ export const listenToMessages = (roomId) => {
 
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
-            
-            // Only update receipt if someone ELSE sent a message and 2 seconds have passed since our last stamp
             if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
                 myLastReceiptUpdate = Date.now();
                 updateReadReceipt(roomId, curId);
@@ -513,7 +545,12 @@ export const sendMessage = async () => {
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
-        updateReadReceipt(currentRoomId, curId);
+        
+        // Force the lastMessageTime update for dynamic sidebar unread status sorting
+        await setDoc(doc(db, "chats", currentRoomId), { 
+            [`readReceipts.${curId}`]: serverTimestamp(),
+            lastMessageTime: Date.now()
+        }, { merge: true });
     } catch (error) {}
 };
 
@@ -566,6 +603,9 @@ window.forwardSelectedMessages = async () => {
                         const fwdPayload = {
                             text: finalizedText,
                             imageUrl: originalData.imageUrl || null,
+                            fileUrl: originalData.fileUrl || null,
+                            fileType: originalData.fileType || null,
+                            fileName: originalData.fileName || null,
                             senderId: curId,
                             senderName: currentUser?.name || 'User',
                             isOwner: currentUser?.isOwner === true,
@@ -595,34 +635,62 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            if (!file.type.startsWith('image/')) return alert("Only images are supported.");
+            
+            const isImage = file.type.startsWith('image/');
+            const isPdf = file.type === 'application/pdf';
+            const isText = file.type.startsWith('text/');
+            
+            if (!isImage && !isPdf && !isText) {
+                return alert("Only Images, PDFs, and Text files are supported.");
+            }
+
             const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = async () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800;
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH;
-                    canvas.height = img.height * scaleSize;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
-                    const curId = currentUser?.id || currentUser?.uid;
+            reader.onload = async (event) => {
+                let fileData = event.target.result;
+                const curId = currentUser?.id || currentUser?.uid;
+                
+                const basePayload = {
+                    senderId: curId, senderName: currentUser?.name || 'User', 
+                    isOwner: currentUser?.isOwner === true, 
+                    timestamp: serverTimestamp(), localTimestamp: Date.now()
+                };
+
+                if (isImage) {
+                    const img = new Image();
+                    img.onload = async () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
+                        const payload = { 
+                            ...basePayload,
+                            text: "📷 Image Attached", fileUrl: compressedBase64,
+                            fileType: file.type, fileName: file.name
+                        };
+                        try { 
+                            await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
+                            myLastReceiptUpdate = Date.now();
+                            updateReadReceipt(currentRoomId, curId);
+                        } catch (error) {}
+                    };
+                    img.src = fileData;
+                } else {
                     const payload = { 
-                        text: "📷 Image Attached", imageUrl: compressedBase64, 
-                        senderId: curId, senderName: currentUser?.name || 'User', 
-                        isOwner: currentUser?.isOwner === true, 
-                        timestamp: serverTimestamp(), localTimestamp: Date.now()
+                        ...basePayload,
+                        text: `📄 Document: ${file.name}`, fileUrl: fileData,
+                        fileType: file.type, fileName: file.name
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         myLastReceiptUpdate = Date.now();
                         updateReadReceipt(currentRoomId, curId);
                     } catch (error) {}
-                };
-                img.src = event.target.result;
+                }
             };
             reader.readAsDataURL(file); 
         });
@@ -649,7 +717,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const fileUrl = URL.createObjectURL(fileBlob);
             const anchor = document.createElement('a');
             anchor.href = fileUrl;
-            anchor.download = `WhatsApp_Chat_${currentRoomId}.txt`;
+            // --- FIX 7: DOWNLOAD FILENAME STRING ---
+            anchor.download = `Aksh-Chat_Chat_${currentRoomId}.txt`;
             document.body.appendChild(anchor);
             anchor.click();
             document.body.removeChild(anchor);
@@ -732,7 +801,6 @@ window.enableSelectionMode = (enable = true) => {
     if (enable) {
         container.classList.add('selection-mode');
         document.getElementById('standard-chat-header').style.display = 'none';
-        document.querySelectorAll('#injected-close-btn').forEach(b => b.remove());
         if (selectionHeader) selectionHeader.style.display = 'flex';
         document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
     } else {
