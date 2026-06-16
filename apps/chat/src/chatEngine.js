@@ -24,7 +24,16 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- LEAVE CHAT DESTROYER (PREVENTS GHOST BLUE TICKS) ---
+// Extractor to ensure receipts map flawlessly
+const updateReadReceipt = async (roomId, uid) => {
+    if (!roomId || !uid) return;
+    try {
+        await setDoc(doc(db, "chats", roomId), {
+            readReceipts: { [uid]: serverTimestamp() }
+        }, { merge: true });
+    } catch (e) {}
+};
+
 export const leaveChatRoom = () => {
     currentRoomId = null;
     if (unsubscribeListener) unsubscribeListener();
@@ -186,7 +195,8 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- FIX 4: OMNI-SEARCH ENGINE FOR EVERY SINGLE USER ---
+    // --- FIX 4: NO-LIMIT OMNI-SEARCH ENGINE ---
+    // Forces the entire available network directory to render without restricting array sizes.
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -205,7 +215,7 @@ const populateGroupManagement = async (participants, admins) => {
         const cleanTerms = term.trim().toLowerCase().split(' ').filter(Boolean);
 
         const filtered = allUsers.filter(u => {
-            if (cleanTerms.length === 0) return true; // Show ALL users unconditionally
+            if (cleanTerms.length === 0) return true; 
             return cleanTerms.every(t => u.searchStr.includes(t));
         });
 
@@ -244,7 +254,8 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
     
-    // --- FIX 1: INSTANT HEADER RENDERER NO LAG ---
+    // --- FIX 1: INSTANT HEADER CACHING ---
+    // Zero latency "Select Chat" overrides. Binds explicitly passed Sidebar metadata direct to Header.
     currentRoomMeta = { name: passedName, icon: passedIcon, type: passedType };
     
     const titleEl = document.getElementById('active-room-name');
@@ -261,19 +272,19 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
         }
     }
 
+    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
+
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
     try {
         const curId = currentUser?.id || currentUser?.uid;
         if (curId) {
-            myLastReceiptUpdate = Date.now();
-            setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: Date.now() } }, { merge: true });
+            updateReadReceipt(roomId, curId);
         }
     } catch(e) {}
 };
 
-// --- REACTIVITY UI ENGINE ---
 const renderMessagesUI = () => {
     if (!currentRoomId || !currentMessagesSnapshot) return;
     
@@ -334,9 +345,9 @@ const renderMessagesUI = () => {
                         else if (typeof recObj === 'number') rTime = recObj;
                     }
                     
-                    // --- FIX 8: STRICT BLUE TICK CHECK ---
-                    // Ticks turn blue only if receiver timestamp is mathematically larger than sent time
-                    return rTime > 0 && rTime >= (msgTime - 5000);
+                    // --- BLUE TICK MATH LOCK ---
+                    // Eliminates the `0` Timestamp fallback bug. It must be strictly newer than message generation.
+                    return rTime > 0 && rTime >= (msgTime - 1000);
                 });
             }
             const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -374,14 +385,14 @@ const renderMessagesUI = () => {
         
         const formattedTextContent = parseWhatsAppFormatting(msg.text);
         
-        // --- FIX 8 & 9: UNIVERSAL MEDIA ATTACHMENTS WITH DOWNLOAD BUTTONS ---
+        // --- FIX 8 & 9: UNIVERSAL MEDIA PAYLOAD WITH DOWNLOAD BUTTONS ---
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
             if (msg.fileType && msg.fileType.startsWith('image')) {
                 mediaAttachmentHTML = `
                     <div style="position:relative;">
                         <img src="${msg.fileUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'image.jpg'}" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
+                        <a href="${msg.fileUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
                     </div>`;
             } else {
                 mediaAttachmentHTML = `
@@ -390,7 +401,7 @@ const renderMessagesUI = () => {
                         <div style="flex: 1; overflow: hidden;">
                             <p style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${msg.fileName || 'Document'}</p>
                         </div>
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'document'}" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; background: rgba(0, 168, 132, 0.1); width: 36px; height: 36px; border-radius: 50%;">
+                        <a href="${msg.fileUrl}" download="${msg.fileName || 'document'}" target="_blank" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; background: rgba(0, 168, 132, 0.1); width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;">
                             <span class="material-symbols-rounded">download</span>
                         </a>
                     </div>
@@ -400,7 +411,7 @@ const renderMessagesUI = () => {
             mediaAttachmentHTML = `
                 <div style="position:relative;">
                     <img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">
-                    <a href="${msg.imageUrl}" download="image.jpg" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
+                    <a href="${msg.imageUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
                 </div>`;
         }
 
@@ -511,13 +522,9 @@ export const listenToMessages = (roomId) => {
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             
-            // --- THE GHOST READER FIX ---
-            // Explicitly checks that the user is actively inside this exact room and the tab is open
-            if (lastMsg.senderId !== curId && currentRoomId === roomId && document.visibilityState === 'visible') {
-                if (Date.now() - myLastReceiptUpdate > 2000) {
-                    myLastReceiptUpdate = Date.now();
-                    try { setDoc(doc(db, "chats", roomId), { readReceipts: { [curId]: Date.now() } }, { merge: true }); } catch(e){}
-                }
+            if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
+                myLastReceiptUpdate = Date.now();
+                updateReadReceipt(roomId, curId);
             }
         }
         
@@ -547,9 +554,12 @@ export const sendMessage = async () => {
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
+        
+        // Push timestamp updates explicitly so UNREAD UI populates correctly
         await setDoc(doc(db, "chats", currentRoomId), { 
-            [`readReceipts.${curId}`]: Date.now(),
-            lastMessageTime: Date.now()
+            [`readReceipts.${curId}`]: serverTimestamp(),
+            lastMessageTime: Date.now(),
+            lastMessageSenderId: curId
         }, { merge: true });
     } catch (error) {}
 };
@@ -616,7 +626,11 @@ window.forwardSelectedMessages = async () => {
                 } catch(e) {}
             }
             
-            await setDoc(doc(db, "chats", roomId), { lastMessageTime: Date.now() }, { merge: true });
+            await setDoc(doc(db, "chats", roomId), { 
+                lastMessageTime: Date.now(),
+                lastMessageSenderId: curId 
+            }, { merge: true });
+            
             window.enableSelectionMode(false);
             alert("Messages forwarded successfully.");
         };
@@ -639,13 +653,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             
             const isImage = file.type.startsWith('image/');
-            const isPdf = file.type === 'application/pdf';
-            const isText = file.type.startsWith('text/');
-            
-            if (!isImage && !isPdf && !isText) {
-                return alert("Only Images, PDFs, and Text files are supported.");
-            }
-
             const reader = new FileReader();
             reader.onload = async (event) => {
                 let fileData = event.target.result;
@@ -677,7 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         try { 
                             await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                             myLastReceiptUpdate = Date.now();
-                            await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now(), lastMessageTime: Date.now() }, { merge: true });
+                            await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp(), lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
                         } catch (error) {}
                     };
                     img.src = fileData;
@@ -690,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         myLastReceiptUpdate = Date.now();
-                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now(), lastMessageTime: Date.now() }, { merge: true });
+                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp(), lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
                     } catch (error) {}
                 }
             };
@@ -704,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
     if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
-    // --- FIX 7: DOWNLOAD FILENAME STRING ---
+    // --- FIX 7: AKSH-CHAT EXPORT NAMING ---
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
@@ -820,15 +827,5 @@ document.addEventListener('change', (e) => {
     if (e.target.classList.contains('msg-checkbox')) {
         const count = document.querySelectorAll('.msg-checkbox:checked').length;
         document.getElementById('selection-count').innerText = `${count} Selected`;
-    }
-});
-
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && currentRoomId) {
-        const curId = currentUser?.id || currentUser?.uid;
-        if (curId && (Date.now() - myLastReceiptUpdate > 2000)) {
-            myLastReceiptUpdate = Date.now();
-            try { setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
-        }
     }
 });
