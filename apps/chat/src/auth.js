@@ -15,24 +15,24 @@ export const initAuth = (onSuccessBoot) => {
     const overlay = document.getElementById('guest-overlay');
     const root = document.getElementById('app-root');
 
-    const forceBoot = (uid, email, name, photo) => {
+    const forceBoot = async (uid, email, name, photo) => {
         currentUser.id = uid;
         currentUser.email = email;
         currentUser.name = name || email.split('@')[0];
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
-        // --- THE MASTER DIRECTORY SYNC FIX ---
-        // No matter how a user logs in (Firebase Auth OR LocalStorage Cache),
-        // this forces their identity into the public Firestore directory instantly.
-        // This guarantees YOU (and everyone else) ALWAYS show up in the network search.
-        try {
-            setDoc(doc(db, "users", uid), {
-                email: currentUser.email,
-                fullName: currentUser.name,
-                photoURL: currentUser.photoURL,
-                uid: uid
-            }, { merge: true });
-        } catch(e) { console.error("Sync Error", e); }
+        // --- BUG 2 FIX: GUARANTEED NETWORK REGISTRATION ---
+        // Forces the user into the global DB instantly so they always appear in search
+        if (uid) {
+            try {
+                await setDoc(doc(db, "users", uid), {
+                    uid: uid,
+                    email: String(email).toLowerCase().trim(),
+                    fullName: currentUser.name,
+                    photoURL: currentUser.photoURL
+                }, { merge: true });
+            } catch(e) {}
+        }
 
         if (overlay) overlay.style.display = 'none';
         if (root) root.classList.remove('guest-blur');
@@ -57,13 +57,12 @@ export const initAuth = (onSuccessBoot) => {
             let dName = user.displayName || user.email.split('@')[0];
             let pUrl = user.photoURL || ''; 
             
-            // Extract any custom uploaded profile picture if they have one
             try {
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
                     const data = uDoc.data();
                     dName = data.fullName || data.name || dName;
-                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage || data.avatar || pUrl;
+                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.avatar || pUrl;
                 }
             } catch (error) {}
             
