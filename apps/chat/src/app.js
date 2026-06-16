@@ -201,23 +201,30 @@ const fetchNetworkUsers = async () => {
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
         const myName = String(currentUser?.name || "").toLowerCase().trim();
 
+        // FIX 1: Collect ALL users including owner - NO filtering except self
         const allNetworkUsers = [];
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = String(docObj.id).trim();
-            const safeEmail = String(u.email || '').toLowerCase().trim();
             
-            // ENHANCED: Try all possible name fields
+            // CRITICAL: Get all possible email variations
+            const rawEmail = String(u.email || '').toLowerCase().trim();
+            const safeEmail = rawEmail || targetUid; // Fallback to UID if no email
+            
+            // FIX 2: Try ALL possible name fields in order
             const rawName = (
                 u.fullName || 
+                u.firstName ||
                 u.name || 
-                u.firstName || 
-                (safeEmail ? safeEmail.split('@')[0] : 'Network User')
+                (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')
             ).trim();
             
-            if (targetUid === myUid) return; // Skip self
-            if (!rawName) return; // Skip invalid entries
+            // Skip ONLY self - never skip based on name or email
+            if (targetUid === myUid) return;
+            
+            // Skip only if both name AND email are missing
+            if (!rawName || !safeEmail) return;
             
             allNetworkUsers.push({
                 uid: targetUid,
@@ -227,14 +234,20 @@ const fetchNetworkUsers = async () => {
             });
         });
 
-        // Sort alphabetically for a clean UI
+        // FIX 3: Sort alphabetically for better UX
         allNetworkUsers.sort((a, b) => a.name.localeCompare(b.name));
+
+        // FIX 4: Render ALL users
+        if (allNetworkUsers.length === 0) {
+            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 20px;">No network users found.</p>';
+            return;
+        }
 
         allNetworkUsers.forEach(user => {
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=00a884&color=fff'">
+                <img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=00a884&color=fff'" />
                 <div class="user-info">
                     <h4>${user.name}</h4>
                     <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
@@ -247,7 +260,8 @@ const fetchNetworkUsers = async () => {
                 
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
-                        type: 'dm', participants: [myUid, user.uid],
+                        type: 'dm', 
+                        participants: [myUid, user.uid],
                         names: { [myUid]: currentUser.name, [user.uid]: user.name },
                         avatars: { [myUid]: myPic, [user.uid]: user.pic }
                     }, { merge: true });
@@ -264,10 +278,6 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
-        
-        if (allNetworkUsers.length === 0) {
-            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
-        }
     } catch (e) { 
         console.error("Network fetch error:", e);
         listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; 
@@ -323,7 +333,7 @@ export const renderSidebarList = () => {
             item.style.position = 'relative'; 
             
             const deleteActionHTML = room.type === 'dm' ? `
-                <div class="chat-menu-trigger" onclick="event.stopPropagation(); window.deleteSidebarChat('${id}')" style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); display: none; z-index: 10;" title="Delete Chat">
+                <div class="chat-menu-trigger" onclick="event.stopPropagation(); window.deleteSidebarChat('${id}')" style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); display: none; cursor: pointer;">
                     <span class="material-symbols-rounded">keyboard_arrow_down</span>
                 </div>
             ` : '';
@@ -334,7 +344,7 @@ export const renderSidebarList = () => {
 
             if (room.isImage) {
                 item.innerHTML = `
-                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
+                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'" />
                     <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
                     ${badgeHTML}
                     ${deleteActionHTML}
