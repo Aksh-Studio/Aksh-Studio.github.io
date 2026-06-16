@@ -21,17 +21,23 @@ export const initAuth = (onSuccessBoot) => {
         currentUser.name = name || email.split('@')[0];
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
-        // --- BUG 2 FIX: GUARANTEED NETWORK REGISTRATION ---
-        // Forces the user into the global DB instantly so they always appear in search
+        // --- BUG 2 FIX: GUARANTEED NETWORK REGISTRATION (ENHANCED) ---
+        // Forces the user into the global DB instantly with ALL required fields
         if (uid) {
             try {
                 await setDoc(doc(db, "users", uid), {
                     uid: uid,
-                    email: String(email).toLowerCase().trim(),
+                    email: String(currentUser.email).toLowerCase().trim(),
                     fullName: currentUser.name,
-                    photoURL: currentUser.photoURL
+                    firstName: currentUser.name.split(' ')[0],
+                    name: currentUser.name,  // Fallback field
+                    photoURL: currentUser.photoURL,
+                    customProfilePic: currentUser.photoURL,  // Fallback field
+                    createdAt: Date.now()
                 }, { merge: true });
-            } catch(e) {}
+            } catch(e) {
+                console.error("Failed to register user profile:", e);
+            }
         }
 
         if (overlay) overlay.style.display = 'none';
