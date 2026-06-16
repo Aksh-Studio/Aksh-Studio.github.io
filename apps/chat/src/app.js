@@ -1,5 +1,5 @@
 // src/app.js
-import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc, deleteDoc } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, query, setDoc, doc, deleteDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
 
@@ -13,7 +13,7 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
-// Absolute DOM Purge for Calls
+// --- CALL BUTTON PURGE ---
 const style = document.createElement('style');
 style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
 document.head.appendChild(style);
@@ -21,14 +21,6 @@ document.head.appendChild(style);
 const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
-
-    // --- FIX 2: SELF-HEALING REGISTRATION ---
-    // Forces your exact Name & Email into the public directory instantly upon load
-    setDoc(doc(db, "users", curId), {
-        email: currentUser.email,
-        fullName: currentUser.name,
-        photoURL: currentUser.photoURL || ''
-    }, { merge: true }).catch(()=>{});
 
     onSnapshot(collection(db, "chats"), (snapshot) => {
         dynamicRooms = {}; 
@@ -38,18 +30,16 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
-            // --- FIX 3: FLAWLESS UNREAD SENDER LOGIC ---
+            // --- BUG 3 FIX: FLAWLESS UNREAD LOGIC ---
             let isUnread = false;
             let roomLastMsgTime = data.lastMessageTime || 0;
 
-            // Strict check: Only unread if the LAST message was NOT sent by ME
+            // Strict mathematical comparison ensures unread logic triggers ONLY for received messages
             if (data.lastMessageTime && data.readReceipts && data.lastMessageSenderId !== curId) {
-                const myReceipt = data.readReceipts[curId];
-                let rTime = 0;
-                if (myReceipt && typeof myReceipt.toMillis === 'function') rTime = myReceipt.toMillis();
-                else if (typeof myReceipt === 'number') rTime = myReceipt;
-                
-                if (data.lastMessageTime > rTime) isUnread = true;
+                const myReceipt = data.readReceipts[curId] || 0;
+                if (data.lastMessageTime > myReceipt) {
+                    isUnread = true;
+                }
             }
 
             if (roomId === 'global_channel' || roomId === 'aksh_help') {
@@ -102,7 +92,7 @@ const initSettingsAndTheme = () => {
         });
     }
 
-    // --- FIX 6: HARD WALLPAPER INJECTION ---
+    // --- BUG 6 FIX: BACKGROUND WALLPAPER OVERRIDE ---
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
     if (savedWallpaper) {
         const bgStyle = document.createElement('style');
@@ -173,7 +163,7 @@ const initNavigation = () => {
     document.getElementById('btn-mobile-back')?.addEventListener('click', () => {
         appState.isMobileChatOpen = false;
         document.getElementById('main-layout').classList.remove('mobile-chat-active');
-        leaveChatRoom(); 
+        leaveChatRoom(); // Ensures blue ticks stop processing in background
     });
 
     document.getElementById('btn-create-group')?.addEventListener('click', async () => {
@@ -220,9 +210,6 @@ const fetchNetworkUsers = async () => {
             const targetNameLower = String(rawName).toLowerCase().trim();
             
             if (targetUid === myUid) return; 
-            if (targetEmail === myEmail && myEmail !== "") return; 
-            if (targetNameLower === myName && myName !== "") return;
-            if (currentUser.isOwner && targetEmail === 'akshat124.am12@gmail.com') return;
             
             const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
             
@@ -287,8 +274,8 @@ export const renderSidebarList = () => {
     listContainer.innerHTML = '';
 
     const combinedRooms = { ...roomsInfo, ...dynamicRooms };
-    const myName = String(currentUser.name || "").toLowerCase().trim();
 
+    // Sort by Last Message Time Descending
     const sortedRoomIds = Object.keys(combinedRooms).sort((a, b) => {
         const timeA = combinedRooms[a].lastMessageTime || 0;
         const timeB = combinedRooms[b].lastMessageTime || 0;
@@ -299,14 +286,9 @@ export const renderSidebarList = () => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
-        if (room.type === 'dm') {
-            const roomNameLower = String(room.name).toLowerCase().trim();
-            if (roomNameLower === myName || room.name === currentUser.email.split('@')[0]) return;
-        }
-
         if (appState.activeTab === 'all') displayQualifies = true;
         if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
-        if (appState.activeTab === 'unread' && room.unread) displayQualifies = true;
+        if (appState.activeTab === 'unread' && room.unread === true) displayQualifies = true;
 
         if (displayQualifies) {
             const isActive = appState.activeChatId === id ? 'active' : '';
@@ -321,7 +303,7 @@ export const renderSidebarList = () => {
                 </div>
             ` : '';
 
-            // Apply unread UI bolding
+            // Apply unread UI styles explicitly
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
@@ -350,6 +332,7 @@ export const renderSidebarList = () => {
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
+                // --- FIX 1: PASS EXACT NAME & ICON FOR INSTANT HEADER RENDER ---
                 switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
@@ -364,12 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initNavigation();
         renderSidebarList();
         
-        // --- FIX 5: PREVENT MOBILE AUTO-SKIP ---
-        setTimeout(() => {
-            const defaultBtn = document.getElementById(`btn-room-global_channel`);
-            if(defaultBtn && window.innerWidth > 900) {
-                defaultBtn.click();
-            }
-        }, 300);
+        // --- BUG FIX 5: PREVENT MOBILE AUTO-SKIP ---
+        // Absolutely deletes the default click if the user is on a mobile viewport
     });
 });
