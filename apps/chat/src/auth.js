@@ -17,21 +17,26 @@ export const initAuth = (onSuccessBoot) => {
 
     const forceBoot = async (uid, email, name, photo) => {
         currentUser.id = uid;
-        currentUser.email = email;
+        currentUser.email = email || '';
         currentUser.name = name || (email ? email.split('@')[0] : 'User');
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
-        // BUG 2 FIX: Aggressively register user so they ALWAYS appear in searches
-        if (uid && email) {
+        // CRITICAL BUG FIX: Force user into the 'users' database every single time they load the app.
+        // This guarantees they will always appear in the Search Network and Add Members list.
+        if (uid) {
             try {
                 await setDoc(doc(db, "users", uid), {
                     uid: uid,
-                    email: String(email).toLowerCase().trim(),
+                    email: String(currentUser.email).toLowerCase().trim(),
+                    name: currentUser.name,
                     fullName: currentUser.name,
+                    firstName: currentUser.name.split(' ')[0],
                     photoURL: currentUser.photoURL,
                     updatedAt: Date.now()
                 }, { merge: true });
-            } catch(e) { console.warn("Failed to register user to directory"); }
+            } catch(e) {
+                console.error("Failed to sync user to global directory:", e);
+            }
         }
 
         if (overlay) overlay.style.display = 'none';
@@ -62,7 +67,7 @@ export const initAuth = (onSuccessBoot) => {
                 if (uDoc.exists()) {
                     const data = uDoc.data();
                     dName = data.fullName || data.name || data.firstName || dName;
-                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.avatar || pUrl;
+                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || pUrl;
                 }
             } catch (error) {}
             
