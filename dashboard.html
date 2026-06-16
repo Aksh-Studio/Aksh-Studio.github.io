@@ -203,6 +203,33 @@
         </div>
     </div>
 
+    <div id="phone-bind-modal" class="modal-overlay" style="z-index: 9999; background: rgba(0,0,0,0.85);">
+        <div class="modal-box" style="text-align: center; max-width: 400px;">
+            <h2 style="margin-top: 0; color: #128C7E; font-size: 20px;">Secure Your Account</h2>
+            <p style="font-size: 13px; color: #555; margin-bottom: 20px; line-height: 1.5;">
+                You are currently signed in with a <strong>Phone Number only</strong>. To ensure you never lose access to your Aksh Studio apps, you must link an Email or Google account.
+            </p>
+            
+            <button id="force-bind-google" class="google-btn" style="margin-bottom: 15px; font-weight: 600;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="18"> 
+                Bind with Google
+            </button>
+            
+            <div class="divider">OR BIND WITH EMAIL</div>
+            
+            <div style="text-align: left;">
+                <input type="email" id="force-bind-email" placeholder="New Email Address" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                <input type="password" id="force-bind-password" placeholder="Create Secure Password" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+                <button id="force-bind-email-btn" class="auth-btn" style="width: 100%;">Bind with Email</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, linkWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        // ... (Keep the rest of your imports and firebaseConfig)
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut, linkWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, sendEmailVerification, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
