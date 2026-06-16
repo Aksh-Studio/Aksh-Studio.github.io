@@ -199,7 +199,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- BUG 4 FIX: SAFE OMNI-SEARCH WITHOUT LIMITS ---
+    // SAFE OMNI-SEARCH: Will not crash or drop users if their database fields are messy
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -207,15 +207,15 @@ const populateGroupManagement = async (participants, admins) => {
             const u = d.data();
             const safeEmail = u.email ? String(u.email).trim() : '';
             
-            // Extracts whatever name component is active and prevents dropped users.
-            const safeName = (
-                u.fullName || 
-                u.name || 
-                u.firstName || 
-                (safeEmail ? safeEmail.split('@')[0] : 'Unknown')
-            ).trim();
+            let safeName = "Unknown User";
+            if (u.fullName) safeName = u.fullName;
+            else if (u.name) safeName = u.name;
+            else if (u.firstName) safeName = u.firstName;
+            else if (safeEmail) safeName = safeEmail.split('@')[0];
             
-            if (!safeName && !safeEmail) return;
+            safeName = String(safeName).trim();
+            
+            if (!safeName || safeName === 'Unknown User') return;
             
             const searchStr = `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}`;
             allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
