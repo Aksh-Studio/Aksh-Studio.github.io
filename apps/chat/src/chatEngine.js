@@ -52,18 +52,18 @@ const injectGroupAdminModal = () => {
                 <h3 style="margin-bottom: 15px; color: var(--primary);">Group Information</h3>
                 
                 <div id="group-edit-section">
-                    <input type="text" id="edit-group-name" placeholder="Group Name" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
-                    <input type="text" id="edit-group-icon" placeholder="Or paste Logo URL here..." style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);">
+                    <input type="text" id="edit-group-name" placeholder="Group Name" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main);">
+                    <input type="text" id="edit-group-icon" placeholder="Or paste Logo URL here..." style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main);">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
                         <img id="group-icon-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
-                        <button id="btn-upload-group-icon" style="flex: 1; padding: 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); border-radius: 8px; cursor: pointer; font-size: 12px;">Upload Device Logo</button>
+                        <button id="btn-upload-group-icon" style="flex: 1; padding: 10px; background: transparent; color: var(--primary); border: 1px dashed var(--primary); border-radius: 8px; cursor: pointer; font-size: 12px;">Upload Image</button>
                         <input type="file" id="hidden-group-icon-input" accept="image/*" style="display: none;">
                     </div>
                 </div>
                 
                 <div id="add-member-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                    <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
+                    <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main);" autocomplete="off">
                     <div id="search-member-results" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
                 </div>
 
@@ -186,7 +186,7 @@ const populateGroupManagement = async (participants, admins) => {
                 
                 if (!isMemAdmin) transferSelectEl.innerHTML += `<option value="${uid}">${name}</option>`;
 
-                const kickBtnHTML = (uid !== curId && canEdit) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Kick</button>` : '';
+                const kickBtnHTML = (uid !== curId && canEdit) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Remove</button>` : '';
 
                 listEl.innerHTML += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--app-bg);">
@@ -198,7 +198,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // Bug 4 Fix: Try multiple name fields to ensure we get every user and avoid dropping them
+    // Try multiple name fields to ensure we get every user and avoid dropping them
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -243,8 +243,8 @@ const populateGroupManagement = async (participants, admins) => {
         filtered.forEach(u => {
             const isAlreadyInGroup = safeParticipants.includes(u.id);
             const btnHTML = isAlreadyInGroup 
-                ? `<button disabled style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed; flex-shrink: 0;">Added</button>`
-                : `<button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; flex-shrink: 0;">Add</button>`;
+                ? `<button disabled style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: not-allowed;">Already Added</button>`
+                : `<button onclick="window.addGroupMember('${u.id}')" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer;">Add</button>`;
 
             htmlString += `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border);">
@@ -301,7 +301,7 @@ const renderMessagesUI = () => {
     if (!container) return;
 
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
-    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer"><span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: text-top;">lock</span>Messages are end-to-end encrypted. No one outside of this chat can read them.</div></div>`;
+    const disclaimerHTML = `<div class="chat-disclaimer-wrapper"><div class="chat-disclaimer"><span class="material-symbols-rounded lock-icon" style="font-size: 13px; margin-right: 4px; vertical-align: middle;">lock</span> <strong>End-to-End Encrypted</strong><br><span style="font-size: 11px;">Messages are secured and private.</span></div></div>`;
     
     let messagesHTML = disclaimerHTML; 
     let previousSenderId = null; 
@@ -391,7 +391,7 @@ const renderMessagesUI = () => {
                 mediaAttachmentHTML = `
                     <div style="position:relative;">
                         <img src="${msg.fileUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
+                        <a href="${msg.fileUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:4px; text-decoration:none; font-size:11px;">Download</a>
                     </div>`;
             } else {
                 mediaAttachmentHTML = `
@@ -400,7 +400,7 @@ const renderMessagesUI = () => {
                         <div style="flex: 1; overflow: hidden;">
                             <p style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${msg.fileName || 'Document'}</p>
                         </div>
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'document'}" target="_blank" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; background: rgba(0, 168, 132, 0.1); width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;">
+                        <a href="${msg.fileUrl}" download="${msg.fileName || 'document'}" target="_blank" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center;">
                             <span class="material-symbols-rounded">download</span>
                         </a>
                     </div>
@@ -410,7 +410,7 @@ const renderMessagesUI = () => {
             mediaAttachmentHTML = `
                 <div style="position:relative;">
                     <img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">
-                    <a href="${msg.imageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
+                    <a href="${msg.imageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:4px; text-decoration:none; font-size:11px;">Download</a>
                 </div>`;
         }
 
@@ -477,7 +477,7 @@ const listenToRoomState = (roomId) => {
             if(displayRoomName !== 'Chat') titleEl.innerText = displayRoomName;
             
             if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
-                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
+                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer;">settings</span>`;
                 if (!titleEl.innerHTML.includes('group-settings-btn')) titleEl.insertAdjacentHTML('beforeend', gearHTML);
                 
                 document.getElementById('group-settings-btn').addEventListener('click', (e) => {
@@ -795,7 +795,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.triggerPinModal = (msgId) => { messageToPin = msgId; window.toggleActionMenu(msgId); document.getElementById('pin-modal').style.display = 'flex'; };
-window.toggleActionMenu = (msgId) => { document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); const menu = document.getElementById(`menu-${msgId}`); if(menu) menu.classList.toggle('active'); };
+window.toggleActionMenu = (msgId) => { 
+    document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); 
+    const menu = document.getElementById(`menu-${msgId}`); 
+    if(menu) menu.classList.add('active'); 
+};
 document.addEventListener('click', (e) => { if (!e.target.closest('.msg-bubble')) { document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active')); } });
 
 window.replyToMessage = (msgId) => {
@@ -827,7 +831,7 @@ window.enableSelectionMode = (enable = true) => {
         const countTxt = document.getElementById('selection-count');
         if (countTxt) countTxt.innerText = `0 Selected`;
     }
-});
+};
 
 document.addEventListener('change', (e) => {
     if (e.target.classList.contains('msg-checkbox')) {
