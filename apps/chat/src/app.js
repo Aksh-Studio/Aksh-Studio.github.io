@@ -21,6 +21,14 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
+    // --- BUG FIX 2: SELF-HEALING NETWORK REGISTRATION ---
+    // Forces the current user into the global 'users' collection so they appear in everyone's search
+    setDoc(doc(db, "users", curId), {
+        email: currentUser.email,
+        fullName: currentUser.name,
+        photoURL: currentUser.photoURL || ''
+    }, { merge: true }).catch(()=>{});
+
     onSnapshot(collection(db, "chats"), (snapshot) => {
         dynamicRooms = {}; 
         const myName = String(currentUser.name || "").toLowerCase().trim();
@@ -29,17 +37,17 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
-            // --- FIX 3: DYNAMIC UNREAD NOTIFICATIONS ---
+            // --- BUG FIX 3: FLAWLESS UNREAD NOTIFICATIONS ---
             let isUnread = false;
             let roomLastMsgTime = data.lastMessageTime || 0;
 
-            if (data.lastMessageTime && data.readReceipts) {
+            // Only mark unread if the LAST message was NOT sent by the current user
+            if (data.lastMessageTime && data.readReceipts && data.lastMessageSenderId !== curId) {
                 const myReceipt = data.readReceipts[curId];
                 let rTime = 0;
                 if (myReceipt && typeof myReceipt.toMillis === 'function') rTime = myReceipt.toMillis();
                 else if (typeof myReceipt === 'number') rTime = myReceipt;
                 
-                // Unread if a message arrived AFTER our last read receipt
                 if (data.lastMessageTime > rTime) isUnread = true;
             }
 
@@ -93,14 +101,17 @@ const initSettingsAndTheme = () => {
         });
     }
 
-    // --- FIX 6: BACKGROUND WALLPAPER OVERRIDE ---
+    // --- BUG FIX 6: BACKGROUND WALLPAPER FORCED OVERRIDE ---
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
     if (savedWallpaper) {
+        const targetPanel = document.getElementById('chat-main-panel');
+        if (targetPanel) {
+            targetPanel.style.backgroundImage = `url("${savedWallpaper}")`;
+            targetPanel.style.backgroundSize = 'cover';
+            targetPanel.style.backgroundPosition = 'center';
+        }
         const bgStyle = document.createElement('style');
-        bgStyle.innerHTML = `
-            .chat-main::before { display: none !important; }
-            .chat-main { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
-        `;
+        bgStyle.innerHTML = `.chat-main::before { display: none !important; }`;
         document.head.appendChild(bgStyle);
     }
 
@@ -164,7 +175,7 @@ const initNavigation = () => {
     document.getElementById('btn-mobile-back')?.addEventListener('click', () => {
         appState.isMobileChatOpen = false;
         document.getElementById('main-layout').classList.remove('mobile-chat-active');
-        leaveChatRoom(); // STOP READING MESSAGES IN BACKGROUND
+        leaveChatRoom(); 
     });
 
     document.getElementById('btn-create-group')?.addEventListener('click', async () => {
@@ -199,6 +210,7 @@ const fetchNetworkUsers = async () => {
         
         const myUid = String(currentUser?.id || "").trim();
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
+        const myName = String(currentUser?.name || "").toLowerCase().trim();
 
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
@@ -206,10 +218,11 @@ const fetchNetworkUsers = async () => {
             const safeEmail = String(u.email || '');
             const targetEmail = safeEmail.toLowerCase().trim();
             const rawName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Network User');
+            const targetNameLower = String(rawName).toLowerCase().trim();
             
-            // --- FIX 2: EXCLUSION BUG DESTROYED ---
             if (targetUid === myUid) return; 
             if (targetEmail === myEmail && myEmail !== "") return; 
+            if (targetNameLower === myName && myName !== "") return;
             if (currentUser.isOwner && targetEmail === 'akshat124.am12@gmail.com') return;
             
             const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
@@ -277,7 +290,6 @@ export const renderSidebarList = () => {
     const combinedRooms = { ...roomsInfo, ...dynamicRooms };
     const myName = String(currentUser.name || "").toLowerCase().trim();
 
-    // Sort heavily by last message time
     const sortedRoomIds = Object.keys(combinedRooms).sort((a, b) => {
         const timeA = combinedRooms[a].lastMessageTime || 0;
         const timeB = combinedRooms[b].lastMessageTime || 0;
@@ -310,7 +322,6 @@ export const renderSidebarList = () => {
                 </div>
             ` : '';
 
-            // Apply unread UI bolding
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
@@ -353,10 +364,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initNavigation();
         renderSidebarList();
         
-        // --- FIX 5: MOBILE SKIP DROPDOWN ---
-        const defaultBtn = document.getElementById(`btn-room-global_channel`);
-        if(defaultBtn && window.innerWidth > 900) {
-            defaultBtn.click();
-        }
+        // --- BUG FIX 5: PREVENT MOBILE AUTO-SKIP ---
+        setTimeout(() => {
+            const defaultBtn = document.getElementById(`btn-room-global_channel`);
+            if(defaultBtn && window.innerWidth > 900) {
+                defaultBtn.click();
+            }
+        }, 300);
     });
 });
