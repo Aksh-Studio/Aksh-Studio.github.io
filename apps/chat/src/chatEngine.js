@@ -1,12 +1,11 @@
 // src/chatEngine.js
-import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, setDoc, getDocs, getDoc, updateDoc, where } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, getDocs, getDoc, updateDoc } from './firebase.js';
 import { currentUser } from './auth.js';
 
 let unsubscribeListener = null;
 let roomStateListener = null;
 export let currentRoomId = null;
 export let currentRoomData = null; 
-export let currentRoomMeta = { name: '', icon: '', type: '' }; 
 export let currentMessagesSnapshot = []; 
 let replyContext = null; 
 let messageToPin = null; 
@@ -24,14 +23,20 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// Extractor to ensure receipts map flawlessly
+// Safe Read Receipt Updater using Pure Timestamp Math
 const updateReadReceipt = async (roomId, uid) => {
     if (!roomId || !uid) return;
     try {
-        await setDoc(doc(db, "chats", roomId), {
-            readReceipts: { [uid]: serverTimestamp() }
-        }, { merge: true });
-    } catch (e) {}
+        await updateDoc(doc(db, "chats", roomId), {
+            [`readReceipts.${uid}`]: Date.now()
+        });
+    } catch (error) {
+        try {
+            await setDoc(doc(db, "chats", roomId), {
+                readReceipts: { [uid]: Date.now() }
+            }, { merge: true });
+        } catch(e) {}
+    }
 };
 
 export const leaveChatRoom = () => {
@@ -59,7 +64,7 @@ const injectGroupAdminModal = () => {
                 
                 <div id="add-member-section">
                     <h4 style="font-size: 13px; text-align: left; margin-bottom: 8px; color: var(--text-muted);">Add Member</h4>
-                    <input type="text" id="search-member-input" placeholder="Search by exact name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
+                    <input type="text" id="search-member-input" placeholder="Search by name or email..." style="width: 100%; padding: 12px; margin-bottom: 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--app-bg); color: var(--text-main);" autocomplete="off">
                     <div id="search-member-results" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 5px; display: none;"></div>
                 </div>
 
@@ -195,8 +200,7 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- FIX 4: NO-LIMIT OMNI-SEARCH ENGINE ---
-    // Forces the entire available network directory to render without restricting array sizes.
+    // --- BUG 4 FIX: NO LIMITER OMNI-SEARCH ENGINE ---
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -215,7 +219,7 @@ const populateGroupManagement = async (participants, admins) => {
         const cleanTerms = term.trim().toLowerCase().split(' ').filter(Boolean);
 
         const filtered = allUsers.filter(u => {
-            if (cleanTerms.length === 0) return true; 
+            if (cleanTerms.length === 0) return true; // Show ALL completely
             return cleanTerms.every(t => u.searchStr.includes(t));
         });
 
@@ -254,10 +258,7 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
     
-    // --- FIX 1: INSTANT HEADER CACHING ---
-    // Zero latency "Select Chat" overrides. Binds explicitly passed Sidebar metadata direct to Header.
-    currentRoomMeta = { name: passedName, icon: passedIcon, type: passedType };
-    
+    // --- BUG 1 FIX: STRICT HEADER INJECTION ---
     const titleEl = document.getElementById('active-room-name');
     const iconBox = document.getElementById('active-room-icon-box');
     
@@ -285,6 +286,7 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     } catch(e) {}
 };
 
+// --- REACTIVE UI REDRAW ENGINE ---
 const renderMessagesUI = () => {
     if (!currentRoomId || !currentMessagesSnapshot) return;
     
@@ -318,15 +320,8 @@ const renderMessagesUI = () => {
         let timeString = "Sending...";
         let tickHTML = "";
         
-        let msgTime = 0;
-        if (msg.timestamp) {
-            if (typeof msg.timestamp.toMillis === 'function') msgTime = msg.timestamp.toMillis();
-            else if (msg.timestamp.seconds) msgTime = msg.timestamp.seconds * 1000;
-            else if (typeof msg.timestamp === 'number') msgTime = msg.timestamp;
-        }
-        if (!msgTime && msg.localTimestamp) msgTime = msg.localTimestamp;
-        if (!msgTime) msgTime = Date.now(); 
-
+        let msgTime = msg.localTimestamp || Date.now();
+        
         if (msg.timestamp && typeof msg.timestamp.toDate === 'function') {
             timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } else {
@@ -337,17 +332,10 @@ const renderMessagesUI = () => {
             let allRead = false;
             if (otherParticipants.length > 0) {
                 allRead = otherParticipants.every(pid => {
-                    const recObj = readReceipts[pid];
-                    let rTime = 0;
-                    if (recObj) {
-                        if (typeof recObj.toMillis === 'function') rTime = recObj.toMillis();
-                        else if (recObj.seconds) rTime = recObj.seconds * 1000;
-                        else if (typeof recObj === 'number') rTime = recObj;
-                    }
-                    
-                    // --- BLUE TICK MATH LOCK ---
-                    // Eliminates the `0` Timestamp fallback bug. It must be strictly newer than message generation.
-                    return rTime > 0 && rTime >= (msgTime - 1000);
+                    const rTime = readReceipts[pid] || 0;
+                    // --- BUG 10 FIX: PURE MATH BLUE TICK SYNC ---
+                    // Grey tick will strictly stay grey unless their receipt is mathematically greater than your sent message
+                    return rTime > 0 && rTime >= msgTime;
                 });
             }
             const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -385,7 +373,7 @@ const renderMessagesUI = () => {
         
         const formattedTextContent = parseWhatsAppFormatting(msg.text);
         
-        // --- FIX 8 & 9: UNIVERSAL MEDIA PAYLOAD WITH DOWNLOAD BUTTONS ---
+        // --- BUG 8 & 9 FIX: MEDIA & PDF SUPPORT WITH DOWNLOAD BUTTON ---
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
             if (msg.fileType && msg.fileType.startsWith('image')) {
@@ -411,7 +399,7 @@ const renderMessagesUI = () => {
             mediaAttachmentHTML = `
                 <div style="position:relative;">
                     <img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; margin-bottom: 5px; object-fit: cover; display: block;">
-                    <a href="${msg.imageUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
+                    <a href="${msg.imageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:15px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:5px; border-radius:50%; display:flex; text-decoration:none;"><span class="material-symbols-rounded" style="font-size:18px;">download</span></a>
                 </div>`;
         }
 
@@ -468,17 +456,6 @@ const listenToRoomState = (roomId) => {
         const titleEl = document.getElementById('active-room-name');
         
         if (titleEl) {
-            let displayRoomName = currentRoomData.name || currentRoomMeta.name || 'Chat';
-            if (currentRoomData.type === 'dm') {
-                const otherId = currentRoomData.participants?.find(id => id !== curId);
-                if (otherId && currentRoomData.names?.[otherId]) {
-                    displayRoomName = currentRoomData.names[otherId];
-                } else if (currentRoomMeta.name) {
-                    displayRoomName = currentRoomMeta.name;
-                }
-            }
-            titleEl.innerText = displayRoomName;
-            
             if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
                 const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
                 if (!titleEl.innerHTML.includes('group-settings-btn')) titleEl.insertAdjacentHTML('beforeend', gearHTML);
@@ -516,15 +493,20 @@ export const listenToMessages = (roomId) => {
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
     unsubscribeListener = onSnapshot(q, (snapshot) => {
+        if (currentRoomId !== roomId) return; // Prevent ghost reads
+        
         currentMessagesSnapshot = snapshot.docs;
         const curId = currentUser?.id || currentUser?.uid;
 
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             
-            if (lastMsg.senderId !== curId && (Date.now() - myLastReceiptUpdate > 2000)) {
-                myLastReceiptUpdate = Date.now();
-                updateReadReceipt(roomId, curId);
+            // Instantly sync the UI receipt
+            if (lastMsg.senderId !== curId && document.visibilityState === 'visible') {
+                if (Date.now() - myLastReceiptUpdate > 2000) {
+                    myLastReceiptUpdate = Date.now();
+                    updateReadReceipt(roomId, curId);
+                }
             }
         }
         
@@ -542,7 +524,8 @@ export const sendMessage = async () => {
     const curId = currentUser?.id || currentUser?.uid;
     const payload = { 
         text, senderId: curId, senderName: currentUser?.name || 'User', 
-        isOwner: currentUser?.isOwner === true, timestamp: serverTimestamp(), localTimestamp: Date.now() 
+        isOwner: currentUser?.isOwner === true, 
+        timestamp: Date.now(), localTimestamp: Date.now() 
     };
 
     if (replyContext) {
@@ -555,9 +538,8 @@ export const sendMessage = async () => {
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
         
-        // Push timestamp updates explicitly so UNREAD UI populates correctly
         await setDoc(doc(db, "chats", currentRoomId), { 
-            [`readReceipts.${curId}`]: serverTimestamp(),
+            [`readReceipts.${curId}`]: Date.now(),
             lastMessageTime: Date.now(),
             lastMessageSenderId: curId
         }, { merge: true });
@@ -619,7 +601,7 @@ window.forwardSelectedMessages = async () => {
                             senderId: curId,
                             senderName: currentUser?.name || 'User',
                             isOwner: currentUser?.isOwner === true,
-                            timestamp: serverTimestamp(), localTimestamp: Date.now()
+                            timestamp: Date.now(), localTimestamp: Date.now()
                         };
                         await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
                     }
@@ -653,6 +635,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!file) return;
             
             const isImage = file.type.startsWith('image/');
+            const isDoc = file.type === 'application/pdf' || file.type.startsWith('text/') || file.type.includes('document');
+            
+            if (!isImage && !isDoc) {
+                return alert("Only Images, PDFs, and Text files are supported.");
+            }
+
             const reader = new FileReader();
             reader.onload = async (event) => {
                 let fileData = event.target.result;
@@ -661,7 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const basePayload = {
                     senderId: curId, senderName: currentUser?.name || 'User', 
                     isOwner: currentUser?.isOwner === true, 
-                    timestamp: serverTimestamp(), localTimestamp: Date.now()
+                    timestamp: Date.now(), localTimestamp: Date.now()
                 };
 
                 if (isImage) {
@@ -684,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         try { 
                             await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                             myLastReceiptUpdate = Date.now();
-                            await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp(), lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
+                            await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now(), lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
                         } catch (error) {}
                     };
                     img.src = fileData;
@@ -697,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
                         myLastReceiptUpdate = Date.now();
-                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: serverTimestamp(), lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
+                        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now(), lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
                     } catch (error) {}
                 }
             };
@@ -720,7 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
             snapshot.forEach(docObj => {
                 const m = docObj.data();
-                const stamp = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toLocaleString() : "Processing";
+                const stamp = new Date(m.localTimestamp || m.timestamp || Date.now()).toLocaleString();
                 logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
             });
             const fileBlob = new Blob([logOutput], { type: 'text/plain' });
@@ -827,5 +815,16 @@ document.addEventListener('change', (e) => {
     if (e.target.classList.contains('msg-checkbox')) {
         const count = document.querySelectorAll('.msg-checkbox:checked').length;
         document.getElementById('selection-count').innerText = `${count} Selected`;
+    }
+});
+
+// Hard sync to immediately mark blue ticks as read if chat is actively focused
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentRoomId) {
+        const curId = currentUser?.id || currentUser?.uid;
+        if (curId && (Date.now() - myLastReceiptUpdate > 2000)) {
+            myLastReceiptUpdate = Date.now();
+            try { setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
+        }
     }
 });
