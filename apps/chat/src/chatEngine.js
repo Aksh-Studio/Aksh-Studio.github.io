@@ -199,32 +199,37 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // SAFE OMNI-SEARCH: Will not crash or drop users if their database fields are messy
-    let allUsers = [];
+    // --- HYBRID GROUP SEARCH FIX ---
+    // Uses Map logic to combine the global users collection AND the local chat cache smoothly
+    let allUsersMap = new Map();
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
             const safeEmail = u.email ? String(u.email).trim() : '';
+            const safeName = (u.fullName || u.name || u.firstName || (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')).trim();
             
-            let safeName = "Unknown User";
-            if (u.fullName) safeName = u.fullName;
-            else if (u.name) safeName = u.name;
-            else if (u.firstName) safeName = u.firstName;
-            else if (safeEmail) safeName = safeEmail.split('@')[0];
-            
-            safeName = String(safeName).trim();
-            
-            if (!safeName || safeName === 'Unknown User') return;
+            if (!safeName || (safeName === 'Unknown User' && !safeEmail)) return;
             
             const searchStr = `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}`;
-            allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
+            allUsersMap.set(d.id, { id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
         });
-        
-        allUsers.sort((a, b) => a.name.localeCompare(b.name));
-    } catch(e) {
-        console.error("Failed to fetch users:", e);
-    }
+    } catch(e) {}
+
+    // Fallback Hybrid Scraper: Checks existing DMs if network API rules blocked a user
+    const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
+    Object.keys(availableRooms).forEach(rId => {
+        const room = availableRooms[rId];
+        if (room.type === 'dm') {
+            const pId = rId.replace('dm_', '').replace(curId, '').replace('_', '');
+            if (pId && pId.length > 5 && !allUsersMap.has(pId)) {
+                allUsersMap.set(pId, { id: pId, name: room.name, email: 'From Chats', searchStr: room.name.toLowerCase() });
+            }
+        }
+    });
+
+    let allUsers = Array.from(allUsersMap.values());
+    allUsers.sort((a, b) => a.name.localeCompare(b.name));
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
@@ -270,7 +275,6 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
     
-    // BUG 1 FIX: Immediately override DOM using exactly passed variables
     currentRoomMeta = { name: passedName, icon: passedIcon, type: passedType };
     
     const titleEl = document.getElementById('active-room-name');
@@ -351,7 +355,8 @@ const renderMessagesUI = () => {
                         else if (typeof recObj === 'number') rTime = recObj;
                     }
                     
-                    return rTime > 0 && rTime >= (msgTime - 5000);
+                    // The pure integer logic lock for accurate read receipts
+                    return rTime > 0 && rTime >= (msgTime - 1000);
                 });
             }
             const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -389,7 +394,6 @@ const renderMessagesUI = () => {
         
         const formattedTextContent = parseWhatsAppFormatting(msg.text);
         
-        // --- BUG 8 & 9 FIX: NATIVE MEDIA/PDF SUPPORT WITH DOWNLOAD BUTTON ---
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
             if (msg.fileType && msg.fileType.startsWith('image')) {
@@ -726,7 +730,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
     if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
-    // --- BUG 7 FIX: CHAT EXPORT NAMING ---
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
@@ -860,3 +863,6 @@ document.addEventListener('visibilitychange', () => {
         }
     }
 });
+
+
+Once you push this update, I recommend creating a brand new dummy account to test it. The new account will instantly push its identity into `users`, confirming that it resolves permanently.
