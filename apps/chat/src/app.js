@@ -29,19 +29,16 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
-            // BUG 3 FIX: Flawless Unread Detection logic prevents alerting self
             let isUnread = false;
             let roomLastMsgTime = data.lastMessageTime || 0;
 
-            if (data.lastMessageTime && data.lastMessageSenderId !== curId) {
-                const myReceipt = (data.readReceipts && data.readReceipts[curId]) || 0;
+            if (data.lastMessageTime && data.readReceipts && data.lastMessageSenderId !== curId) {
+                const myReceipt = data.readReceipts[curId];
                 let rTime = 0;
                 if (myReceipt && typeof myReceipt.toMillis === 'function') rTime = myReceipt.toMillis();
                 else if (typeof myReceipt === 'number') rTime = myReceipt;
                 
-                if (data.lastMessageTime > rTime) {
-                    isUnread = true;
-                }
+                if (data.lastMessageTime > rTime) isUnread = true;
             }
 
             if (roomId === 'global_channel' || roomId === 'aksh_help') {
@@ -94,13 +91,12 @@ const initSettingsAndTheme = () => {
         });
     }
 
-    // BUG 6 FIX: Flawless override of background
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
     if (savedWallpaper) {
         const bgStyle = document.createElement('style');
         bgStyle.innerHTML = `
-            .chat-main::before { display: none !important; opacity: 0 !important; }
-            .chat-main, #chat-main-panel { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
+            .chat-main::before { display: none !important; }
+            #chat-main-panel { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
         `;
         document.head.appendChild(bgStyle);
     }
@@ -200,37 +196,42 @@ const fetchNetworkUsers = async () => {
         listContainer.innerHTML = '';
         
         const myUid = String(currentUser?.id || "").trim();
-        const allNetworkUsers = [];
+        const allNetworkUsers = new Map(); // Unique Map structure
 
+        // 1. Fetch from Global Directory
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = String(docObj.id).trim();
             const safeEmail = String(u.email || '').toLowerCase().trim();
+            const rawName = (u.fullName || u.name || u.firstName || (safeEmail ? safeEmail.split('@')[0] : 'Network User')).trim();
             
-            // Ultra-safe name parsing to guarantee no users are skipped
-            let rawName = "Unknown User";
-            if (u.fullName) rawName = u.fullName;
-            else if (u.name) rawName = u.name;
-            else if (u.firstName) rawName = u.firstName;
-            else if (safeEmail) rawName = safeEmail.split('@')[0];
+            if (targetUid === myUid || !rawName) return; 
             
-            rawName = String(rawName).trim();
-            
-            if (targetUid === myUid) return; // Skip self
-            if (!rawName || rawName === 'Unknown User') return; // Skip completely broken entries
-            
-            allNetworkUsers.push({
+            allNetworkUsers.set(targetUid, {
                 uid: targetUid,
                 name: rawName,
-                email: safeEmail,
                 pic: u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`
             });
         });
 
-        // Alphabetize the list
-        allNetworkUsers.sort((a, b) => a.name.localeCompare(b.name));
+        // 2. Hybrid Backup: Scrape missing users from known DMs
+        Object.keys(dynamicRooms).forEach(roomId => {
+            const room = dynamicRooms[roomId];
+            if (room.type === 'dm') {
+                const targetUid = roomId.replace('dm_', '').replace(myUid, '').replace('_', '');
+                if (targetUid && targetUid !== myUid && !allNetworkUsers.has(targetUid)) {
+                    allNetworkUsers.set(targetUid, {
+                        uid: targetUid,
+                        name: room.name,
+                        pic: room.icon
+                    });
+                }
+            }
+        });
 
-        allNetworkUsers.forEach(user => {
+        const sortedUsers = Array.from(allNetworkUsers.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+        sortedUsers.forEach(user => {
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
@@ -265,13 +266,10 @@ const fetchNetworkUsers = async () => {
             listContainer.appendChild(item);
         });
         
-        if (allNetworkUsers.length === 0) {
+        if (sortedUsers.length === 0) {
             listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
         }
-    } catch (e) { 
-        console.error("Network fetch error:", e);
-        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; 
-    }
+    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
 window.deleteSidebarChat = async (roomId) => {
@@ -299,6 +297,7 @@ export const renderSidebarList = () => {
     listContainer.innerHTML = '';
 
     const combinedRooms = { ...roomsInfo, ...dynamicRooms };
+    const myName = String(currentUser.name || "").toLowerCase().trim();
 
     const sortedRoomIds = Object.keys(combinedRooms).sort((a, b) => {
         const timeA = combinedRooms[a].lastMessageTime || 0;
@@ -308,16 +307,16 @@ export const renderSidebarList = () => {
 
     sortedRoomIds.forEach(id => {
         const room = combinedRooms[id];
-        
-        // --- BUG 3 FIX: Correct rendering logic for All vs Unread Tabs ---
         let displayQualifies = false;
-        if (appState.activeTab === 'all') {
-            displayQualifies = true;
-        } else if (appState.activeTab === 'groups') {
-            if (room.type === 'group') displayQualifies = true;
-        } else if (appState.activeTab === 'unread') {
-            if (room.unread === true) displayQualifies = true;
+
+        if (room.type === 'dm') {
+            const roomNameLower = String(room.name).toLowerCase().trim();
+            if (roomNameLower === myName || room.name === currentUser.email.split('@')[0]) return;
         }
+
+        if (appState.activeTab === 'all') displayQualifies = true;
+        if (appState.activeTab === 'groups' && room.type === 'group') displayQualifies = true;
+        if (appState.activeTab === 'unread' && room.unread) displayQualifies = true;
 
         if (displayQualifies) {
             const isActive = appState.activeChatId === id ? 'active' : '';
@@ -332,7 +331,7 @@ export const renderSidebarList = () => {
                 </div>
             ` : '';
 
-            const nameStyle = room.unread ? 'font-weight: 700; color: var(--text-main);' : 'font-weight: 500; color: var(--text-main);';
+            const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
             if (room.isImage) {
@@ -360,7 +359,6 @@ export const renderSidebarList = () => {
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
-                // BUG 1 FIX: Pushes explicit Name into the engine perfectly
                 switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
@@ -375,7 +373,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initNavigation();
         renderSidebarList();
         
-        // BUG 5 FIX: Auto-Skip Mobile is blocked
         setTimeout(() => {
             const defaultBtn = document.getElementById(`btn-room-global_channel`);
             if(defaultBtn && window.innerWidth > 900) {
