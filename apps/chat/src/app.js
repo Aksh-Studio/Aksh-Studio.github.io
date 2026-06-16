@@ -201,37 +201,55 @@ const fetchNetworkUsers = async () => {
         const myEmail = String(currentUser?.email || "").toLowerCase().trim();
         const myName = String(currentUser?.name || "").toLowerCase().trim();
 
+        const allNetworkUsers = [];
+
         querySnapshot.forEach((docObj) => {
             const u = docObj.data();
             const targetUid = String(docObj.id).trim();
-            const safeEmail = String(u.email || '');
-            const targetEmail = safeEmail.toLowerCase().trim();
-            const rawName = u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Network User');
-            const targetNameLower = String(rawName).toLowerCase().trim();
+            const safeEmail = String(u.email || '').toLowerCase().trim();
             
-            if (targetUid === myUid) return; 
+            // ENHANCED: Try all possible name fields
+            const rawName = (
+                u.fullName || 
+                u.name || 
+                u.firstName || 
+                (safeEmail ? safeEmail.split('@')[0] : 'Network User')
+            ).trim();
             
-            const pic = u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`;
+            if (targetUid === myUid) return; // Skip self
+            if (!rawName) return; // Skip invalid entries
             
+            allNetworkUsers.push({
+                uid: targetUid,
+                name: rawName,
+                email: safeEmail,
+                pic: u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`
+            });
+        });
+
+        // Sort alphabetically for a clean UI
+        allNetworkUsers.sort((a, b) => a.name.localeCompare(b.name));
+
+        allNetworkUsers.forEach(user => {
             const item = document.createElement('div');
             item.className = 'user-item';
             item.innerHTML = `
-                <img src="${pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff'">
+                <img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=00a884&color=fff'">
                 <div class="user-info">
-                    <h4>${rawName}</h4>
+                    <h4>${user.name}</h4>
                     <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
                 </div>
             `;
 
             item.addEventListener('click', async () => {
-                const deterministicId = myUid < targetUid ? `dm_${myUid}_${targetUid}` : `dm_${targetUid}_${myUid}`;
+                const deterministicId = myUid < user.uid ? `dm_${myUid}_${user.uid}` : `dm_${user.uid}_${myUid}`;
                 const myPic = currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
                 
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
-                        type: 'dm', participants: [myUid, targetUid],
-                        names: { [myUid]: currentUser.name, [targetUid]: rawName },
-                        avatars: { [myUid]: myPic, [targetUid]: pic }
+                        type: 'dm', participants: [myUid, user.uid],
+                        names: { [myUid]: currentUser.name, [user.uid]: user.name },
+                        avatars: { [myUid]: myPic, [user.uid]: user.pic }
                     }, { merge: true });
                 } catch(e) {}
 
@@ -242,11 +260,18 @@ const fetchNetworkUsers = async () => {
                 const searchInput = document.getElementById('chat-search');
                 if (searchInput) { searchInput.value = ''; searchInput.placeholder = "Search"; }
                 
-                switchChatRoom(deterministicId, rawName, pic, 'dm');
+                switchChatRoom(deterministicId, user.name, user.pic, 'dm');
             });
             listContainer.appendChild(item);
         });
-    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
+        
+        if (allNetworkUsers.length === 0) {
+            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
+        }
+    } catch (e) { 
+        console.error("Network fetch error:", e);
+        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; 
+    }
 };
 
 window.deleteSidebarChat = async (roomId) => {
