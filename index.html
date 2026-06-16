@@ -8,16 +8,28 @@
     <link rel="icon" type="image/png" href="aksh-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    
     <meta name="google-adsense-account" content="ca-pub-1260837830892549">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1260837830892549" crossorigin="anonymous"></script>
     <style>
         .name-row { display: flex; gap: 5px; margin-bottom: 8px; }
         .name-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
         .personal-label { font-size: 13px; color: #128C7E; font-weight: 600; margin-top: 10px; margin-bottom: 5px; display: block; text-align: left; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .phone-btn { width: 100%; padding: 11px; background: #fff; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 600; font-size: 14px; color: #128C7E; margin-top: 10px; }
+        .phone-btn:hover { background: #f0fdfa; }
     </style>
 </head>
 <body>
-    <div id="login-screen" class="screen">
+
+    <div id="turnstile-wrapper" style="display:flex; justify-content:center; align-items:center; height:100vh; width:100%; flex-direction:column; background:var(--background);">
+        <img src="aksh-logo.png" alt="Aksh Studio" width="70" style="margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+        <p style="font-family: 'Inter', sans-serif; color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-weight: 500;">Securing connection...</p>
+        <div class="cf-turnstile" data-sitekey="YOUR_CLOUDFLARE_SITE_KEY" data-callback="onCloudflareVerified"></div>
+    </div>
+
+    <div id="login-screen" class="screen" style="display:none;">
         <div class="auth-box">
             <div class="portfolio-banner">
                 <strong>STUDENT PORTFOLIO PROJECT</strong><br>
@@ -64,6 +76,27 @@
                     <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="18"> 
                     Continue with Google
                 </button>
+                
+                <button id="phone-login-btn" class="phone-btn">
+                    📱 Continue with Phone
+                </button>
+            </div>
+
+            <div id="phone-auth-section" style="display: none;">
+                <p class="subtitle">Sign in with Mobile Number</p>
+                <div class="input-group">
+                    <input type="tel" id="phone-number-input" placeholder="+91 9876543210" style="margin-bottom: 5px;">
+                    <p style="font-size:11px; color:#888; text-align:left; margin-bottom:15px;">Include your country code (e.g. +91 for India)</p>
+                    
+                    <div id="recaptcha-container" style="margin-bottom:10px;"></div>
+                    <button id="btn-send-code" class="auth-btn">Send OTP Code</button>
+                </div>
+                
+                <div class="input-group" id="otp-group" style="display: none; margin-top: 15px;">
+                    <input type="text" id="otp-input" placeholder="Enter 6-digit OTP Code">
+                    <button id="btn-verify-otp" class="auth-btn" style="background: #075E54;">Verify & Login</button>
+                </div>
+                <p class="toggle-text" id="link-back-from-phone"><span>Back to Login Options</span></p>
             </div>
 
             <div id="forgot-password-section" style="display: none;">
@@ -78,6 +111,14 @@
             <p id="auth-error" class="error-msg" style="display:none;"></p>
         </div>
     </div>
+    
+    <script>
+        // Global Cloudflare Callback
+        window.onCloudflareVerified = function(token) {
+            document.getElementById('turnstile-wrapper').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+        };
+    </script>
     <script type="module" src="auth.js"></script>
 </body>
 </html>
