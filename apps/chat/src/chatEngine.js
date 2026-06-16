@@ -23,7 +23,6 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// Safe Read Receipt Updater using Pure Timestamp Math
 const updateReadReceipt = async (roomId, uid) => {
     if (!roomId || !uid) return;
     try {
@@ -152,7 +151,6 @@ window.addGroupMember = async (newMemberId) => {
         document.getElementById('search-member-input').value = '';
         document.getElementById('search-member-results').innerHTML = '';
         document.getElementById('search-member-results').style.display = 'none';
-        alert("Member successfully added.");
     } catch(e) { alert("Failed to add member."); }
 };
 
@@ -200,17 +198,18 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // --- BUG 4 FIX: NO LIMITER OMNI-SEARCH ENGINE ---
+    // Bug 4 Fix: Safe Property Extractor guarantees no silently dropped users due to missing database fields
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
-            const originalEmail = String(u.email || '').trim();
-            const originalName = String(u.fullName || u.firstName || u.name || (originalEmail ? originalEmail.split('@')[0] : 'User')).trim();
+            const safeEmail = u.email ? String(u.email).trim() : '';
+            // Safely parse name, falling back to an email split, then falling back to 'Unknown User'
+            const safeName = (u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')).trim();
+            const searchStr = `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}`;
             
-            const searchStr = `${originalName.toLowerCase()} ${originalEmail.toLowerCase()}`;
-            allUsers.push({ id: d.id, name: originalName, email: originalEmail, searchStr: searchStr });
+            allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
         });
     } catch(e) {}
 
@@ -219,12 +218,12 @@ const populateGroupManagement = async (participants, admins) => {
         const cleanTerms = term.trim().toLowerCase().split(' ').filter(Boolean);
 
         const filtered = allUsers.filter(u => {
-            if (cleanTerms.length === 0) return true; // Show ALL completely
+            if (cleanTerms.length === 0) return true; 
             return cleanTerms.every(t => u.searchStr.includes(t));
         });
 
         if (filtered.length === 0) {
-            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No available users found in the network.</p>';
+            searchResults.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding: 5px;">No network users found.</p>';
             return;
         }
 
@@ -258,7 +257,6 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     currentRoomId = roomId;
     window.enableSelectionMode(false); 
     
-    // --- BUG 1 FIX: STRICT HEADER INJECTION ---
     const titleEl = document.getElementById('active-room-name');
     const iconBox = document.getElementById('active-room-icon-box');
     
@@ -273,8 +271,6 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
         }
     }
 
-    document.querySelectorAll('#rail-calls, #btn-start-audio-call, #btn-start-video-call').forEach(el => el.remove());
-
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
@@ -286,7 +282,6 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
     } catch(e) {}
 };
 
-// --- REACTIVE UI REDRAW ENGINE ---
 const renderMessagesUI = () => {
     if (!currentRoomId || !currentMessagesSnapshot) return;
     
@@ -332,10 +327,15 @@ const renderMessagesUI = () => {
             let allRead = false;
             if (otherParticipants.length > 0) {
                 allRead = otherParticipants.every(pid => {
-                    const rTime = readReceipts[pid] || 0;
-                    // --- BUG 10 FIX: PURE MATH BLUE TICK SYNC ---
-                    // Grey tick will strictly stay grey unless their receipt is mathematically greater than your sent message
-                    return rTime > 0 && rTime >= msgTime;
+                    const recObj = readReceipts[pid];
+                    let rTime = 0;
+                    if (recObj) {
+                        if (typeof recObj.toMillis === 'function') rTime = recObj.toMillis();
+                        else if (recObj.seconds) rTime = recObj.seconds * 1000;
+                        else if (typeof recObj === 'number') rTime = recObj;
+                    }
+                    
+                    return rTime > 0 && rTime >= (msgTime - 5000);
                 });
             }
             const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -373,7 +373,6 @@ const renderMessagesUI = () => {
         
         const formattedTextContent = parseWhatsAppFormatting(msg.text);
         
-        // --- BUG 8 & 9 FIX: MEDIA & PDF SUPPORT WITH DOWNLOAD BUTTON ---
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
             if (msg.fileType && msg.fileType.startsWith('image')) {
@@ -456,6 +455,15 @@ const listenToRoomState = (roomId) => {
         const titleEl = document.getElementById('active-room-name');
         
         if (titleEl) {
+            let displayRoomName = currentRoomData.name || 'Chat';
+            if (currentRoomData.type === 'dm') {
+                const otherId = currentRoomData.participants?.find(id => id !== curId);
+                if (otherId && currentRoomData.names?.[otherId]) {
+                    displayRoomName = currentRoomData.names[otherId];
+                }
+            }
+            if(displayRoomName !== 'Chat') titleEl.innerText = displayRoomName;
+            
             if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
                 const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer; vertical-align: middle;">settings</span>`;
                 if (!titleEl.innerHTML.includes('group-settings-btn')) titleEl.insertAdjacentHTML('beforeend', gearHTML);
@@ -493,7 +501,7 @@ export const listenToMessages = (roomId) => {
     const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
 
     unsubscribeListener = onSnapshot(q, (snapshot) => {
-        if (currentRoomId !== roomId) return; // Prevent ghost reads
+        if (currentRoomId !== roomId) return; 
         
         currentMessagesSnapshot = snapshot.docs;
         const curId = currentUser?.id || currentUser?.uid;
@@ -501,7 +509,6 @@ export const listenToMessages = (roomId) => {
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             
-            // Instantly sync the UI receipt
             if (lastMsg.senderId !== curId && document.visibilityState === 'visible') {
                 if (Date.now() - myLastReceiptUpdate > 2000) {
                     myLastReceiptUpdate = Date.now();
@@ -699,7 +706,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
     if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
-    // --- FIX 7: AKSH-CHAT EXPORT NAMING ---
     document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
         if (!currentRoomId) return;
         try {
@@ -818,7 +824,6 @@ document.addEventListener('change', (e) => {
     }
 });
 
-// Hard sync to immediately mark blue ticks as read if chat is actively focused
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && currentRoomId) {
         const curId = currentUser?.id || currentUser?.uid;
