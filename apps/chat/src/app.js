@@ -29,23 +29,37 @@ const listenToCloudRooms = () => {
             const data = docObj.data();
             const roomId = docObj.id;
             
+            // --- FIX 3: DYNAMIC UNREAD NOTIFICATIONS ---
+            let isUnread = false;
+            if (data.lastMessageTime && data.readReceipts) {
+                const myReceipt = data.readReceipts[curId];
+                let rTime = 0;
+                if (myReceipt && typeof myReceipt.toMillis === 'function') rTime = myReceipt.toMillis();
+                else if (typeof myReceipt === 'number') rTime = myReceipt;
+                
+                // If a message arrived AFTER our last read receipt, mark as unread
+                if (data.lastMessageTime > rTime) isUnread = true;
+            }
+
             if (roomId === 'global_channel' || roomId === 'aksh_help') {
                 if(data.name) roomsInfo[roomId].name = data.name;
                 if(data.icon) {
                     roomsInfo[roomId].icon = data.icon;
                     roomsInfo[roomId].isImage = data.icon.startsWith('http') || data.icon.startsWith('data:image');
                 }
+                roomsInfo[roomId].unread = isUnread;
             } 
             else if (data.type === 'dm' && data.participants?.includes(curId)) {
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
                 
-                const otherNameRaw = data.names[otherId] || 'User';
+                const otherNameRaw = data.names?.[otherId] || 'User';
                 dynamicRooms[roomId] = {
                     name: otherNameRaw,
-                    icon: data.avatars[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherNameRaw)}&background=00a884&color=fff`,
+                    icon: data.avatars?.[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherNameRaw)}&background=00a884&color=fff`,
                     type: 'dm',
-                    isImage: true 
+                    isImage: true,
+                    unread: isUnread
                 };
             }
             else if (data.type === 'group' && data.participants?.includes(curId)) {
@@ -53,7 +67,8 @@ const listenToCloudRooms = () => {
                     name: data.name || 'Custom Group',
                     icon: data.icon || 'groups',
                     type: 'group',
-                    isImage: !!(data.icon && (data.icon.startsWith('data:image') || data.icon.startsWith('http')))
+                    isImage: !!(data.icon && (data.icon.startsWith('data:image') || data.icon.startsWith('http'))),
+                    unread: isUnread
                 };
             }
         });
@@ -73,14 +88,33 @@ const initSettingsAndTheme = () => {
         });
     }
 
+    // --- FIX 6: BACKGROUND WALLPAPER OVERRIDE ---
     const savedWallpaper = localStorage.getItem('chat_wallpaper');
     if (savedWallpaper) {
-        const targetPanel = document.getElementById('chat-main-panel');
-        if (targetPanel) {
-            targetPanel.style.backgroundImage = `url(${savedWallpaper})`;
-            targetPanel.style.backgroundSize = 'cover';
-        }
+        const bgStyle = document.createElement('style');
+        bgStyle.innerHTML = `
+            .chat-main::before { display: none !important; }
+            .chat-main { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
+        `;
+        document.head.appendChild(bgStyle);
     }
+
+    document.getElementById('btn-settings')?.addEventListener('click', () => {
+        const hasWallpaper = !!localStorage.getItem('chat_wallpaper');
+        let optionsMsg = "Settings Menu:\n\nEnter a direct image URL to set a new chat background.";
+        if (hasWallpaper) optionsMsg += "\n\nType the word 'REMOVE' in the box below to wipe out your custom wallpaper.";
+        
+        const userInput = prompt(optionsMsg);
+        if (userInput === null) return; 
+        
+        if (userInput.trim().toUpperCase() === 'REMOVE') {
+            localStorage.removeItem('chat_wallpaper');
+            window.location.reload();
+        } else if (userInput.trim() !== '') {
+            localStorage.setItem('chat_wallpaper', userInput.trim());
+            window.location.reload();
+        }
+    });
 };
 
 const initNavigation = () => {
@@ -204,7 +238,6 @@ const fetchNetworkUsers = async () => {
                 const searchInput = document.getElementById('chat-search');
                 if (searchInput) { searchInput.value = ''; searchInput.placeholder = "Search"; }
                 
-                // INJECTS INSTANT HEADER STATE
                 switchChatRoom(deterministicId, rawName, pic, 'dm');
             });
             listContainer.appendChild(item);
@@ -264,16 +297,19 @@ export const renderSidebarList = () => {
                 </div>
             ` : '';
 
+            // Apply unread UI bolding
+            const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
+
             if (room.isImage) {
                 item.innerHTML = `
                     <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
-                    <div class="user-info"><h4>${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
+                    <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
                     ${deleteActionHTML}
                 `;
             } else {
                 item.innerHTML = `
                     <div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div>
-                    <div class="user-info"><h4>${room.name}</h4><p>Tap to view messages</p></div>
+                    <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>Tap to view messages</p></div>
                 `;
             }
 
@@ -287,7 +323,6 @@ export const renderSidebarList = () => {
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
-                // INJECTS INSTANT HEADER STATE
                 switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
@@ -302,7 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initNavigation();
         renderSidebarList();
         
+        // --- FIX 5: MOBILE SKIP DROPDOWN ---
+        // Only trigger the default chat window click if the user is on a Desktop
         const defaultBtn = document.getElementById(`btn-room-global_channel`);
-        if(defaultBtn) defaultBtn.click();
+        if(defaultBtn && window.innerWidth > 900) {
+            defaultBtn.click();
+        }
     });
 });
