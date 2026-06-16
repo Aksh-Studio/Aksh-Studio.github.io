@@ -521,17 +521,28 @@ const listenToRoomState = (roomId) => {
 
 export const listenToMessages = (roomId) => {
     if (unsubscribeListener) unsubscribeListener();
-    const q = query(collection(db, `chats/${roomId}/messages`), orderBy("timestamp", "asc"));
+    
+    // Calculate the cutoff timestamp for 3 months ago (90 days)
+    const threeMonthsAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+
+    const q = query(
+        collection(db, `chats/${roomId}/messages`), 
+        orderBy("timestamp", "asc")
+    );
 
     unsubscribeListener = onSnapshot(q, (snapshot) => {
         if (currentRoomId !== roomId) return; 
         
-        currentMessagesSnapshot = snapshot.docs;
+        // Filter out any messages older than 3 months before rendering the UI
+        currentMessagesSnapshot = snapshot.docs.filter(docObj => {
+            const msg = docObj.data();
+            const msgTime = msg.localTimestamp || msg.timestamp || Date.now();
+            return msgTime > threeMonthsAgo;
+        });
+        
         const curId = currentUser?.id || currentUser?.uid;
-
         if (snapshot.docs.length > 0) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
-            
             if (lastMsg.senderId !== curId && document.visibilityState === 'visible') {
                 if (Date.now() - myLastReceiptUpdate > 2000) {
                     myLastReceiptUpdate = Date.now();
