@@ -200,8 +200,6 @@ const fetchNetworkUsers = async () => {
         listContainer.innerHTML = '';
         
         const myUid = String(currentUser?.id || "").trim();
-        const myEmail = String(currentUser?.email || "").toLowerCase().trim();
-
         const allNetworkUsers = [];
 
         querySnapshot.forEach((docObj) => {
@@ -209,11 +207,17 @@ const fetchNetworkUsers = async () => {
             const targetUid = String(docObj.id).trim();
             const safeEmail = String(u.email || '').toLowerCase().trim();
             
-            const rawName = (u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Network User')).trim();
+            // Ultra-safe name parsing to guarantee no users are skipped
+            let rawName = "Unknown User";
+            if (u.fullName) rawName = u.fullName;
+            else if (u.name) rawName = u.name;
+            else if (u.firstName) rawName = u.firstName;
+            else if (safeEmail) rawName = safeEmail.split('@')[0];
             
-            if (targetUid === myUid) return; 
-            if (!rawName) return;
-            if (currentUser.isOwner && safeEmail === 'akshat124.am12@gmail.com') return;
+            rawName = String(rawName).trim();
+            
+            if (targetUid === myUid) return; // Skip self
+            if (!rawName || rawName === 'Unknown User') return; // Skip completely broken entries
             
             allNetworkUsers.push({
                 uid: targetUid,
@@ -223,6 +227,7 @@ const fetchNetworkUsers = async () => {
             });
         });
 
+        // Alphabetize the list
         allNetworkUsers.sort((a, b) => a.name.localeCompare(b.name));
 
         allNetworkUsers.forEach(user => {
@@ -263,7 +268,10 @@ const fetchNetworkUsers = async () => {
         if (allNetworkUsers.length === 0) {
             listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
         }
-    } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
+    } catch (e) { 
+        console.error("Network fetch error:", e);
+        listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; 
+    }
 };
 
 window.deleteSidebarChat = async (roomId) => {
