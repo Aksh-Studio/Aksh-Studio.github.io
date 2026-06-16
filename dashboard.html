@@ -272,11 +272,45 @@
             }
         });
 
-        onAuthStateChanged(auth, async (user) => {
+       onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 window.location.href = "index.html"; 
                 return;
             }
+
+            // ==========================================
+            // FORCE BIND FOR PHONE-ONLY USERS
+            // ==========================================
+            const providers = user.providerData.map(p => p.providerId);
+            if (providers.length === 1 && providers[0] === 'phone') {
+                document.getElementById('phone-bind-modal').style.display = "flex";
+                
+                // Bind Google
+                document.getElementById('force-bind-google').onclick = async () => {
+                    try {
+                        await linkWithPopup(auth.currentUser, new GoogleAuthProvider());
+                        alert("Account successfully bound to Google!");
+                        document.getElementById('phone-bind-modal').style.display = "none";
+                        window.location.reload();
+                    } catch(e) { alert(e.message); }
+                };
+
+                // Bind Email
+                document.getElementById('force-bind-email-btn').onclick = async () => {
+                    const e = document.getElementById('force-bind-email').value.trim();
+                    const p = document.getElementById('force-bind-password').value.trim();
+                    if (!e || !p) return alert("Email and Password are required to bind.");
+                    try {
+                        const credential = EmailAuthProvider.credential(e, p);
+                        await linkWithCredential(auth.currentUser, credential);
+                        alert("Account successfully bound to Email!");
+                        document.getElementById('phone-bind-modal').style.display = "none";
+                        window.location.reload();
+                    } catch(e) { alert(e.message); }
+                };
+            }
+
+            // ... (keep the rest of your dashboard data-fetching logic)
 
             // Set Display Name (from Auth or Firestore)
             let displayName = user.displayName;
