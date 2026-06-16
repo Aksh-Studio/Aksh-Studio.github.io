@@ -1,10 +1,9 @@
 // src/auth.js
-import { auth, db, doc, getDoc, getDocs, collection, query, where, onAuthStateChanged } from './firebase.js';
+import { auth, db, doc, getDoc, setDoc, onAuthStateChanged } from './firebase.js';
 
 export const currentUser = {
     id: null, name: 'Loading...', email: null, photoURL: '',
     
-    // STRICT OWNER LOCK
     get isOwner() { 
         const e = String(this.email).toLowerCase().trim();
         return e === 'akshat124.am12@gmail.com'; 
@@ -21,6 +20,19 @@ export const initAuth = (onSuccessBoot) => {
         currentUser.email = email;
         currentUser.name = name || email.split('@')[0];
         currentUser.photoURL = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
+
+        // --- THE MASTER DIRECTORY SYNC FIX ---
+        // No matter how a user logs in (Firebase Auth OR LocalStorage Cache),
+        // this forces their identity into the public Firestore directory instantly.
+        // This guarantees YOU (and everyone else) ALWAYS show up in the network search.
+        try {
+            setDoc(doc(db, "users", uid), {
+                email: currentUser.email,
+                fullName: currentUser.name,
+                photoURL: currentUser.photoURL,
+                uid: uid
+            }, { merge: true });
+        } catch(e) { console.error("Sync Error", e); }
 
         if (overlay) overlay.style.display = 'none';
         if (root) root.classList.remove('guest-blur');
@@ -42,30 +54,20 @@ export const initAuth = (onSuccessBoot) => {
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            let dName = user.displayName;
-            let pUrl = null; 
+            let dName = user.displayName || user.email.split('@')[0];
+            let pUrl = user.photoURL || ''; 
             
-            // --- FIX: AGGRESSIVE PROFILE PIC EXTRACTOR ---
+            // Extract any custom uploaded profile picture if they have one
             try {
-                // 1. Try fetching by standard UID
                 const uDoc = await getDoc(doc(db, "users", user.uid));
                 if (uDoc.exists()) {
                     const data = uDoc.data();
                     dName = data.fullName || data.name || dName;
-                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage || data.avatar;
-                } else {
-                    // 2. Fallback: Search the database by exact Email if UID fails
-                    const emailQuery = query(collection(db, "users"), where("email", "==", user.email));
-                    const snap = await getDocs(emailQuery);
-                    if (!snap.empty) {
-                        const data = snap.docs[0].data();
-                        dName = data.fullName || data.name || dName;
-                        pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage || data.avatar;
-                    }
+                    pUrl = data.customProfilePic || data.photoURL || data.profilePic || data.profileImage || data.avatar || pUrl;
                 }
             } catch (error) {}
             
-            pUrl = pUrl || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(dName || 'User')}&background=00a884&color=fff`;
+            pUrl = pUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(dName || 'User')}&background=00a884&color=fff`;
             
             forceBoot(user.uid, user.email, dName, pUrl);
         } else {
