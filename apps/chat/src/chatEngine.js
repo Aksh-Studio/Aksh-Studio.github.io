@@ -198,20 +198,32 @@ const populateGroupManagement = async (participants, admins) => {
         } catch(e) {}
     }
 
-    // Bug 4 Fix: Safe Property Extractor guarantees no silently dropped users due to missing database fields
+    // Bug 4 Fix: Try multiple name fields to ensure we get every user and avoid dropping them
     let allUsers = [];
     try {
         const snap = await getDocs(collection(db, "users"));
         snap.forEach(d => {
             const u = d.data();
             const safeEmail = u.email ? String(u.email).trim() : '';
-            // Safely parse name, falling back to an email split, then falling back to 'Unknown User'
-            const safeName = (u.fullName || u.firstName || u.name || (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')).trim();
-            const searchStr = `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}`;
             
+            const safeName = (
+                u.fullName || 
+                u.name || 
+                u.firstName || 
+                (safeEmail ? safeEmail.split('@')[0] : 'Unknown User')
+            ).trim();
+            
+            if (!safeName || (safeName === 'Unknown User' && !safeEmail)) return;
+            
+            const searchStr = `${safeName.toLowerCase()} ${safeEmail.toLowerCase()}`;
             allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
         });
-    } catch(e) {}
+        
+        // Sort by name for better UX
+        allUsers.sort((a, b) => a.name.localeCompare(b.name));
+    } catch(e) {
+        console.error("Failed to fetch users:", e);
+    }
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
@@ -815,7 +827,7 @@ window.enableSelectionMode = (enable = true) => {
         const countTxt = document.getElementById('selection-count');
         if (countTxt) countTxt.innerText = `0 Selected`;
     }
-};
+});
 
 document.addEventListener('change', (e) => {
     if (e.target.classList.contains('msg-checkbox')) {
