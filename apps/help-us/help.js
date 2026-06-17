@@ -93,8 +93,8 @@ const btnCloseModal = document.getElementById('btn-close-modal');
 let isCooldown = false;
 let rewardTimer;
 
-// Your Brand-New Adsterra Smartlink
-const ADSTERRA_URL = "https://www.effectivecpmnetwork.com/bd15tpe72?key=c5a4c0ff64956ae16141405bb5a20248";
+// NEW ADSTERRA ANTI-ADBLOCK URL (For Popunder functionality)
+const ADSTERRA_URL = "https://askewevaluationsuicidal.com/bd15tpe72?key=c5a4c0ff64956ae16141405bb5a20248";
 
 // Partner Link Logic (Direct Link)
 if (btnWatchAd) {
@@ -108,7 +108,7 @@ if (btnWatchAd) {
     });
 }
 
-// In-Page Video Modal Logic
+// In-Page Video Modal Logic (Acts as a Popunder Trigger)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -123,7 +123,7 @@ function openVideoModal() {
     // Show the Support Hub Modal UI
     videoModal.style.display = 'flex';
     
-    // Open Adsterra in a floating popup window
+    // Open Adsterra Popunder in a floating popup window
     window.open(ADSTERRA_URL, 'SponsorAd', 'width=800,height=600,top=100,left=100,scrollbars=yes');
     
     // 10 Second Required Watch Time
