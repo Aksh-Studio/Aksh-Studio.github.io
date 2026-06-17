@@ -77,7 +77,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// 3. AD BUTTON TRACKING
+// 3. AD BUTTON TRACKING & MODAL LOGIC
 // ==========================================
 const btnWatchAd = document.getElementById('btn-watch-ad');
 const btnVideoAd = document.getElementById('btn-video-ad');
@@ -85,15 +85,11 @@ const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 const videoModal = document.getElementById('video-modal');
 const btnCloseModal = document.getElementById('btn-close-modal');
 const btnCancelAd = document.getElementById('btn-cancel-ad');
-const adIframe = document.getElementById('ad-iframe'); // Target the iframe
 
 let isCooldown = false;
 let rewardTimer;
 
-// ---> PASTE YOUR NEW VIDEO AD NETWORK LINK HERE <---
-const NEW_VIDEO_AD_URL = "https://example-new-video-network.com/your-tag";
-
-// Partner Link Logic (Direct Link)
+// Partner Link Logic (Direct Link Native Tab Open)
 if (btnWatchAd) {
     btnWatchAd.addEventListener('click', (e) => {
         if (isCooldown || !currentUser) {
@@ -105,7 +101,7 @@ if (btnWatchAd) {
     });
 }
 
-// Watch Video Ad Logic (Embeds inside the modal iframe)
+// Watch Video Ad Logic (Opens Modal with embedded ad)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -118,9 +114,6 @@ if (btnVideoAd) {
 
 function openVideoModal() {
     videoModal.style.display = 'flex';
-    
-    // Load the new ad network link INSIDE the modal iframe
-    adIframe.src = NEW_VIDEO_AD_URL;
     
     // 10 Second Required Wait Time
     let timeLeft = 10;
@@ -144,7 +137,6 @@ function openVideoModal() {
 // Normal Close - Claim Reward Button inside the Modal
 btnCloseModal.addEventListener('click', () => {
     videoModal.style.display = 'none';
-    adIframe.src = ""; // Unload ad so video stops playing in background
     processTokenReward('Watch Video Ad');
 });
 
@@ -156,7 +148,6 @@ if (btnCancelAd) {
         if (confirmCancel) {
             clearInterval(rewardTimer); // Stop the countdown
             videoModal.style.display = 'none'; // Hide the modal
-            adIframe.src = ""; // Unload ad immediately
             resetButtonUI(); // Make sure buttons are clickable again
         }
     });
