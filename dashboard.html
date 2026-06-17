@@ -105,8 +105,7 @@
 
             <div class="profile-menu">
                 <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover; border: 2px solid #128C7E;" title="Click to change picture">
-                    <span id="header-name" style="font-weight: 500; font-size: 14px;">Loading...</span>
+<img src="https://ui-avatars.com/api/?name=User&background=00a884&color=fff" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover; border: 2px solid #128C7E; background: white;" title="Click to change picture">                    <span id="header-name" style="font-weight: 500; font-size: 14px;">Loading...</span>
                 </div>
                 <div class="dropdown-content">
                     <p style="font-size: 12px; color: #888; text-transform: uppercase;">Personal Profile</p>
@@ -303,20 +302,29 @@
                 document.getElementById('edit-dob').value = userData.dob || "";
                 document.getElementById('edit-phone').value = userData.phone || user.phoneNumber || "";
                 if(userData.gender) document.getElementById('edit-gender').value = userData.gender;
-
-                // Load Custom Profile Picture if saved in DB
-                if (userData.customProfilePic) {
-                    document.getElementById('profile-pic').src = userData.customProfilePic;
-                } else if (user.photoURL) {
-                    document.getElementById('profile-pic').src = user.photoURL;
-                }
             }
 
-            // Set UI Names
+            // Set UI Names FIRST so we can use them for the fallback avatar
             displayName = displayName || "Studio User";
             document.getElementById('header-name').innerText = displayName;
             document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${displayName}`;
 
+            // --- THE PROFILE PICTURE FIX ---
+            // 1. Determine the best image URL available
+            let picUrl = userData.customProfilePic || user.photoURL;
+            const profilePicEl = document.getElementById('profile-pic');
+            
+            // 2. Set the image, or use the UI Avatar if empty
+            if (picUrl && picUrl.trim() !== "") {
+                profilePicEl.src = picUrl;
+            } else {
+                profilePicEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=00a884&color=fff`;
+            }
+
+            // 3. Absolute Fallback: If the URL is broken or blocked, force the UI Avatar
+            profilePicEl.onerror = () => {
+                profilePicEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=00a884&color=fff`;
+            };
             // ==========================================
             // FORCE BIND FOR PHONE-ONLY USERS
             // ==========================================
