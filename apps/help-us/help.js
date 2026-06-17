@@ -3,9 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// ==========================================
-// 1. THEME ENGINE
-// ==========================================
 const themeBtn = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
 
@@ -27,9 +24,6 @@ if (themeBtn) {
     };
 }
 
-// ==========================================
-// 2. FIREBASE & USER DATA
-// ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
     authDomain: "aksh-studio.firebaseapp.com",
@@ -76,9 +70,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// ==========================================
-// 3. AD BUTTON TRACKING & MODAL LOGIC
-// ==========================================
 const btnWatchAd = document.getElementById('btn-watch-ad');
 const btnVideoAd = document.getElementById('btn-video-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
@@ -89,7 +80,6 @@ const btnCancelAd = document.getElementById('btn-cancel-ad');
 let isCooldown = false;
 let rewardTimer;
 
-// Partner Link Logic (Direct Link Native Tab Open)
 if (btnWatchAd) {
     btnWatchAd.addEventListener('click', (e) => {
         if (isCooldown || !currentUser) {
@@ -101,7 +91,6 @@ if (btnWatchAd) {
     });
 }
 
-// Watch Video Ad Logic (Opens Modal with embedded ad)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -115,7 +104,6 @@ if (btnVideoAd) {
 function openVideoModal() {
     videoModal.style.display = 'flex';
     
-    // 10 Second Required Wait Time
     let timeLeft = 10;
     btnCloseModal.disabled = true;
     btnCloseModal.style.background = "#475569";
@@ -128,27 +116,25 @@ function openVideoModal() {
         if (timeLeft <= 0) {
             clearInterval(rewardTimer);
             btnCloseModal.disabled = false;
-            btnCloseModal.style.background = "#10b981"; // Turns green
+            btnCloseModal.style.background = "#10b981"; 
             btnCloseModal.innerText = "Claim Token & Close";
         }
     }, 1000);
 }
 
-// Normal Close - Claim Reward Button inside the Modal
 btnCloseModal.addEventListener('click', () => {
     videoModal.style.display = 'none';
-    processTokenReward('Watch Video Ad');
+    processTokenReward('View Sponsor Banner');
 });
 
-// Cancel Ad ("X" Button) Logic
 if (btnCancelAd) {
     btnCancelAd.addEventListener('click', () => {
         const confirmCancel = confirm("Are you sure you want to close the ad early? You will not receive your token reward.");
         
         if (confirmCancel) {
-            clearInterval(rewardTimer); // Stop the countdown
-            videoModal.style.display = 'none'; // Hide the modal
-            resetButtonUI(); // Make sure buttons are clickable again
+            clearInterval(rewardTimer); 
+            videoModal.style.display = 'none'; 
+            resetButtonUI(); 
         }
     });
 }
@@ -198,7 +184,8 @@ function resetButtonUI() {
     if (btnVideoAd) {
         btnVideoAd.style.pointerEvents = 'auto';
         btnVideoAd.style.opacity = '1';
-        btnVideoAd.innerHTML = '<span class="material-symbols-rounded">movie</span> Watch Video Ad';
+        // FIXED: Now correctly resets to "View Sponsor Banner"
+        btnVideoAd.innerHTML = '<span class="material-symbols-rounded">ad_units</span> View Sponsor Banner';
     }
 }
 
