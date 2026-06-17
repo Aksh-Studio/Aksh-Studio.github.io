@@ -150,6 +150,28 @@
         </div>
     </main>
 
+    <div id="phone-bind-modal" class="modal-overlay" style="z-index: 9999; background: rgba(0,0,0,0.85);">
+        <div class="modal-box" style="text-align: center; max-width: 400px;">
+            <h2 style="margin-top: 0; color: #128C7E; font-size: 20px;">Secure Your Account</h2>
+            <p style="font-size: 13px; color: #555; margin-bottom: 20px; line-height: 1.5;">
+                You are currently signed in with a <strong>Phone Number only</strong>. To ensure you never lose access to your Aksh Studio apps, you must link an Email or Google account.
+            </p>
+            
+            <button id="force-bind-google" class="google-btn" style="margin-bottom: 15px; font-weight: 600; width: 100%; padding: 11px; background: white; border: 1px solid #e1e4e8; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; color: #555;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="18"> 
+                Bind with Google
+            </button>
+            
+            <div class="divider" style="margin: 20px 0; color: #aaa; font-size: 11px; font-weight: 600;">OR BIND WITH EMAIL</div>
+            
+            <div style="text-align: left;">
+                <input type="email" id="force-bind-email" placeholder="New Email Address" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                <input type="password" id="force-bind-password" placeholder="Create Secure Password" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+                <button id="force-bind-email-btn" class="auth-btn" style="width: 100%; padding: 12px; background: #128C7E; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">Bind with Email</button>
+            </div>
+        </div>
+    </div>
+
     <div id="security-modal" class="modal-overlay">
         <div class="modal-box">
             <h3 style="margin-top: 0; color: #128C7E;">Update Personal Info</h3>
@@ -203,33 +225,6 @@
         </div>
     </div>
 
-    <div id="phone-bind-modal" class="modal-overlay" style="z-index: 9999; background: rgba(0,0,0,0.85);">
-        <div class="modal-box" style="text-align: center; max-width: 400px;">
-            <h2 style="margin-top: 0; color: #128C7E; font-size: 20px;">Secure Your Account</h2>
-            <p style="font-size: 13px; color: #555; margin-bottom: 20px; line-height: 1.5;">
-                You are currently signed in with a <strong>Phone Number only</strong>. To ensure you never lose access to your Aksh Studio apps, you must link an Email or Google account.
-            </p>
-            
-            <button id="force-bind-google" class="google-btn" style="margin-bottom: 15px; font-weight: 600;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="18"> 
-                Bind with Google
-            </button>
-            
-            <div class="divider">OR BIND WITH EMAIL</div>
-            
-            <div style="text-align: left;">
-                <input type="email" id="force-bind-email" placeholder="New Email Address" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                <input type="password" id="force-bind-password" placeholder="Create Secure Password" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
-                <button id="force-bind-email-btn" class="auth-btn" style="width: 100%;">Bind with Email</button>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, linkWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        // ... (Keep the rest of your imports and firebaseConfig)
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut, linkWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, sendEmailVerification, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -272,11 +267,55 @@
             }
         });
 
-       onAuthStateChanged(auth, async (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 window.location.href = "index.html"; 
                 return;
             }
+
+            // Set Display Name (from Auth or Firestore)
+            let displayName = user.displayName;
+            const userEmail = user.email || (user.providerData && user.providerData.length > 0 && user.providerData[0].email) || 'Phone User';
+            document.getElementById('profile-email').innerHTML = `<strong>Email:</strong> ${userEmail}`;
+
+            // Fetch Personal Data from Firestore
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            let userData = {};
+
+            if (userDoc.exists()) {
+                userData = userDoc.data();
+                
+                // If Name is missing from auth but in Firestore, use Firestore
+                if (!displayName && userData.firstName) {
+                    displayName = `${userData.firstName} ${userData.lastName || ""}`.trim();
+                }
+
+                // Populate Dropdown text
+                document.getElementById('profile-dob').innerHTML = `<strong>DOB:</strong> ${userData.dob || "-"}`;
+                document.getElementById('profile-phone').innerHTML = `<strong>Phone:</strong> ${userData.phone || user.phoneNumber || "-"}`;
+                document.getElementById('profile-gender').innerHTML = `<strong>Gender:</strong> ${userData.gender || "-"}`;
+                
+                // Populate Edit Modal inputs
+                document.getElementById('edit-first').value = userData.firstName || "";
+                document.getElementById('edit-middle').value = userData.middleName || "";
+                document.getElementById('edit-last').value = userData.lastName || "";
+                document.getElementById('edit-dob').value = userData.dob || "";
+                document.getElementById('edit-phone').value = userData.phone || user.phoneNumber || "";
+                if(userData.gender) document.getElementById('edit-gender').value = userData.gender;
+
+                // Load Custom Profile Picture if saved in DB
+                if (userData.customProfilePic) {
+                    document.getElementById('profile-pic').src = userData.customProfilePic;
+                } else if (user.photoURL) {
+                    document.getElementById('profile-pic').src = user.photoURL;
+                }
+            }
+
+            // Set UI Names
+            displayName = displayName || "Studio User";
+            document.getElementById('header-name').innerText = displayName;
+            document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${displayName}`;
 
             // ==========================================
             // FORCE BIND FOR PHONE-ONLY USERS
@@ -310,55 +349,9 @@
                 };
             }
 
-            // ... (keep the rest of your dashboard data-fetching logic)
-
-            // Set Display Name (from Auth or Firestore)
-            let displayName = user.displayName;
-            document.getElementById('profile-email').innerHTML = `<strong>Email:</strong> ${user.email}`;
-
-            // Fetch Personal Data from Firestore
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            let userData = {};
-
-            if (userDoc.exists()) {
-                userData = userDoc.data();
-                
-                // If Name is missing from auth but in Firestore, use Firestore
-                if (!displayName && userData.firstName) {
-                    displayName = `${userData.firstName} ${userData.lastName || ""}`.trim();
-                }
-
-                // Populate Dropdown text
-                document.getElementById('profile-dob').innerHTML = `<strong>DOB:</strong> ${userData.dob || "-"}`;
-                document.getElementById('profile-phone').innerHTML = `<strong>Phone:</strong> ${userData.phone || "-"}`;
-                document.getElementById('profile-gender').innerHTML = `<strong>Gender:</strong> ${userData.gender || "-"}`;
-                
-                // Populate Edit Modal inputs
-                document.getElementById('edit-first').value = userData.firstName || "";
-                document.getElementById('edit-middle').value = userData.middleName || "";
-                document.getElementById('edit-last').value = userData.lastName || "";
-                document.getElementById('edit-dob').value = userData.dob || "";
-                document.getElementById('edit-phone').value = userData.phone || "";
-                if(userData.gender) document.getElementById('edit-gender').value = userData.gender;
-
-                // Load Custom Profile Picture if saved in DB
-                if (userData.customProfilePic) {
-                    document.getElementById('profile-pic').src = userData.customProfilePic;
-                } else if (user.photoURL) {
-                    document.getElementById('profile-pic').src = user.photoURL;
-                }
-            }
-
-            // Set UI Names
-            displayName = displayName || "Studio User";
-            document.getElementById('header-name').innerText = displayName;
-            document.getElementById('profile-name').innerHTML = `<strong>Name:</strong> ${displayName}`;
-
             // ==========================================
             // Account Binding Logic (With 24h Expiry)
             // ==========================================
-            const providers = user.providerData.map(p => p.providerId);
             const bindBtn = document.getElementById('btn-bind-account');
 
             // Check if there is a pending binding request
@@ -503,8 +496,11 @@
             window.location.reload();
         }
 
+        // ==========================================
+        // Sign Out Logic
+        // ==========================================
         document.getElementById('btn-signout').addEventListener('click', () => {
-            signOut(auth).then(() => window.location.href = "index.html");
+            signOut(auth).then(() => window.location.href = "index.html").catch((error) => alert("Sign out failed: " + error.message));
         });
     </script>
     <footer style="display: flex; justify-content: space-between; align-items: center; margin-top: 60px; padding: 20px 10px; border-top: 1px solid var(--border); gap: 20px; flex-wrap: wrap;">
