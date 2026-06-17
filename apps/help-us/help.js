@@ -77,7 +77,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ==========================================
-// 3. IN-PAGE MODAL & AD BUTTON TRACKING
+// 3. AD BUTTON TRACKING
 // ==========================================
 const btnWatchAd = document.getElementById('btn-watch-ad');
 const btnVideoAd = document.getElementById('btn-video-ad');
@@ -89,7 +89,10 @@ const btnCancelAd = document.getElementById('btn-cancel-ad');
 let isCooldown = false;
 let rewardTimer;
 
-// Partner Link Logic (Direct Link opens in new tab)
+// ---> PASTE YOUR NEW VIDEO AD NETWORK LINK HERE <---
+const NEW_VIDEO_AD_URL = "https://example-new-video-network.com/your-tag";
+
+// Partner Link Logic (Direct Link opens natively via HTML href target="_blank")
 if (btnWatchAd) {
     btnWatchAd.addEventListener('click', (e) => {
         if (isCooldown || !currentUser) {
@@ -101,7 +104,7 @@ if (btnWatchAd) {
     });
 }
 
-// Watch Video Ad Logic (Opens Modal with 300x250 Video/Banner inside)
+// Watch Video Ad Logic (Opens New Network Link in New Tab)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -115,7 +118,10 @@ if (btnVideoAd) {
 function openVideoModal() {
     videoModal.style.display = 'flex';
     
-    // 10 Second Required Watch Time
+    // Open the new ad network link in a new tab securely
+    window.open(NEW_VIDEO_AD_URL, '_blank', 'noopener,noreferrer');
+    
+    // 10 Second Required Wait Time
     let timeLeft = 10;
     btnCloseModal.disabled = true;
     btnCloseModal.style.background = "#475569";
@@ -143,7 +149,7 @@ btnCloseModal.addEventListener('click', () => {
 // Cancel Ad ("X" Button) Logic
 if (btnCancelAd) {
     btnCancelAd.addEventListener('click', () => {
-        const confirmCancel = confirm("Are you sure you want to close the ad early? You will not receive your token reward.");
+        const confirmCancel = confirm("Are you sure you want to cancel? You will not receive your token reward.");
         
         if (confirmCancel) {
             clearInterval(rewardTimer); // Stop the countdown
