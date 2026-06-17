@@ -85,6 +85,7 @@ const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 const videoModal = document.getElementById('video-modal');
 const btnCloseModal = document.getElementById('btn-close-modal');
 const btnCancelAd = document.getElementById('btn-cancel-ad');
+const adIframe = document.getElementById('ad-iframe'); // Target the iframe
 
 let isCooldown = false;
 let rewardTimer;
@@ -92,7 +93,7 @@ let rewardTimer;
 // ---> PASTE YOUR NEW VIDEO AD NETWORK LINK HERE <---
 const NEW_VIDEO_AD_URL = "https://example-new-video-network.com/your-tag";
 
-// Partner Link Logic (Direct Link opens natively via HTML href target="_blank")
+// Partner Link Logic (Direct Link)
 if (btnWatchAd) {
     btnWatchAd.addEventListener('click', (e) => {
         if (isCooldown || !currentUser) {
@@ -104,7 +105,7 @@ if (btnWatchAd) {
     });
 }
 
-// Watch Video Ad Logic (Opens New Network Link in New Tab)
+// Watch Video Ad Logic (Embeds inside the modal iframe)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -118,8 +119,8 @@ if (btnVideoAd) {
 function openVideoModal() {
     videoModal.style.display = 'flex';
     
-    // Open the new ad network link in a new tab securely
-    window.open(NEW_VIDEO_AD_URL, '_blank', 'noopener,noreferrer');
+    // Load the new ad network link INSIDE the modal iframe
+    adIframe.src = NEW_VIDEO_AD_URL;
     
     // 10 Second Required Wait Time
     let timeLeft = 10;
@@ -143,17 +144,19 @@ function openVideoModal() {
 // Normal Close - Claim Reward Button inside the Modal
 btnCloseModal.addEventListener('click', () => {
     videoModal.style.display = 'none';
+    adIframe.src = ""; // Unload ad so video stops playing in background
     processTokenReward('Watch Video Ad');
 });
 
 // Cancel Ad ("X" Button) Logic
 if (btnCancelAd) {
     btnCancelAd.addEventListener('click', () => {
-        const confirmCancel = confirm("Are you sure you want to cancel? You will not receive your token reward.");
+        const confirmCancel = confirm("Are you sure you want to close the ad early? You will not receive your token reward.");
         
         if (confirmCancel) {
             clearInterval(rewardTimer); // Stop the countdown
             videoModal.style.display = 'none'; // Hide the modal
+            adIframe.src = ""; // Unload ad immediately
             resetButtonUI(); // Make sure buttons are clickable again
         }
     });
