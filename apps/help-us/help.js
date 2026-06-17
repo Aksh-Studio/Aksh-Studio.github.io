@@ -84,14 +84,10 @@ const btnVideoAd = document.getElementById('btn-video-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 const videoModal = document.getElementById('video-modal');
 const btnCloseModal = document.getElementById('btn-close-modal');
-const btnCancelAd = document.getElementById('btn-cancel-ad'); // The new X button
-const adIframe = document.getElementById('ad-iframe'); // The new iFrame
+const btnCancelAd = document.getElementById('btn-cancel-ad'); // The X button
 
 let isCooldown = false;
 let rewardTimer;
-
-// Adsterra Smartlink embedded in the iFrame
-const ADSTERRA_URL = "https://askewevaluationsuicidal.com/bd15tpe72?key=c5a4c0ff64956ae16141405bb5a20248";
 
 // Partner Link Logic (Direct Link opens in new tab)
 if (btnWatchAd) {
@@ -105,7 +101,7 @@ if (btnWatchAd) {
     });
 }
 
-// Watch Video Ad Logic (Opens embedded iframe)
+// Watch Video Ad Logic (Opens Modal with 300x250 Banner inside)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -119,9 +115,6 @@ if (btnVideoAd) {
 function openVideoModal() {
     // Show the Support Hub Modal UI
     videoModal.style.display = 'flex';
-    
-    // Embed the link directly into the modal's iframe
-    adIframe.src = ADSTERRA_URL;
     
     // 10 Second Required Watch Time
     let timeLeft = 10;
@@ -145,7 +138,6 @@ function openVideoModal() {
 // Normal Close - Claim Reward Button inside the Modal
 btnCloseModal.addEventListener('click', () => {
     videoModal.style.display = 'none';
-    adIframe.src = ""; // Unload ad
     processTokenReward('Watch Video Ad');
 });
 
@@ -153,12 +145,11 @@ btnCloseModal.addEventListener('click', () => {
 if (btnCancelAd) {
     btnCancelAd.addEventListener('click', () => {
         // Warn the user before closing
-        const confirmCancel = confirm("Are you sure you want to close the ad? You will not receive your token reward.");
+        const confirmCancel = confirm("Are you sure you want to close the ad early? You will not receive your token reward.");
         
         if (confirmCancel) {
             clearInterval(rewardTimer); // Stop the countdown
             videoModal.style.display = 'none'; // Hide the modal
-            adIframe.src = ""; // Unload the ad immediately
             resetButtonUI(); // Make sure buttons are clickable again
         }
     });
