@@ -46,16 +46,13 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
         
-        // Populate profile image in header
         const avatarEl = document.getElementById('help-header-avatar');
         if (user.photoURL && avatarEl) {
             avatarEl.src = user.photoURL;
         }
 
-        // Fetch User's Support Tokens
         const userRef = doc(db, `users/${user.uid}`);
         
-        // Ensure document exists, if not create it
         const docSnap = await getDoc(userRef);
         if (!docSnap.exists()) {
             await setDoc(userRef, { 
@@ -65,7 +62,6 @@ onAuthStateChanged(auth, async (user) => {
             }, { merge: true });
         }
 
-        // Listen for live updates to the token score
         onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
@@ -76,7 +72,6 @@ onAuthStateChanged(auth, async (user) => {
             }
         });
     } else {
-        // Kick them out if not logged in
         window.location.href = "../../index.html";
     }
 });
@@ -89,14 +84,16 @@ const btnVideoAd = document.getElementById('btn-video-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 const videoModal = document.getElementById('video-modal');
 const btnCloseModal = document.getElementById('btn-close-modal');
+const btnCancelAd = document.getElementById('btn-cancel-ad'); // The new X button
+const adIframe = document.getElementById('ad-iframe'); // The new iFrame
 
 let isCooldown = false;
 let rewardTimer;
 
-// NEW ADSTERRA ANTI-ADBLOCK URL (For Popunder functionality)
+// Adsterra Smartlink embedded in the iFrame
 const ADSTERRA_URL = "https://askewevaluationsuicidal.com/bd15tpe72?key=c5a4c0ff64956ae16141405bb5a20248";
 
-// Partner Link Logic (Direct Link)
+// Partner Link Logic (Direct Link opens in new tab)
 if (btnWatchAd) {
     btnWatchAd.addEventListener('click', (e) => {
         if (isCooldown || !currentUser) {
@@ -108,7 +105,7 @@ if (btnWatchAd) {
     });
 }
 
-// In-Page Video Modal Logic (Acts as a Popunder Trigger)
+// Watch Video Ad Logic (Opens embedded iframe)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -123,8 +120,8 @@ function openVideoModal() {
     // Show the Support Hub Modal UI
     videoModal.style.display = 'flex';
     
-    // Open Adsterra Popunder in a floating popup window
-    window.open(ADSTERRA_URL, 'SponsorAd', 'width=800,height=600,top=100,left=100,scrollbars=yes');
+    // Embed the link directly into the modal's iframe
+    adIframe.src = ADSTERRA_URL;
     
     // 10 Second Required Watch Time
     let timeLeft = 10;
@@ -140,19 +137,32 @@ function openVideoModal() {
             clearInterval(rewardTimer);
             btnCloseModal.disabled = false;
             btnCloseModal.style.background = "#10b981"; // Turns green
-            btnCloseModal.innerText = "Close Video & Claim Token";
+            btnCloseModal.innerText = "Claim Token & Close";
         }
     }, 1000);
 }
 
-// Claim Reward Button inside the Modal
+// Normal Close - Claim Reward Button inside the Modal
 btnCloseModal.addEventListener('click', () => {
-    // Hide Modal
     videoModal.style.display = 'none';
-    
-    // Process Token
+    adIframe.src = ""; // Unload ad
     processTokenReward('Watch Video Ad');
 });
+
+// Cancel Ad ("X" Button) Logic
+if (btnCancelAd) {
+    btnCancelAd.addEventListener('click', () => {
+        // Warn the user before closing
+        const confirmCancel = confirm("Are you sure you want to close the ad? You will not receive your token reward.");
+        
+        if (confirmCancel) {
+            clearInterval(rewardTimer); // Stop the countdown
+            videoModal.style.display = 'none'; // Hide the modal
+            adIframe.src = ""; // Unload the ad immediately
+            resetButtonUI(); // Make sure buttons are clickable again
+        }
+    });
+}
 
 function processTokenReward(originalText) {
     isCooldown = true;
