@@ -84,7 +84,7 @@ const btnVideoAd = document.getElementById('btn-video-ad');
 const cooldownTimerDisplay = document.getElementById('cooldown-timer');
 const videoModal = document.getElementById('video-modal');
 const btnCloseModal = document.getElementById('btn-close-modal');
-const btnCancelAd = document.getElementById('btn-cancel-ad'); // The X button
+const btnCancelAd = document.getElementById('btn-cancel-ad');
 
 let isCooldown = false;
 let rewardTimer;
@@ -101,7 +101,7 @@ if (btnWatchAd) {
     });
 }
 
-// Watch Video Ad Logic (Opens Modal with 300x250 Banner inside)
+// Watch Video Ad Logic (Opens Modal with 300x250 Video/Banner inside)
 if (btnVideoAd) {
     btnVideoAd.addEventListener('click', () => {
         if (isCooldown || !currentUser) {
@@ -113,7 +113,6 @@ if (btnVideoAd) {
 }
 
 function openVideoModal() {
-    // Show the Support Hub Modal UI
     videoModal.style.display = 'flex';
     
     // 10 Second Required Watch Time
@@ -144,7 +143,6 @@ btnCloseModal.addEventListener('click', () => {
 // Cancel Ad ("X" Button) Logic
 if (btnCancelAd) {
     btnCancelAd.addEventListener('click', () => {
-        // Warn the user before closing
         const confirmCancel = confirm("Are you sure you want to close the ad early? You will not receive your token reward.");
         
         if (confirmCancel) {
