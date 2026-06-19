@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="assets/office-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../style.css">
+    
     <script src="https://5gvci.com/act/files/tag.min.js?z=11141613" data-cfasync="false" async></script>
     <script>(function(s){s.dataset.zone='11138905',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     
@@ -37,6 +38,27 @@
         .profile-menu:hover .dropdown-content { display: block; }
         .dropdown-btn { width: 100%; padding: 10px; background: #128C7E; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
         .dropdown-btn.outline { background: transparent; color: #128C7E; border: 1px solid #128C7E; }
+
+        /* =========================================
+           DARK MODE SPECIFIC CSS FIX
+           ========================================= */
+        body.dark-theme { background-color: #121212; color: #e0e0e0; }
+        body.dark-theme .hub-header,
+        body.dark-theme .dropdown-content { background-color: #1e1e1e; border-color: #333; color: #e0e0e0; }
+        body.dark-theme .dropdown-content p { color: #bbb; }
+        body.dark-theme .dropdown-content hr { border-top: 1px solid #333; }
+        
+        body.dark-theme .office-hero { background: linear-gradient(135deg, rgba(18, 140, 126, 0.15), transparent); border-color: #333; }
+        body.dark-theme .office-hero h1 { color: #fff; }
+        body.dark-theme .office-hero p { color: #bbb; }
+
+        body.dark-theme .office-tile { background-color: #1e1e1e; border-color: #333; }
+        body.dark-theme .office-tile:hover { background-color: #2d2d2d; border-color: #128C7E; }
+        body.dark-theme .office-tile h3 { color: #fff; }
+        body.dark-theme .office-tile p { color: #aaa; }
+        
+        body.dark-theme .ad-container { background-color: #1e1e1e; border-color: #444; }
+        body.dark-theme .ad-label { color: #888; }
     </style>
 </head>
 <body class="dashboard-body">
