@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aksh Office | Studio Suite</title>
+    <link rel="icon" type="image/png" href="assets/office-logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../style.css">
+    <script src="https://5gvci.com/act/files/tag.min.js?z=11141613" data-cfasync="false" async></script>
+    <script>(function(s){s.dataset.zone='11138905',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    
+    <style>
+        /* Office Suite Specific Styles */
+        .office-hero { text-align: center; padding: 40px 20px; background: linear-gradient(135deg, rgba(18, 140, 126, 0.1), transparent); border-bottom: 1px solid var(--border); margin-bottom: 30px; }
+        .office-hero img { width: 80px; height: 80px; margin-bottom: 15px; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+        .office-hero h1 { font-size: 28px; color: var(--text-main); margin-bottom: 10px; }
+        .office-hero p { color: var(--text-muted); font-size: 15px; max-width: 600px; margin: 0 auto 25px; line-height: 1.5; }
+        
+        .download-btn { background: #128C7E; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: transform 0.2s, box-shadow 0.2s; }
+        .download-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(18, 140, 126, 0.3); }
+        .download-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+        .office-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        .office-tile { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 25px; text-decoration: none; color: var(--text-main); transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .office-tile:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); border-color: #128C7E; }
+        .office-tile img { width: 64px; height: 64px; margin-bottom: 15px; }
+        .office-tile h3 { font-size: 18px; margin-bottom: 8px; }
+        .office-tile p { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+        
+        .ad-container { margin: 40px auto; display: flex; justify-content: center; align-items: center; width: 100%; max-width: 728px; background: var(--card-bg); border: 1px dashed var(--border); border-radius: 12px; padding: 10px; flex-direction: column; }
+        .ad-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        
+        /* Header/Profile Styles inherited from dashboard */
+        .profile-menu { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; right: 0; top: 45px; background-color: var(--card-bg); min-width: 250px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.15); z-index: 100; border-radius: 8px; padding: 15px; border: 1px solid var(--border); text-align: left; }
+        .profile-menu:hover .dropdown-content { display: block; }
+        .dropdown-btn { width: 100%; padding: 10px; background: #128C7E; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+        .dropdown-btn.outline { background: transparent; color: #128C7E; border: 1px solid #128C7E; }
+    </style>
+</head>
+<body class="dashboard-body">
+
+    <header class="hub-header">
+        <div class="brand">
+            <a href="../../dashboard.html" style="text-decoration: none; display: flex; align-items: center; color: inherit; gap: 10px;">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"></path></svg>
+                <img src="../../aksh-logo.png" alt="Aksh Studio Logo" class="hub-logo">
+                <h2>Aksh Office</h2>
+            </a>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button id="theme-toggle" class="dropdown-btn outline" style="margin-bottom: 0; padding: 6px 12px; font-size: 12px; border-radius: 20px;">Dark Mode</button>
+            <div class="profile-menu">
+                <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <img src="https://ui-avatars.com/api/?name=User&background=00a884&color=fff" id="profile-pic" alt="Profile" width="36" height="36" style="border-radius: 50%; object-fit: cover; border: 2px solid #128C7E; background: white;">
+                    <span id="header-name" style="font-weight: 500; font-size: 14px;">Loading...</span>
+                </div>
+                <div class="dropdown-content">
+                    <p style="font-size: 12px; color: #888; text-transform: uppercase;">Aksh Account</p>
+                    <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
+                    <button id="btn-signout" class="dropdown-btn" style="background: #ff4d4f; margin-bottom: 0;">Sign Out</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="office-hero">
+        <img src="assets/office-logo.png" alt="Aksh Office Logo" onerror="this.src='../../aksh-logo.png'">
+        <h1>Welcome to Aksh Office</h1>
+        <p>Your local-first, privacy-focused productivity suite. Write documents, manage data, and build presentations with zero cloud dependency. Save locally, work securely.</p>
+        
+        <button id="btn-download-office" class="download-btn">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Download Aksh Office for Windows
+        </button>
+    </section>
+
+    <main class="office-grid">
+        <a href="sub-apps/documents/index.html" class="office-tile">
+            <img src="assets/docs-logo.png" alt="Aksh Documents" onerror="this.src='../../aksh-logo.png'">
+            <h3>Aksh Documents</h3>
+            <p>Advanced word processing with rich formatting, Markdown support, and local autosave persistence.</p>
+        </a>
+
+        <a href="#" class="office-tile" style="opacity: 0.6; cursor: not-allowed;" onclick="event.preventDefault(); alert('Aksh Sheets is currently under development.');">
+            <img src="assets/sheets-logo.png" alt="Aksh Sheets" onerror="this.src='../../aksh-logo.png'">
+            <h3>Aksh Sheets <span style="font-size:10px; background:#128C7E; color:white; padding:2px 6px; border-radius:4px; vertical-align:middle; margin-left:5px;">SOON</span></h3>
+            <p>Complex data grids, mathematical formulas, and spreadsheet formatting natively on your machine.</p>
+        </a>
+
+        <a href="#" class="office-tile" style="opacity: 0.6; cursor: not-allowed;" onclick="event.preventDefault(); alert('Aksh Slides is currently under development.');">
+            <img src="assets/slides-logo.png" alt="Aksh Slides" onerror="this.src='../../aksh-logo.png'">
+            <h3>Aksh Power Slide <span style="font-size:10px; background:#128C7E; color:white; padding:2px 6px; border-radius:4px; vertical-align:middle; margin-left:5px;">SOON</span></h3>
+            <p>Cinematic presentation builder with offline vector layouts and slide transition engines.</p>
+        </a>
+    </main>
+
+    <div class="ad-container">
+        <span class="ad-label">Sponsored Office Partner</span>
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '58be54061f3337be5a8dd4be9c6a91e7',
+                'format' : 'iframe',
+                'height' : 250,
+                'width' : 300,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//askewevaluationsuicidal.com/58be54061f3337be5a8dd4be9c6a91e7/invoke.js"></script>
+    </div>
+
+    <script type="module" src="office.js"></script>
+</body>
+</html>
