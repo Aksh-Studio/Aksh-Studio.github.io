@@ -280,3 +280,68 @@ function triggerFallbackDownload(data, ext, type) {
 window.addEventListener('beforeunload', (e) => {
     if (isDirty) { e.preventDefault(); e.returnValue = ''; }
 });
+
+// ==========================================
+// 5. KEYBOARD SHORTCUTS ENGINE
+// ==========================================
+document.addEventListener('keydown', (e) => {
+    // Check if Ctrl (Windows) or Cmd (Mac) is pressed
+    if (e.ctrlKey || e.metaKey) {
+        
+        switch (e.key.toLowerCase()) {
+            case 's':
+                e.preventDefault(); // Prevent browser's default "Save Webpage" dialog
+                document.getElementById('btn-save').click(); // Trigger our .ad save
+                break;
+            case 'b':
+                e.preventDefault();
+                document.execCommand('bold', false, null);
+                break;
+            case 'i':
+                e.preventDefault();
+                document.execCommand('italic', false, null);
+                break;
+            case 'u':
+                e.preventDefault();
+                document.execCommand('underline', false, null);
+                break;
+            case 'z':
+                // Standard Undo is usually handled by the browser inside contenteditable, 
+                // but we capture it here just in case you want to build a custom history stack later.
+                break;
+        }
+    }
+});
+
+// ==========================================
+// 6. ADDITIONAL EXPORT FORMATS (TXT & HTML)
+// ==========================================
+
+// EXPORT PLAIN TEXT (.TXT)
+document.getElementById('btn-export-txt').addEventListener('click', () => {
+    // Strip all HTML tags to get raw text
+    let plainText = editor.innerText || editor.textContent;
+    triggerFallbackDownload(plainText, '.txt', 'text/plain');
+});
+
+// EXPORT WEB PAGE (.HTML)
+document.getElementById('btn-export-html').addEventListener('click', () => {
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>${titleInput.value}</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+        table { border-collapse: collapse; width: 100%; }
+        table, th, td { border: 1px solid #ccc; padding: 8px; }
+        img { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+    ${editor.innerHTML}
+</body>
+</html>`;
+    triggerFallbackDownload(htmlContent, '.html', 'text/html');
+});
