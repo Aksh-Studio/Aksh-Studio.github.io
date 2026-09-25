@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aksh Photoshop</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- MENU BAR -->
+<div id="menu-bar">
+  <a href="../../dashboard.html" style="text-decoration:none; color:inherit; display:flex; align-items:center; padding:0 10px; margin-right:4px; font-weight:600; font-size:12px;" title="Back to Dashboard">← Exit</a>
+  <div class="menu-item" id="menu-file">
+    File
+    <div class="menu-dropdown">
+      <div class="menu-dropdown-item" data-action="file-new">New Canvas… <span class="menu-shortcut">Ctrl+N</span></div>
+      <div class="menu-dropdown-item" data-action="file-open">Open Image… <span class="menu-shortcut">Ctrl+O</span></div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="file-export-png">Export as PNG <span class="menu-shortcut">Ctrl+E</span></div>
+      <div class="menu-dropdown-item" data-action="file-export-jpeg">Export as JPEG</div>
+    </div>
+  </div>
+  <div class="menu-item" id="menu-edit">
+    Edit
+    <div class="menu-dropdown">
+      <div class="menu-dropdown-item" data-action="edit-undo">Undo <span class="menu-shortcut">Ctrl+Z</span></div>
+      <div class="menu-dropdown-item" data-action="edit-redo">Redo <span class="menu-shortcut">Ctrl+Y</span></div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="edit-free-transform">Free Transform <span class="menu-shortcut">Ctrl+T</span></div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="edit-clear">Clear Layer <span class="menu-shortcut">Del</span></div>
+    </div>
+  </div>
+  <div class="menu-item" id="menu-image">
+    Image
+    <div class="menu-dropdown">
+      <div class="menu-dropdown-item" data-action="image-remove-bg" style="color:#4fc3f7;font-weight:600">🪄 Remove Background</div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="image-adjustments">Brightness / Contrast…</div>
+      <div class="menu-dropdown-item" data-action="image-hsl">Hue / Saturation / Lightness…</div>
+      <div class="menu-dropdown-item" data-action="image-color-to-alpha">Color to Alpha (Color Remover)…</div>
+      <div class="menu-dropdown-item" data-action="image-replace-color">Replace Color…</div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="image-invert">Invert <span class="menu-shortcut">Ctrl+I</span></div>
+      <div class="menu-dropdown-item" data-action="image-grayscale">Grayscale</div>
+      <div class="menu-dropdown-item" data-action="image-sepia">Sepia</div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="image-sharpen">Sharpen…</div>
+      <div class="menu-dropdown-item" data-action="image-emboss">Emboss…</div>
+      <div class="menu-dropdown-item" data-action="image-blur">Gaussian Blur…</div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="image-resize">Canvas Size…</div>
+    </div>
+  </div>
+  <div class="menu-item" id="menu-layer">
+    Layer
+    <div class="menu-dropdown">
+      <div class="menu-dropdown-item" data-action="layer-new">New Layer <span class="menu-shortcut">Ctrl+Shift+N</span></div>
+      <div class="menu-dropdown-item" data-action="layer-duplicate">Duplicate Layer</div>
+      <div class="menu-dropdown-item" data-action="layer-delete">Delete Layer</div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="layer-mask-add">Add Layer Mask</div>
+      <div class="menu-dropdown-item" data-action="layer-mask-toggle">Enable / Disable Mask</div>
+      <div class="menu-dropdown-item" data-action="layer-mask-apply">Apply Layer Mask</div>
+      <div class="menu-dropdown-item" data-action="layer-mask-delete">Delete Layer Mask</div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="layer-merge-down">Merge Down</div>
+      <div class="menu-dropdown-item" data-action="layer-flatten">Flatten Image</div>
+    </div>
+  </div>
+  <div class="menu-item" id="menu-select">
+    Select
+    <div class="menu-dropdown">
+      <div class="menu-dropdown-item" data-action="select-all">All <span class="menu-shortcut">Ctrl+A</span></div>
+      <div class="menu-dropdown-item" data-action="select-deselect">Deselect <span class="menu-shortcut">Ctrl+D</span></div>
+      <div class="menu-dropdown-item" data-action="select-invert">Invert Selection <span class="menu-shortcut">Ctrl+Shift+I</span></div>
+      <div class="menu-dropdown-item separator"></div>
+      <div class="menu-dropdown-item" data-action="select-color-range">Color Range…</div>
+    </div>
+  </div>
+  <div class="menu-item" id="menu-view">
+    View
+    <div class="menu-dropdown">
+      <div class="menu-dropdown-item" data-action="view-zoom-in">Zoom In <span class="menu-shortcut">Ctrl++</span></div>
+      <div class="menu-dropdown-item" data-action="view-zoom-out">Zoom Out <span class="menu-shortcut">Ctrl+-</span></div>
+      <div class="menu-dropdown-item" data-action="view-zoom-fit">Fit to Screen <span class="menu-shortcut">Ctrl+0</span></div>
+      <div class="menu-dropdown-item" data-action="view-zoom-100">Actual Size (100%) <span class="menu-shortcut">Ctrl+1</span></div>
+    </div>
+  </div>
+  <span id="app-title">Aksh Photoshop</span>
+</div>
+
+<!-- TOOL OPTIONS BAR -->
+<div id="tool-options-bar">
+  <!-- Brush -->
+  <div class="tool-opt-section" id="opt-brush">
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-brush-size" min="1" max="200" value="20" style="width:100px">
+    <input type="number" class="opt-number" id="opt-brush-size-num" value="20" min="1" max="200">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Hardness:</span>
+    <input type="range" id="opt-brush-hardness" min="0" max="100" value="80" style="width:80px">
+    <input type="number" class="opt-number" id="opt-brush-hardness-num" value="80" min="0" max="100">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Opacity:</span>
+    <input type="range" id="opt-brush-opacity" min="1" max="100" value="100" style="width:80px">
+    <input type="number" class="opt-number" id="opt-brush-opacity-num" value="100" min="1" max="100">
+    <div class="opt-sep"></div>
+    <div class="color-swatch" id="opt-brush-color-swatch" style="background:#000000" title="Pick color"></div>
+    <input type="color" id="opt-brush-color" value="#000000" style="opacity:0;position:absolute;pointer-events:none;">
+  </div>
+
+  <!-- Eraser -->
+  <div class="tool-opt-section" id="opt-eraser">
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-eraser-size" min="1" max="200" value="20" style="width:100px">
+    <input type="number" class="opt-number" id="opt-eraser-size-num" value="20" min="1" max="200">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Opacity:</span>
+    <input type="range" id="opt-eraser-opacity" min="1" max="100" value="100" style="width:80px">
+    <input type="number" class="opt-number" id="opt-eraser-opacity-num" value="100" min="1" max="100">
+  </div>
+
+  <!-- Fill -->
+  <div class="tool-opt-section" id="opt-fill">
+    <span class="opt-label">Tolerance:</span>
+    <input type="range" id="opt-fill-tolerance" min="0" max="255" value="32" style="width:100px">
+    <input type="number" class="opt-number" id="opt-fill-tolerance-num" value="32" min="0" max="255">
+    <div class="opt-sep"></div>
+    <div class="color-swatch" id="opt-fill-color-swatch" style="background:#000000"></div>
+    <input type="color" id="opt-fill-color" value="#000000" style="opacity:0;position:absolute;pointer-events:none;">
+  </div>
+
+  <!-- Clone Stamp -->
+  <div class="tool-opt-section" id="opt-clonestamp">
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-clonestamp-size" min="1" max="200" value="24" style="width:100px">
+    <input type="number" class="opt-number" id="opt-clonestamp-size-num" value="24" min="1" max="200">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Opacity:</span>
+    <input type="range" id="opt-clonestamp-opacity" min="1" max="100" value="100" style="width:80px">
+    <input type="number" class="opt-number" id="opt-clonestamp-opacity-num" value="100" min="1" max="100">
+    <div class="opt-sep"></div>
+    <span class="opt-label" style="color:var(--text-dim)">💡 Hold Shift+Click on canvas to pick source</span>
+  </div>
+
+  <!-- Magic Wand -->
+  <div class="tool-opt-section" id="opt-magicwand">
+    <span class="opt-label">Tolerance:</span>
+    <input type="range" id="opt-wand-tolerance" min="0" max="255" value="32" style="width:100px">
+    <input type="number" class="opt-number" id="opt-wand-tolerance-num" value="32" min="0" max="255">
+    <div class="opt-sep"></div>
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:var(--text-secondary)">
+      <input type="checkbox" id="opt-wand-contiguous" checked> Contiguous
+    </label>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mode:</span>
+    <select class="opt-select" id="opt-wand-mode">
+      <option value="new">New Selection</option>
+      <option value="add">Add to Selection</option>
+      <option value="subtract">Subtract</option>
+    </select>
+  </div>
+
+  <!-- Gradient -->
+  <div class="tool-opt-section" id="opt-gradient">
+    <span class="opt-label">Type:</span>
+    <select class="opt-select" id="opt-gradient-type">
+      <option value="linear">Linear</option>
+      <option value="radial">Radial</option>
+    </select>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Opacity:</span>
+    <input type="range" id="opt-gradient-opacity" min="1" max="100" value="100" style="width:80px">
+    <input type="number" class="opt-number" id="opt-gradient-opacity-num" value="100" min="1" max="100">
+    <div class="opt-sep"></div>
+    <span class="opt-label" style="color:var(--text-dim)">Uses Foreground &amp; Background colors</span>
+  </div>
+
+  <!-- Freehand Lasso (Phase 3) -->
+  <div class="tool-opt-section" id="opt-lasso">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">Lasso:</span>
+    <span class="opt-label">Click &amp; drag freehand path to enclose selection</span>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mode:</span>
+    <select class="opt-select" id="opt-lasso-mode">
+      <option value="new">New Selection</option>
+      <option value="add">Add to Selection</option>
+      <option value="subtract">Subtract</option>
+    </select>
+  </div>
+
+  <!-- Polygonal Lasso (Phase 3) -->
+  <div class="tool-opt-section" id="opt-polylasso">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">Polygonal Lasso:</span>
+    <span class="opt-label">Click vertices · Double-click or click start to close</span>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mode:</span>
+    <select class="opt-select" id="opt-polylasso-mode">
+      <option value="new">New Selection</option>
+      <option value="add">Add to Selection</option>
+      <option value="subtract">Subtract</option>
+    </select>
+    <div class="opt-sep"></div>
+    <button class="panel-btn" id="opt-polylasso-close" style="background:var(--accent);color:#fff;border-color:var(--accent)">Close Loop</button>
+    <button class="panel-btn" id="opt-polylasso-cancel">Cancel (Esc)</button>
+  </div>
+
+  <!-- Color Replacement Tool (Phase 3) -->
+  <div class="tool-opt-section" id="opt-colorreplace">
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-colorreplace-size" min="1" max="200" value="28" style="width:90px">
+    <input type="number" class="opt-number" id="opt-colorreplace-size-num" value="28" min="1" max="200">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Tolerance:</span>
+    <input type="range" id="opt-colorreplace-tolerance" min="1" max="100" value="35" style="width:80px">
+    <input type="number" class="opt-number" id="opt-colorreplace-tolerance-num" value="35" min="1" max="100">
+    <div class="opt-sep"></div>
+    <span class="opt-label" style="color:var(--text-dim)">Paints Foreground color preserving underlying texture</span>
+  </div>
+
+  <!-- Magic Color Eraser (Phase 3) -->
+  <div class="tool-opt-section" id="opt-magiceraser">
+    <span class="opt-label">Tolerance:</span>
+    <input type="range" id="opt-magiceraser-tolerance" min="0" max="255" value="32" style="width:90px">
+    <input type="number" class="opt-number" id="opt-magiceraser-tolerance-num" value="32" min="0" max="255">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Feather:</span>
+    <input type="range" id="opt-magiceraser-feather" min="0" max="40" value="4" style="width:70px">
+    <input type="number" class="opt-number" id="opt-magiceraser-feather-num" value="4" min="0" max="40">
+    <div class="opt-sep"></div>
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:var(--text-secondary)">
+      <input type="checkbox" id="opt-magiceraser-contiguous" checked> Contiguous
+    </label>
+  </div>
+
+  <!-- Free Transform -->
+  <div class="tool-opt-section" id="opt-freetransform">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">Free Transform:</span>
+    <span class="opt-label">Drag inside to move · Handles to scale · Outside to rotate</span>
+    <div class="opt-sep"></div>
+    <button class="panel-btn" id="opt-transform-apply" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply (Enter)</button>
+    <button class="panel-btn" id="opt-transform-cancel">Cancel (Esc)</button>
+  </div>
+
+  <!-- Text -->
+  <div class="tool-opt-section" id="opt-text">
+    <span class="opt-label">Font:</span>
+    <select class="opt-select" id="opt-text-font">
+      <option>sans-serif</option><option>serif</option><option>monospace</option>
+      <option>cursive</option><option>Arial</option><option>Georgia</option><option>Impact</option>
+    </select>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Size:</span>
+    <input type="number" class="opt-number" id="opt-text-size" value="32" min="6" max="500" style="width:52px">
+    <div class="opt-sep"></div>
+    <select class="opt-select" id="opt-text-style">
+      <option value="normal normal">Normal</option>
+      <option value="bold normal">Bold</option>
+      <option value="normal italic">Italic</option>
+      <option value="bold italic">Bold Italic</option>
+    </select>
+    <div class="opt-sep"></div>
+    <div class="color-swatch" id="opt-text-color-swatch" style="background:#000000"></div>
+    <input type="color" id="opt-text-color" value="#000000" style="opacity:0;position:absolute;pointer-events:none;">
+  </div>
+
+  <!-- Eyedropper -->
+  <div class="tool-opt-section" id="opt-eyedropper">
+    <span class="opt-label">🎨 Click canvas to sample a color</span>
+  </div>
+
+  <!-- Move -->
+  <div class="tool-opt-section" id="opt-move">
+    <span class="opt-label">✥ Drag to move layer content</span>
+  </div>
+
+  <!-- Marquee -->
+  <div class="tool-opt-section" id="opt-marquee">
+    <span class="opt-label">Feather:</span>
+    <input type="range" id="opt-marquee-feather" min="0" max="50" value="0" style="width:80px">
+    <input type="number" class="opt-number" id="opt-marquee-feather-num" value="0" min="0" max="50">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mode:</span>
+    <select class="opt-select" id="opt-marquee-mode">
+      <option value="new">New</option>
+      <option value="add">Add</option>
+      <option value="subtract">Subtract</option>
+    </select>
+  </div>
+
+  <!-- Magnetic Lasso (Phase 4) -->
+  <div class="tool-opt-section" id="opt-magneticlasso">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🧲 Magnetic Lasso:</span>
+    <span class="opt-label">Traces high-contrast edges automatically · Enter to close · Esc to cancel</span>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mode:</span>
+    <select class="opt-select" id="opt-magnetic-mode">
+      <option value="new">New</option>
+      <option value="add">Add</option>
+      <option value="subtract">Subtract</option>
+    </select>
+  </div>
+
+  <!-- Quick Selection (Phase 4) -->
+  <div class="tool-opt-section" id="opt-quickselection">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🖌️ Quick Selection:</span>
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-quick-size" min="5" max="150" value="25" style="width:80px">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Tolerance:</span>
+    <input type="range" id="opt-quick-tolerance" min="5" max="100" value="28" style="width:80px">
+  </div>
+
+  <!-- Object Selection (Phase 4) -->
+  <div class="tool-opt-section" id="opt-objectselection">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">📦 Object Selection:</span>
+    <span class="opt-label">Drag bounding box around object to auto-isolate</span>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Threshold:</span>
+    <input type="range" id="opt-object-threshold" min="5" max="120" value="32" style="width:80px">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mode:</span>
+    <select class="opt-select" id="opt-object-mode">
+      <option value="new">New</option>
+      <option value="add">Add</option>
+      <option value="subtract">Subtract</option>
+    </select>
+  </div>
+
+  <!-- Perspective Crop (Phase 4) -->
+  <div class="tool-opt-section" id="opt-perspectivecrop">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">📐 Perspective Crop:</span>
+    <span class="opt-label">Drag 4 corner handles to un-skew</span>
+    <div class="opt-sep"></div>
+    <button class="panel-btn" onclick="app.tools.tools['perspectivecrop']?.commitPerspectiveCrop()" style="background:var(--accent);color:#fff">Commit (Enter)</button>
+    <button class="panel-btn" onclick="app.tools.tools['perspectivecrop']?.cancel()">Cancel (Esc)</button>
+  </div>
+
+  <!-- Slices (Phase 4) -->
+  <div class="tool-opt-section" id="opt-slice">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🔪 Web Slices:</span>
+    <span class="opt-label">Drag to create slice zones</span>
+    <div class="opt-sep"></div>
+    <button class="panel-btn" onclick="app.exportSlices()" style="background:var(--accent);color:#fff">Export Slices</button>
+    <button class="panel-btn danger" onclick="app.tools.tools['sliceselect']?.deleteSelectedSlice()">Delete Slice</button>
+  </div>
+
+  <!-- Frame Tool (Phase 4) -->
+  <div class="tool-opt-section" id="opt-frame">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🖼️ Frame Tool:</span>
+    <span class="opt-label">Drag to draw image placeholder frame</span>
+  </div>
+
+  <!-- Pattern Stamp (Phase 4) -->
+  <div class="tool-opt-section" id="opt-patternstamp">
+    <span class="opt-label">Pattern:</span>
+    <select class="opt-select" id="opt-pattern-type">
+      <option value="checker">Checkerboard</option>
+      <option value="stripes">Diagonal Stripes</option>
+      <option value="dots">Polka Dots</option>
+      <option value="noise">Noise Texture</option>
+    </select>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-pattern-size" min="4" max="150" value="24" style="width:80px">
+  </div>
+
+  <!-- Pencil (Phase 4) -->
+  <div class="tool-opt-section" id="opt-pencil">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">✏️ 1-Bit Pencil:</span>
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-pencil-size" min="1" max="50" value="1" style="width:80px">
+  </div>
+
+  <!-- Mixer Brush (Phase 4) -->
+  <div class="tool-opt-section" id="opt-mixerbrush">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🖌️ Mixer Brush:</span>
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-mixer-size" min="2" max="150" value="20" style="width:60px">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Wet:</span>
+    <input type="range" id="opt-mixer-wet" min="0" max="100" value="50" style="width:60px">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Mix:</span>
+    <input type="range" id="opt-mixer-mix" min="0" max="100" value="50" style="width:60px">
+  </div>
+
+  <!-- History Brush (Phase 4) -->
+  <div class="tool-opt-section" id="opt-historybrush">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">⏳ History Brush:</span>
+    <span class="opt-label">Restores pixels from initial state</span>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-history-size" min="2" max="150" value="22" style="width:70px">
+  </div>
+
+  <!-- Sponge Tool (Phase 4) -->
+  <div class="tool-opt-section" id="opt-sponge">
+    <span class="opt-label">Mode:</span>
+    <select class="opt-select" id="opt-sponge-mode">
+      <option value="saturate">Saturate</option>
+      <option value="desaturate">Desaturate</option>
+    </select>
+    <div class="opt-sep"></div>
+    <span class="opt-label">Flow:</span>
+    <input type="range" id="opt-sponge-flow" min="1" max="100" value="50" style="width:70px">
+    <div class="opt-sep"></div>
+    <span class="opt-label">Size:</span>
+    <input type="range" id="opt-sponge-size" min="2" max="150" value="24" style="width:70px">
+  </div>
+
+  <!-- Pen Tool (Phase 4) -->
+  <div class="tool-opt-section" id="opt-pen">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">✒️ Vector Pen:</span>
+    <button class="panel-btn" onclick="app.tools.tools['pen']?.makeSelection()" style="background:var(--accent);color:#fff">Selection</button>
+    <button class="panel-btn" onclick="app.tools.tools['pen']?.fillPath()">Fill</button>
+    <button class="panel-btn" onclick="app.tools.tools['pen']?.strokePath()">Stroke</button>
+    <button class="panel-btn danger" onclick="app.tools.tools['pen']?.clearPath()">Clear</button>
+  </div>
+
+  <!-- Color Sampler (Phase 4) -->
+  <div class="tool-opt-section" id="opt-colorsampler">
+    <div id="sampler-readouts" style="display:flex;align-items:center;gap:6px">
+      <span class="opt-label">Click canvas to drop up to 4 sampler points</span>
+    </div>
+    <button class="panel-btn danger" onclick="app.tools.tools['colorsampler']?.clearSamplers()">Clear Samplers</button>
+  </div>
+
+  <!-- Count Tool (Phase 4) -->
+  <div class="tool-opt-section" id="opt-count">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🔢 Count Tool:</span>
+    <span class="opt-label">Total Badges: <strong id="count-display-val" style="color:#fff">0</strong></span>
+    <div class="opt-sep"></div>
+    <button class="panel-btn danger" onclick="app.tools.tools['count']?.clearCount()">Clear Count</button>
+  </div>
+
+  <!-- Scrubby Zoom Tool (Phase 4) -->
+  <div class="tool-opt-section" id="opt-zoom">
+    <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🔍 Zoom:</span>
+    <button class="panel-btn" onclick="app.zoom = app.zoom * 1.25; app._centreCanvas(); app._updateZoomLabel();">Zoom In (+)</button>
+    <button class="panel-btn" onclick="app.zoom = app.zoom * 0.8; app._centreCanvas(); app._updateZoomLabel();">Zoom Out (-)</button>
+    <button class="panel-btn" onclick="app.fitToScreen()">Fit Screen</button>
+    <button class="panel-btn" onclick="app.zoom = 1; app._centreCanvas(); app._updateZoomLabel();">100%</button>
+    <div class="opt-sep"></div>
+    <span class="opt-label" style="color:var(--text-dim)">💡 Drag left/right to scrub zoom</span>
+  </div>
+</div>
+
+<!-- MAIN AREA -->
+<div id="main-area">
+
+  <!-- LEFT TOOLBOX (Photoshop CS6/CC Style with Complete 9 Tool Suites) -->
+  <div id="toolbox">
+    <!-- Move Group (V) -->
+    <div class="tool-group has-flyout" id="tg-move">
+      <button class="tool-btn active" data-tool="move" title="Move Tool (V)">✥</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('move')">✥ Move Tool <span class="menu-shortcut">V</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('hand')">✋ Artboard / Hand <span class="menu-shortcut">H</span></div>
+      </div>
+    </div>
+
+    <!-- Marquee Group (M) -->
+    <div class="tool-group has-flyout" id="tg-marquee">
+      <button class="tool-btn" data-tool="marquee" title="Marquee Tools (M)">▭</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('marquee')">▭ Rectangular Marquee <span class="menu-shortcut">M</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('ellipticalmarquee')">⬭ Elliptical Marquee <span class="menu-shortcut">M</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('singlerowmarquee')">⎯ Single Row Marquee</div>
+        <div class="flyout-item" onclick="app.tools.setActive('singlecolmarquee')">⎸ Single Column Marquee</div>
+      </div>
+    </div>
+
+    <!-- Lasso Group (L) -->
+    <div class="tool-group has-flyout" id="tg-lasso">
+      <button class="tool-btn" data-tool="lasso" title="Lasso Tools (L)">➰</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('lasso')">➰ Freehand Lasso <span class="menu-shortcut">L</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('polylasso')">📐 Polygonal Lasso <span class="menu-shortcut">L</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('magneticlasso')">🧲 Magnetic Lasso <span class="menu-shortcut">L</span></div>
+      </div>
+    </div>
+
+    <!-- Wand & Object Selection (W) -->
+    <div class="tool-group has-flyout" id="tg-wand">
+      <button class="tool-btn" data-tool="magicwand" title="Wand & Object Tools (W)">🪄</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('magicwand')">🪄 Magic Wand Tool <span class="menu-shortcut">W</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('quickselection')">🖌️ Quick Selection Tool <span class="menu-shortcut">W</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('objectselection')">📦 Object Selection Tool <span class="menu-shortcut">W</span></div>
+      </div>
+    </div>
+
+    <!-- Crop & Slices (C) -->
+    <div class="tool-group has-flyout" id="tg-crop">
+      <button class="tool-btn" data-tool="crop" title="Crop & Slice Tools (C)">✂️</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('crop')">✂️ Crop Tool <span class="menu-shortcut">C</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('perspectivecrop')">📐 Perspective Crop <span class="menu-shortcut">C</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('slice')">🔪 Slice Tool <span class="menu-shortcut">C</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('sliceselect')">↖ Slice Select Tool</div>
+      </div>
+    </div>
+
+    <!-- Frame Tool (K) -->
+    <div class="tool-group has-flyout" id="tg-frame">
+      <button class="tool-btn" data-tool="frame_rect" title="Frame Tools (K)">🖼️</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('frame_rect')">▭ Rectangular Frame <span class="menu-shortcut">K</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('frame_ellipse')">⬭ Elliptical Frame <span class="menu-shortcut">K</span></div>
+      </div>
+    </div>
+
+    <!-- Eyedropper & Measurements (I) -->
+    <div class="tool-group has-flyout" id="tg-eyedropper">
+      <button class="tool-btn" data-tool="eyedropper" title="Eyedropper & Measurements (I)">🔬</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('eyedropper')">🔬 Eyedropper Tool <span class="menu-shortcut">I</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('colorsampler')">🎯 Color Sampler Tool <span class="menu-shortcut">I</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('ruler')">📏 Ruler Tool <span class="menu-shortcut">I</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('count')">🔢 Count Tool <span class="menu-shortcut">I</span></div>
+      </div>
+    </div>
+
+    <!-- Retouching & Healing (J) -->
+    <div class="tool-group has-flyout" id="tg-healing">
+      <button class="tool-btn" data-tool="spothealing" title="Healing Tools (J)">🩹</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('spothealing')">🩹 Spot Healing Brush <span class="menu-shortcut">J</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('healingbrush')">🩹 Healing Brush Tool <span class="menu-shortcut">J</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('patch')">🩹 Patch Tool <span class="menu-shortcut">J</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('contentawaremove')">✥ Content-Aware Move <span class="menu-shortcut">J</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('redeye')">👁️ Red Eye Tool <span class="menu-shortcut">J</span></div>
+      </div>
+    </div>
+
+    <!-- Brush & Painting (B) -->
+    <div class="tool-group has-flyout" id="tg-brush">
+      <button class="tool-btn" data-tool="brush" title="Brush Tools (B)">🖌️</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('brush')">🖌️ Brush Tool <span class="menu-shortcut">B</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('pencil')">✏️ Pencil Tool <span class="menu-shortcut">B</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('colorreplace')">🎨 Color Replacement <span class="menu-shortcut">B</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('mixerbrush')">🖌️ Mixer Brush <span class="menu-shortcut">B</span></div>
+      </div>
+    </div>
+
+    <!-- Stamp Tools (S) -->
+    <div class="tool-group has-flyout" id="tg-stamp">
+      <button class="tool-btn" data-tool="clonestamp" title="Clone Stamp (S)">🔁</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('clonestamp')">🔁 Clone Stamp Tool <span class="menu-shortcut">S</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('patternstamp')">🔁 Pattern Stamp Tool <span class="menu-shortcut">S</span></div>
+      </div>
+    </div>
+
+    <!-- History Brush (Y) -->
+    <div class="tool-group has-flyout" id="tg-historybrush">
+      <button class="tool-btn" data-tool="historybrush" title="History Brush (Y)">⏳</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('historybrush')">⏳ History Brush <span class="menu-shortcut">Y</span></div>
+      </div>
+    </div>
+
+    <!-- Eraser Tools (E) -->
+    <div class="tool-group has-flyout" id="tg-eraser">
+      <button class="tool-btn" data-tool="eraser" title="Eraser Tools (E)">🧹</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('eraser')">🧹 Eraser Tool <span class="menu-shortcut">E</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('magiceraser')">✨ Magic Color Eraser <span class="menu-shortcut">E</span></div>
+      </div>
+    </div>
+
+    <!-- Gradient & Bucket (G) -->
+    <div class="tool-group has-flyout" id="tg-gradient">
+      <button class="tool-btn" data-tool="gradient" title="Gradient & Fill (G)">🌈</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('gradient')">🌈 Gradient Tool <span class="menu-shortcut">G</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('fill')">🪣 Paint Bucket Tool <span class="menu-shortcut">F</span></div>
+      </div>
+    </div>
+
+    <!-- Blur, Sharpen & Smudge (R) -->
+    <div class="tool-group has-flyout" id="tg-smudge">
+      <button class="tool-btn" data-tool="smudge" title="Smudge & Focus (R)">👆</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('smudge')">👆 Smudge Tool <span class="menu-shortcut">R</span></div>
+      </div>
+    </div>
+
+    <!-- Dodge, Burn & Sponge (O) -->
+    <div class="tool-group has-flyout" id="tg-toning">
+      <button class="tool-btn" data-tool="dodge" title="Toning Tools (O)">🔦</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('dodge')">🔦 Dodge Tool (Lighten) <span class="menu-shortcut">O</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('burn')">🔥 Burn Tool (Darken) <span class="menu-shortcut">O</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('sponge')">🧽 Sponge Tool <span class="menu-shortcut">O</span></div>
+      </div>
+    </div>
+
+    <!-- Vector Pen (P) -->
+    <div class="tool-group has-flyout" id="tg-pen">
+      <button class="tool-btn" data-tool="pen" title="Pen Tool (P)">✒️</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('pen')">✒️ Vector Pen Tool <span class="menu-shortcut">P</span></div>
+      </div>
+    </div>
+
+    <!-- Path Selection (A) -->
+    <div class="tool-group has-flyout" id="tg-pathselect">
+      <button class="tool-btn" data-tool="pathselect" title="Path Selection (A)">▲</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('pathselect')">▲ Path Selection <span class="menu-shortcut">A</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('directselect')">△ Direct Selection <span class="menu-shortcut">A</span></div>
+      </div>
+    </div>
+
+    <!-- Vector Shapes (U) -->
+    <div class="tool-group has-flyout" id="tg-shapes">
+      <button class="tool-btn" data-tool="shape_rect" title="Shape Tools (U)">⬟</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('shape_rect')">▭ Rectangle Shape <span class="menu-shortcut">U</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('shape_ellipse')">⬭ Ellipse Shape <span class="menu-shortcut">U</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('shape_line')">╱ Line Shape <span class="menu-shortcut">U</span></div>
+      </div>
+    </div>
+
+    <!-- Text (T) -->
+    <div class="tool-group has-flyout" id="tg-text">
+      <button class="tool-btn" data-tool="text" title="Text Tools (T)">T</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('text')">T Horizontal Type <span class="menu-shortcut">T</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('verticaltext')">↓T Vertical Type <span class="menu-shortcut">T</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('textmask')">T Horizontal Type Mask</div>
+        <div class="flyout-item" onclick="app.tools.setActive('verticaltextmask')">↓T Vertical Type Mask</div>
+      </div>
+    </div>
+
+    <!-- Free Transform -->
+    <div class="tool-group has-flyout" id="tg-transform">
+      <button class="tool-btn" data-tool="freetransform" title="Free Transform (Ctrl+T)">⬡</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('freetransform')">⬡ Free Transform <span class="menu-shortcut">Ctrl+T</span></div>
+      </div>
+    </div>
+
+    <!-- Navigation: Hand & Rotate View & Zoom -->
+    <div class="tool-group has-flyout" id="tg-nav">
+      <button class="tool-btn" data-tool="rotateview" title="Navigation View">🔄</button>
+      <div class="tool-flyout">
+        <div class="flyout-item active" onclick="app.tools.setActive('rotateview')">🔄 Rotate View <span class="menu-shortcut">R</span></div>
+        <div class="flyout-item" onclick="app.tools.setActive('scrubbyzoom')">🔍 Scrubby Zoom <span class="menu-shortcut">Z</span></div>
+      </div>
+    </div>
+
+    <div class="tool-separator" style="width: 80%; height: 1px; background: var(--border-light); margin: 4px 0;"></div>
+
+    <!-- FG / BG Color Palettes -->
+    <div class="color-display" id="fg-bg-display">
+      <div class="color-bg-swatch" id="bg-color-display" title="Background Color"></div>
+      <div class="color-fg" id="fg-color-display" style="background:#000" title="Foreground Color"></div>
+      <div class="color-reset-btn" id="reset-colors-btn" title="Reset Colors (D)">D</div>
+      <div class="color-swap-btn" id="swap-colors-btn" title="Swap Colors (X)">⇄</div>
+      <input type="color" id="fg-color-picker" value="#000000" style="position:fixed;top:-999px;left:-999px;opacity:0;width:1px;height:1px;">
+      <input type="color" id="bg-color-picker" value="#ffffff" style="position:fixed;top:-999px;left:-999px;opacity:0;width:1px;height:1px;">
+    </div>
+  </div>
+
+  <!-- CANVAS VIEWPORT -->
+  <div id="canvas-viewport">
+    <div id="canvas-transform-wrapper">
+      <div id="checkerboard"></div>
+      <canvas id="master-canvas"></canvas>
+      <canvas id="selection-canvas"></canvas>
+    </div>
+    <textarea id="text-input-overlay" rows="1" placeholder="Type here…"></textarea>
+  </div>
+
+  <!-- RIGHT PANELS -->
+  <div id="right-panels">
+
+    <!-- Layers Panel -->
+    <div class="panel" id="layers-panel">
+      <div class="panel-header" id="layers-panel-header">
+        <span class="panel-title">LAYERS</span>
+        <span class="panel-toggle">▼</span>
+      </div>
+      <div class="panel-body" id="layers-panel-body">
+        <div class="layer-panel-toolbar">
+          <button class="panel-btn" id="layer-add-btn" title="New Layer">+ New</button>
+          <button class="panel-btn" id="layer-dupe-btn" title="Duplicate">⊞ Dupe</button>
+          <button class="panel-btn danger" id="layer-del-btn" title="Delete Layer">🗑</button>
+        </div>
+        <!-- Mask Toolbar -->
+        <div class="layer-panel-toolbar mask-toolbar">
+          <button class="panel-btn" id="mask-add-btn" title="Add Layer Mask">+ Mask</button>
+          <button class="panel-btn" id="mask-toggle-btn" title="Enable/Disable Mask">Disable</button>
+          <button class="panel-btn" id="mask-apply-btn" title="Apply Mask">Apply</button>
+          <button class="panel-btn danger" id="mask-del-btn" title="Delete Mask">Del Mask</button>
+        </div>
+        <div class="layer-controls-row">
+          <span class="opt-label" style="flex-shrink:0">Blend:</span>
+          <select class="opt-select" id="layer-blend-mode" style="flex:1">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="screen">Screen</option>
+            <option value="overlay">Overlay</option>
+            <option value="darken">Darken</option>
+            <option value="lighten">Lighten</option>
+            <option value="color-dodge">Color Dodge</option>
+            <option value="color-burn">Color Burn</option>
+            <option value="hard-light">Hard Light</option>
+            <option value="soft-light">Soft Light</option>
+            <option value="difference">Difference</option>
+            <option value="exclusion">Exclusion</option>
+            <option value="hue">Hue</option>
+            <option value="saturation">Saturation</option>
+            <option value="color">Color</option>
+            <option value="luminosity">Luminosity</option>
+          </select>
+        </div>
+        <div class="layer-controls-row">
+          <span class="opt-label" style="flex-shrink:0">Opacity:</span>
+          <input type="range" id="layer-opacity" min="0" max="100" value="100" style="flex:1">
+          <span id="layer-opacity-val" style="font-size:11px;width:32px;text-align:right;flex-shrink:0">100%</span>
+        </div>
+        <ul id="layers-list"></ul>
+      </div>
+    </div>
+
+    <!-- History Panel -->
+    <div class="panel" id="history-panel">
+      <div class="panel-header" id="history-panel-header">
+        <span class="panel-title">HISTORY</span>
+        <span class="panel-toggle">▼</span>
+      </div>
+      <div class="panel-body">
+        <ul id="history-list"></ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <span class="status-item" id="zoom-display" title="Click to fit screen">100%</span>
+  <span class="status-sep">|</span>
+  <span class="status-item" id="cursor-pos">X: 0  Y: 0</span>
+  <span class="status-sep">|</span>
+  <span class="status-item" id="canvas-size-display">800 × 600</span>
+  <span class="status-sep">|</span>
+  <span class="status-item" id="active-layer-display">Layer 1</span>
+  <span style="margin-left:auto" class="status-item" id="active-tool-display">🖌️ Brush</span>
+</div>
+
+<!-- =================== MODALS =================== -->
+
+<!-- New Canvas -->
+<div class="modal-overlay" id="modal-new">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Canvas</span>
+      <button class="modal-close" data-close-modal="modal-new">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-label">Width (px):</span>
+        <input type="number" class="modal-input" id="new-canvas-width" value="800" min="1" max="8000">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Height (px):</span>
+        <input type="number" class="modal-input" id="new-canvas-height" value="600" min="1" max="8000">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Background:</span>
+        <select class="modal-input" id="new-canvas-bg">
+          <option value="transparent">Transparent</option>
+          <option value="white">White</option>
+          <option value="black">Black</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-new">Cancel</button>
+      <button class="btn btn-primary" id="new-canvas-confirm">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Brightness/Contrast -->
+<div class="modal-overlay" id="modal-adjustments">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Brightness / Contrast</span>
+      <button class="modal-close" data-close-modal="modal-adjustments">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Brightness</span><span id="adj-brightness-val">0</span></div>
+        <input type="range" class="adj-slider" id="adj-brightness" min="-150" max="150" value="0">
+      </div>
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Contrast</span><span id="adj-contrast-val">0</span></div>
+        <input type="range" class="adj-slider" id="adj-contrast" min="-150" max="150" value="0">
+      </div>
+      <p class="adj-note">Applies to active layer only</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-adjustments">Cancel</button>
+      <button class="btn btn-primary" id="adj-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hue / Saturation / Lightness Modal -->
+<div class="modal-overlay" id="modal-hsl">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Hue / Saturation / Lightness</span>
+      <button class="modal-close" data-close-modal="modal-hsl">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Hue Shift (°):</span><span id="hsl-hue-val">0</span></div>
+        <input type="range" class="adj-slider" id="hsl-hue" min="-180" max="180" value="0">
+      </div>
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Saturation (%):</span><span id="hsl-sat-val">0</span></div>
+        <input type="range" class="adj-slider" id="hsl-sat" min="-100" max="100" value="0">
+      </div>
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Lightness (%):</span><span id="hsl-lgt-val">0</span></div>
+        <input type="range" class="adj-slider" id="hsl-lgt" min="-100" max="100" value="0">
+      </div>
+      <p class="adj-note">Applies to active layer only</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-hsl">Cancel</button>
+      <button class="btn btn-primary" id="hsl-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Color to Alpha Modal (Phase 3) -->
+<div class="modal-overlay" id="modal-color-to-alpha">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Color to Alpha (Color Remover)</span>
+      <button class="modal-close" data-close-modal="modal-color-to-alpha">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-label">Color to Remove:</span>
+        <div class="color-swatch" id="c2a-color-swatch" style="background:#ffffff" title="Pick color to remove"></div>
+        <input type="color" id="c2a-color" value="#ffffff" style="opacity:0;position:absolute;pointer-events:none;">
+      </div>
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Tolerance (Threshold):</span><span id="c2a-tolerance-val">30</span></div>
+        <input type="range" class="adj-slider" id="c2a-tolerance" min="0" max="255" value="30">
+      </div>
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Edge Feathering (Softness):</span><span id="c2a-feather-val">5</span></div>
+        <input type="range" class="adj-slider" id="c2a-feather" min="0" max="50" value="5">
+      </div>
+      <p class="adj-note">Shifts pixels matching color to transparent</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-color-to-alpha">Cancel</button>
+      <button class="btn btn-primary" id="c2a-apply">Remove Color</button>
+    </div>
+  </div>
+</div>
+
+<!-- Replace Color Modal (Phase 3) -->
+<div class="modal-overlay" id="modal-replace-color">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Replace Color</span>
+      <button class="modal-close" data-close-modal="modal-replace-color">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-label">Source Color:</span>
+        <div class="color-swatch" id="replace-src-swatch" style="background:#ffffff" title="Color to replace"></div>
+        <input type="color" id="replace-src-color" value="#ffffff" style="opacity:0;position:absolute;pointer-events:none;">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Target Color:</span>
+        <div class="color-swatch" id="replace-dst-swatch" style="background:#0078d4" title="Replacement color"></div>
+        <input type="color" id="replace-dst-color" value="#0078d4" style="opacity:0;position:absolute;pointer-events:none;">
+      </div>
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Fuzziness:</span><span id="replace-fuzziness-val">40</span></div>
+        <input type="range" class="adj-slider" id="replace-fuzziness" min="1" max="200" value="40">
+      </div>
+      <p class="adj-note">Shifts matching color hue &amp; saturation, preserving shadows &amp; highlights</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-replace-color">Cancel</button>
+      <button class="btn btn-primary" id="replace-color-apply">Replace Color</button>
+    </div>
+  </div>
+</div>
+
+<!-- Color Range Selection Modal (Phase 3) -->
+<div class="modal-overlay" id="modal-color-range">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Color Range Selection</span>
+      <button class="modal-close" data-close-modal="modal-color-range">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-label">Sample Color:</span>
+        <div class="color-swatch" id="color-range-swatch" style="background:#000000" title="Select matching color"></div>
+        <input type="color" id="color-range-color" value="#000000" style="opacity:0;position:absolute;pointer-events:none;">
+      </div>
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Fuzziness (Range):</span><span id="color-range-fuzziness-val">40</span></div>
+        <input type="range" class="adj-slider" id="color-range-fuzziness" min="1" max="200" value="40">
+      </div>
+      <div class="modal-row">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-primary)">
+          <input type="checkbox" id="color-range-invert"> Invert Selection
+        </label>
+      </div>
+      <p class="adj-note">Selects all matching pixels across the layer with marching ants</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-color-range">Cancel</button>
+      <button class="btn btn-primary" id="color-range-apply">Select</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sharpen Modal -->
+<div class="modal-overlay" id="modal-sharpen">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Sharpen Filter</span>
+      <button class="modal-close" data-close-modal="modal-sharpen">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Strength (%):</span><span id="sharpen-strength-val">100</span></div>
+        <input type="range" class="adj-slider" id="sharpen-strength" min="1" max="100" value="100">
+      </div>
+      <p class="adj-note">3×3 Laplacian convolution kernel</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-sharpen">Cancel</button>
+      <button class="btn btn-primary" id="sharpen-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Emboss Modal -->
+<div class="modal-overlay" id="modal-emboss">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Emboss Filter</span>
+      <button class="modal-close" data-close-modal="modal-emboss">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Strength (%):</span><span id="emboss-strength-val">100</span></div>
+        <input type="range" class="adj-slider" id="emboss-strength" min="1" max="100" value="100">
+      </div>
+      <p class="adj-note">45° directional 3×3 relief kernel with mid-gray bias</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-emboss">Cancel</button>
+      <button class="btn btn-primary" id="emboss-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Blur -->
+<div class="modal-overlay" id="modal-blur">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Gaussian Blur</span>
+      <button class="modal-close" data-close-modal="modal-blur">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="adj-row">
+        <div class="adj-row-header"><span>Radius (px)</span><span id="blur-radius-val">3</span></div>
+        <input type="range" class="adj-slider" id="blur-radius" min="1" max="30" value="3">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-blur">Cancel</button>
+      <button class="btn btn-primary" id="blur-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Canvas Resize -->
+<div class="modal-overlay" id="modal-resize">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Canvas Size</span>
+      <button class="modal-close" data-close-modal="modal-resize">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-label">Width (px):</span>
+        <input type="number" class="modal-input" id="resize-width" value="800" min="1" max="8000">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Height (px):</span>
+        <input type="number" class="modal-input" id="resize-height" value="600" min="1" max="8000">
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Anchor:</span>
+        <select class="modal-input" id="resize-anchor">
+          <option value="top-left">Top Left</option>
+          <option value="center">Center</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="modal-resize">Cancel</button>
+      <button class="btn btn-primary" id="resize-confirm">Resize</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drop Overlay -->
+<div id="drop-overlay">📂 Drop image here</div>
+
+<!-- Context Menu -->
+<div id="context-menu">
+  <div class="ctx-item" data-ctx="layer-new">New Layer</div>
+  <div class="ctx-item" data-ctx="layer-duplicate">Duplicate Layer</div>
+  <div class="ctx-item" data-ctx="layer-delete">Delete Layer</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-ctx="layer-mask-add">Add Layer Mask</div>
+  <div class="ctx-item" data-ctx="layer-mask-toggle">Toggle Mask</div>
+  <div class="ctx-item" data-ctx="layer-mask-apply">Apply Mask</div>
+  <div class="ctx-item" data-ctx="layer-mask-delete">Delete Mask</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-ctx="image-remove-bg">Remove Background</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-ctx="edit-free-transform">Free Transform (Ctrl+T)</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-ctx="layer-merge-down">Merge Down</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-ctx="select-all">Select All</div>
+  <div class="ctx-item" data-ctx="select-deselect">Deselect</div>
+  <div class="ctx-item" data-ctx="select-invert">Invert Selection</div>
+</div>
+
+<!-- Hidden File Input -->
+<input type="file" id="file-input" accept="image/*" style="display:none">
+
+<!-- SCRIPTS — load order matters (utils → managers → tools → app) -->
+<script src="js/utils.js"></script>
+<script src="js/history.js"></script>
+<script src="js/layers.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/adjustments.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
