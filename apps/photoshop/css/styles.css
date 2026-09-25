@@ -223,6 +223,35 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
 }
 
+/* Top-right brand container */
+.menu-brand-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+  user-select: none;
+}
+
+/* Logo image styling */
+.menu-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Update app-title to remove the old margin-left */
+#app-title {
+  margin-left: 0;
+  padding-right: 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-style: italic;
+  pointer-events: none;
+}
+
 /* =====================================================
    MAIN AREA
    ===================================================== */
