@@ -274,8 +274,9 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   padding: 6px 0;
   gap: 2px;
   flex-shrink: 0;
-  overflow-y: auto;
-  z-index: 100;
+  /* CRITICAL FIX: Changed from 'overflow-y: auto' to 'visible' so flyouts can break out of the box */
+  overflow: visible; 
+  z-index: 9999;
   user-select: none;
 }
 
@@ -879,3 +880,59 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 }
 .panel-tab.active { background: var(--bg-dark); color: #fff; font-weight: 600; }
 .panel-tab-content { flex: 1; overflow-y: auto; padding: 6px; }
+
+/* =====================================================
+   MOBILE OPTIMIZATION
+   ===================================================== */
+@media (max-width: 768px) {
+  /* Compact the toolbox height and width to fit 55 tools on a phone screen */
+  :root {
+    --toolbox-width: 42px;
+  }
+  
+  #toolbox {
+    padding: 2px 0;
+    gap: 0;
+  }
+
+  .tool-group {
+    width: 32px;
+    height: 32px;
+  }
+
+  .tool-btn {
+    font-size: 15px;
+  }
+
+  /* Hide the heavy right panels to give the canvas full screen width */
+  #right-panels {
+    display: none !important;
+  }
+
+  /* Enable smooth horizontal swiping for the tool options bar */
+  #tool-options-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
+  /* Compact the top menu bar */
+  .menu-item {
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  /* Enable horizontal swiping for the bottom status bar */
+  #status-bar {
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent flyouts from extending off the top or bottom of the screen */
+  .tool-flyout {
+    min-width: 150px;
+    top: -10px; 
+  }
+}
