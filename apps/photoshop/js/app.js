@@ -137,13 +137,11 @@ class AkshPhotoshop {
   get hasSelection(){ return !!this.selectionMask; }
 
   // ════════════════════════════════════════════════════════════════════
-  // INITIALIZATION
+  // INITIALIZATION & THEME
   // ════════════════════════════════════════════════════════════════════
 
   _init() {
-    if (localStorage.getItem('theme') === 'dark') {
-      document.body.classList.add('dark-theme');
-    }
+    this._setupThemeSync();
     this._setupCanvasDOM();
     this._createInitialLayer();
     this._bindViewportEvents();
@@ -156,6 +154,43 @@ class AkshPhotoshop {
     this.history.snapshot('Initial State');
     this.fitToScreen();
     this._updateStatusBar();
+  }
+
+  _setupThemeSync() {
+    const applyTheme = (theme) => {
+      const themeBtn = $('theme-toggle');
+      if (theme === 'light') {
+        document.body.classList.add('light-theme');
+        if (themeBtn) themeBtn.innerText = '🌙';
+      } else {
+        document.body.classList.remove('light-theme');
+        if (themeBtn) themeBtn.innerText = '☀️';
+      }
+    };
+
+    const getStoredTheme = () => {
+      return localStorage.getItem('theme') || localStorage.getItem('aksh-theme') || 'dark';
+    };
+
+    // Apply initially
+    applyTheme(getStoredTheme());
+
+    // Bind Toggle Button
+    const themeBtn = $('theme-toggle');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        const isLight = document.body.classList.contains('light-theme');
+        const newTheme = isLight ? 'dark' : 'light';
+        applyTheme(newTheme);
+        localStorage.setItem('aksh-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+      });
+    }
+
+    // Auto-update if changed from the dashboard in another tab
+    window.addEventListener('storage', () => {
+      applyTheme(getStoredTheme());
+    });
   }
 
   _setupCanvasDOM() {
@@ -191,7 +226,6 @@ class AkshPhotoshop {
     const w = this.canvasWidth;
     const h = this.canvasHeight;
 
-    // Detect perimeter boundary pixels for fast marching ants rendering
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
@@ -260,7 +294,6 @@ class AkshPhotoshop {
       m.clearSelection();
       this.setSelectionMask(mask);
     } else {
-      // Invert when nothing is selected selects all
       const mask = new Uint8Array(total);
       mask.fill(1);
       this.setSelectionMask(mask);
@@ -299,7 +332,7 @@ class AkshPhotoshop {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // VIEWPORT EVENTS
+  // VIEWPORT EVENTS & CAMERA LIMITS
   // ════════════════════════════════════════════════════════════════════
 
   _bindViewportEvents() {
@@ -314,7 +347,7 @@ class AkshPhotoshop {
 
     vp.addEventListener('touchstart', e => { e.preventDefault(); this._onMouseDown(this._touchAsMouseEvent(e)); }, { passive: false });
     vp.addEventListener('touchmove',  e => { e.preventDefault(); this._onMouseMove(this._touchAsMouseEvent(e)); }, { passive: false });
-    vp.addEventListener('touchend',   e => { e.preventDefault(); this._onMouseUp({}); },                           { passive: false });
+    vp.addEventListener('touchend',   e => { e.preventDefault(); this._onMouseUp({}); }, { passive: false });
 
     document.addEventListener('click', e => {
       if (!e.target.closest('.menu-item')) {
@@ -323,13 +356,10 @@ class AkshPhotoshop {
       if (!e.target.closest('#context-menu')) {
         $('context-menu').classList.remove('open');
       }
-      // Close flyouts on any canvas or workspace click
       document.querySelectorAll('.tool-group').forEach(g => g.classList.remove('flyout-open'));
     });
 
-    // --- Flyout Palette Listener (Right-click or Long-Press) ---
     document.querySelectorAll('.tool-group.has-flyout').forEach(group => {
-      // Right-click opens tool flyout
       group.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -337,7 +367,6 @@ class AkshPhotoshop {
         group.classList.add('flyout-open');
       });
 
-      // Long-press detection for touch & left click hold
       let pressTimer = null;
       group.addEventListener('mousedown', (e) => {
         if (e.button === 0) {
@@ -395,6 +424,12 @@ class AkshPhotoshop {
     if (this.isPanning) {
       this.panX = this.panStartTX + (e.clientX - this.panStartX);
       this.panY = this.panStartTY + (e.clientY - this.panStartY);
+      
+      // FIXED: Prevent infinite panning so canvas never gets lost
+      const panLimit = 4000;
+      this.panX = Math.max(-panLimit, Math.min(this.panX, panLimit));
+      this.panY = Math.max(-panLimit, Math.min(this.panY, panLimit));
+
       this._applyTransform();
       return;
     }
@@ -421,8 +456,12 @@ class AkshPhotoshop {
       const mx    = e.clientX - rect.left;
       const my    = e.clientY - rect.top;
       const oldZ  = this.zoom;
-      const delta = e.deltaY < 0 ? 1.12 : 0.9;
-      this.zoom   = clamp(this.zoom * delta, 0.04, 64);
+      
+      // Smoother zoom steps
+      const delta = e.deltaY < 0 ? 1.1 : 0.9;
+      
+      // FIXED: Clamp zoom strictly between 10% (0.1) and 1500% (15) to prevent extreme shrinking/growing
+      this.zoom = Math.max(0.1, Math.min(this.zoom * delta, 15));
 
       this.panX = mx - (mx - this.panX) * (this.zoom / oldZ);
       this.panY = my - (my - this.panY) * (this.zoom / oldZ);
@@ -430,6 +469,11 @@ class AkshPhotoshop {
       this.panX -= e.deltaX;
       this.panY -= e.deltaY;
     }
+
+    // FIXED: Prevent infinite panning so canvas never gets lost
+    const panLimit = 4000;
+    this.panX = Math.max(-panLimit, Math.min(this.panX, panLimit));
+    this.panY = Math.max(-panLimit, Math.min(this.panY, panLimit));
 
     this._applyTransform();
     this._updateZoomLabel();
@@ -448,7 +492,7 @@ class AkshPhotoshop {
     const vp = this.viewport.getBoundingClientRect();
     const sx  = (vp.width  - 40) / this.canvasWidth;
     const sy  = (vp.height - 40) / this.canvasHeight;
-    this.zoom = clamp(Math.min(sx, sy), 0.04, 4);
+    this.zoom = Math.max(0.1, Math.min(sx, sy, 15)); // Clamped correctly
     this.panX = (vp.width  - this.canvasWidth  * this.zoom) / 2;
     this.panY = (vp.height - this.canvasHeight * this.zoom) / 2;
     this._applyTransform();
@@ -745,10 +789,10 @@ class AkshPhotoshop {
 
       // ── View ──
       case 'view-zoom-in':
-        this.zoom = clamp(this.zoom * 1.25, 0.04, 64);
+        this.zoom = Math.max(0.1, Math.min(this.zoom * 1.1, 15));
         this._centreCanvas(); this._updateZoomLabel(); break;
       case 'view-zoom-out':
-        this.zoom = clamp(this.zoom * 0.8, 0.04, 64);
+        this.zoom = Math.max(0.1, Math.min(this.zoom * 0.9, 15));
         this._centreCanvas(); this._updateZoomLabel(); break;
       case 'view-zoom-fit':  this.fitToScreen(); break;
       case 'view-zoom-100':
@@ -781,10 +825,8 @@ class AkshPhotoshop {
     });
 
     // Layer Mask buttons
-    $('mask-add-btn').addEventListener('click', () => this._dispatch('layer-mask-add'));
-    $('mask-del-btn').addEventListener('click', () => this._dispatch('layer-mask-delete'));
-    $('mask-toggle-btn').addEventListener('click', () => this._dispatch('layer-mask-toggle'));
-    $('mask-apply-btn').addEventListener('click', () => this._dispatch('layer-mask-apply'));
+    $('mask-add-btn').addEventListener('click', () => this._dispatch('layer-mask-add'));$('mask-del-btn').addEventListener('click', () => this._dispatch('layer-mask-delete'));
+    $('mask-toggle-btn').addEventListener('click', () => this._dispatch('layer-mask-toggle'));$('mask-apply-btn').addEventListener('click', () => this._dispatch('layer-mask-apply'));
 
     $('layer-blend-mode').addEventListener('change', e => {
       const l = this.layerManager.activeLayer;
@@ -826,9 +868,7 @@ class AkshPhotoshop {
     });
 
     // Brightness / Contrast
-    $('adj-brightness').addEventListener('input', e => { $('adj-brightness-val').textContent = e.target.value; });
-    $('adj-contrast').addEventListener('input',   e => { $('adj-contrast-val').textContent   = e.target.value; });
-    $('adj-apply').addEventListener('click', () => {
+    $('adj-brightness').addEventListener('input', e => { $('adj-brightness-val').textContent = e.target.value; });$('adj-contrast').addEventListener('input',   e => { $('adj-contrast-val').textContent   = e.target.value; });$('adj-apply').addEventListener('click', () => {
       this.history.snapshot('Brightness/Contrast');
       this.adjustments.adjustBrightnessContrast(
         parseInt($('adj-brightness').value, 10),
@@ -838,8 +878,7 @@ class AkshPhotoshop {
     });
 
     // Gaussian Blur
-    $('blur-radius').addEventListener('input', e => { $('blur-radius-val').textContent = e.target.value; });
-    $('blur-apply').addEventListener('click', () => {
+    $('blur-radius').addEventListener('input', e => { $('blur-radius-val').textContent = e.target.value; });$('blur-apply').addEventListener('click', () => {
       this.history.snapshot('Gaussian Blur');
       this.adjustments.gaussianBlur(parseInt($('blur-radius').value, 10));
       this._closeModal('modal-blur');
@@ -847,7 +886,7 @@ class AkshPhotoshop {
 
     // HSL
     ['hsl-hue', 'hsl-sat', 'hsl-lgt'].forEach(id => {
-      $(id).addEventListener('input', e => { $(`${id}-val`).textContent = e.target.value; });
+      $(id).addEventListener('input', e => {$(`${id}-val`).textContent = e.target.value; });
     });
     $('hsl-apply').addEventListener('click', () => {
       this.history.snapshot('Hue/Saturation/Lightness');
@@ -860,16 +899,14 @@ class AkshPhotoshop {
     });
 
     // Sharpen
-    $('sharpen-strength').addEventListener('input', e => { $('sharpen-strength-val').textContent = e.target.value; });
-    $('sharpen-apply').addEventListener('click', () => {
+    $('sharpen-strength').addEventListener('input', e => { $('sharpen-strength-val').textContent = e.target.value; });$('sharpen-apply').addEventListener('click', () => {
       this.history.snapshot('Sharpen');
       this.adjustments.sharpen(parseInt($('sharpen-strength').value, 10) / 100);
       this._closeModal('modal-sharpen');
     });
 
     // Emboss
-    $('emboss-strength').addEventListener('input', e => { $('emboss-strength-val').textContent = e.target.value; });
-    $('emboss-apply').addEventListener('click', () => {
+    $('emboss-strength').addEventListener('input', e => { $('emboss-strength-val').textContent = e.target.value; });$('emboss-apply').addEventListener('click', () => {
       this.history.snapshot('Emboss');
       this.adjustments.emboss(parseInt($('emboss-strength').value, 10) / 100);
       this._closeModal('modal-emboss');
@@ -889,11 +926,7 @@ class AkshPhotoshop {
     // ── PHASE 3 MODALS BINDING ──
 
     // Color to Alpha Modal
-    $('c2a-tolerance').addEventListener('input', e => { $('c2a-tolerance-val').textContent = e.target.value; });
-    $('c2a-feather').addEventListener('input',   e => { $('c2a-feather-val').textContent   = e.target.value; });
-    $('c2a-color-swatch').addEventListener('click', () => $('c2a-color').click());
-    $('c2a-color').addEventListener('input', e => { $('c2a-color-swatch').style.background = e.target.value; });
-    $('c2a-apply').addEventListener('click', () => {
+    $('c2a-tolerance').addEventListener('input', e => { $('c2a-tolerance-val').textContent = e.target.value; });$('c2a-feather').addEventListener('input',   e => { $('c2a-feather-val').textContent   = e.target.value; });$('c2a-color-swatch').addEventListener('click', () => $('c2a-color').click());$('c2a-color').addEventListener('input', e => { $('c2a-color-swatch').style.background = e.target.value; });$('c2a-apply').addEventListener('click', () => {
       this.history.snapshot('Color to Alpha');
       this.adjustments.colorToAlpha(
         $('c2a-color').value,
@@ -904,12 +937,7 @@ class AkshPhotoshop {
     });
 
     // Replace Color Modal
-    $('replace-src-swatch').addEventListener('click', () => $('replace-src-color').click());
-    $('replace-src-color').addEventListener('input', e => { $('replace-src-swatch').style.background = e.target.value; });
-    $('replace-dst-swatch').addEventListener('click', () => $('replace-dst-color').click());
-    $('replace-dst-color').addEventListener('input', e => { $('replace-dst-swatch').style.background = e.target.value; });
-    $('replace-fuzziness').addEventListener('input', e => { $('replace-fuzziness-val').textContent = e.target.value; });
-    $('replace-color-apply').addEventListener('click', () => {
+    $('replace-src-swatch').addEventListener('click', () => $('replace-src-color').click());$('replace-src-color').addEventListener('input', e => { $('replace-src-swatch').style.background = e.target.value; });$('replace-dst-swatch').addEventListener('click', () => $('replace-dst-color').click());$('replace-dst-color').addEventListener('input', e => { $('replace-dst-swatch').style.background = e.target.value; });$('replace-fuzziness').addEventListener('input', e => { $('replace-fuzziness-val').textContent = e.target.value; });$('replace-color-apply').addEventListener('click', () => {
       this.history.snapshot('Replace Color');
       this.adjustments.replaceColor(
         $('replace-src-color').value,
@@ -920,14 +948,10 @@ class AkshPhotoshop {
     });
 
     // Color Range Modal
-    $('color-range-swatch').addEventListener('click', () => $('color-range-color').click());
-    $('color-range-color').addEventListener('input', e => { $('color-range-swatch').style.background = e.target.value; });
-    $('color-range-fuzziness').addEventListener('input', e => { $('color-range-fuzziness-val').textContent = e.target.value; });
-    $('color-range-apply').addEventListener('click', () => {
+    $('color-range-swatch').addEventListener('click', () => $('color-range-color').click());$('color-range-color').addEventListener('input', e => { $('color-range-swatch').style.background = e.target.value; });$('color-range-fuzziness').addEventListener('input', e => { $('color-range-fuzziness-val').textContent = e.target.value; });$('color-range-apply').addEventListener('click', () => {
       this.adjustments.selectColorRange(
         $('color-range-color').value,
-        parseInt($('color-range-fuzziness').value, 10),
-        $('color-range-invert').checked
+        parseInt($('color-range-fuzziness').value, 10),$('color-range-invert').checked
       );
       this._closeModal('modal-color-range');
     });
@@ -942,11 +966,9 @@ class AkshPhotoshop {
     $('zoom-display').addEventListener('click', () => this.fitToScreen());
 
     // Color pickers
-    $('fg-color-display').addEventListener('click', e => { e.stopPropagation(); $('fg-color-picker').click(); });
-    $('fg-color-picker').addEventListener('input', e => this.setForegroundColor(e.target.value));
+    $('fg-color-display').addEventListener('click', e => { e.stopPropagation(); $('fg-color-picker').click(); });$('fg-color-picker').addEventListener('input', e => this.setForegroundColor(e.target.value));
 
-    $('bg-color-display').addEventListener('click', e => { e.stopPropagation(); $('bg-color-picker').click(); });
-    $('bg-color-picker').addEventListener('input', e => this.setBackgroundColor(e.target.value));
+    $('bg-color-display').addEventListener('click', e => { e.stopPropagation(); $('bg-color-picker').click(); });$('bg-color-picker').addEventListener('input', e => this.setBackgroundColor(e.target.value));
 
     $('reset-colors-btn').addEventListener('click', e => {
       e.stopPropagation();
@@ -992,7 +1014,7 @@ class AkshPhotoshop {
 
     // Color swatches
     const bindSwatch = (swatchId, inputId) => {
-      const swatch = $(swatchId), input = $(inputId);
+      const swatch = $(swatchId), input =$(inputId);
       if (!swatch || !input) return;
       swatch.addEventListener('click', () => input.click());
       input.addEventListener('input', () => {
@@ -1068,11 +1090,11 @@ class AkshPhotoshop {
           case 'i': e.preventDefault(); this.history.snapshot('Invert'); this.adjustments.invert(); return;
           case 't': e.preventDefault(); this._dispatch('edit-free-transform'); return;
           case '=': case '+': e.preventDefault(); this._dispatch('view-zoom-in');  return;
-          case '-':            e.preventDefault(); this._dispatch('view-zoom-out'); return;
-          case '0':            e.preventDefault(); this.fitToScreen();  return;
-          case '1':            e.preventDefault(); this._dispatch('view-zoom-100'); return;
-          case 'a':            e.preventDefault(); this._dispatch('select-all'); return;
-          case 'd':            e.preventDefault(); this.clearSelection(); return;
+          case '-':           e.preventDefault(); this._dispatch('view-zoom-out'); return;
+          case '0':           e.preventDefault(); this.fitToScreen();  return;
+          case '1':           e.preventDefault(); this._dispatch('view-zoom-100'); return;
+          case 'a':           e.preventDefault(); this._dispatch('select-all'); return;
+          case 'd':           e.preventDefault(); this.clearSelection(); return;
         }
         return;
       }
@@ -1215,8 +1237,7 @@ class AkshPhotoshop {
   _openAdjModal() {
     $('adj-brightness').value         = 0;
     $('adj-contrast').value           = 0;
-    $('adj-brightness-val').textContent = '0';
-    $('adj-contrast-val').textContent   = '0';
+    $('adj-brightness-val').textContent = '0';$('adj-contrast-val').textContent   = '0';
     this._openModal('modal-adjustments');
   }
 
@@ -1237,8 +1258,7 @@ class AkshPhotoshop {
     $('c2a-color').value = this.foregroundColor;
     $('c2a-color-swatch').style.background = this.foregroundColor;
     $('c2a-tolerance').value = 30;
-    $('c2a-tolerance-val').textContent = '30';
-    $('c2a-feather').value = 5;
+    $('c2a-tolerance-val').textContent = '30';$('c2a-feather').value = 5;
     $('c2a-feather-val').textContent = '5';
     this._openModal('modal-color-to-alpha');
   }
@@ -1257,8 +1277,7 @@ class AkshPhotoshop {
     $('color-range-color').value = this.foregroundColor;
     $('color-range-swatch').style.background = this.foregroundColor;
     $('color-range-fuzziness').value = 40;
-    $('color-range-fuzziness-val').textContent = '40';
-    $('color-range-invert').checked = false;
+    $('color-range-fuzziness-val').textContent = '40';$('color-range-invert').checked = false;
     this._openModal('modal-color-range');
   }
 
@@ -1304,4 +1323,3 @@ if (document.readyState === 'loading') {
 } else {
   boot();
 }
-
