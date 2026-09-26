@@ -1014,3 +1014,28 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   color: #d8e2ec !important;
   font-weight: 400;
 }
+
+/* Fix tool flyout menu text contrast */
+.flyout-item {
+  color: #ffffff !important;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.flyout-item:hover {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+/* Fix top-right branding name contrast */
+#app-title {
+  color: #ffffff !important;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.menu-logo {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
