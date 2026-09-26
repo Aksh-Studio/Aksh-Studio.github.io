@@ -16,6 +16,7 @@
   --accent:       #0078d4;
   --accent-hover: #106ebe;
   
+  /* BRIGHTENED TEXT VARIABLES FOR HIGH CONTRAST */
   --text-primary: #ffffff;      
   --text-secondary:#e2e8f0;     
   --text-dim:     #cbd5e1;      
@@ -28,12 +29,13 @@
   --scrollbar-track: #1e1e1e;
   --danger:       #f44747;
   
+  /* Canvas Background */
   --canvas-bg-center: #4a4a4a;
   --canvas-bg-edge:   #383838;
 
   --panel-width:  260px;
   --toolbox-width: 50px;
-  --menu-height:  32px; /* Slightly taller to accommodate bigger logo */
+  --menu-height:  32px; /* Taller to accommodate bigger logo */
   --options-height: 38px;
   --status-height: 24px;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -166,23 +168,23 @@ body {
   user-select: none;
 }
 
-/* BIGGER LOGO */
+/* LARGER LOGO */
 .menu-logo {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
   object-fit: cover;
   display: block;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* BIGGER TITLE */
+/* LARGER TITLE */
 #app-title {
   margin-left: 0;
   padding-right: 0;
   color: var(--text-bright);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.5px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
@@ -295,6 +297,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: var(--accent); }
   padding: 6px 0;
   gap: 2px;
   flex-shrink: 0;
+  /* CRITICAL FIX: Overflow visible */
   overflow: visible !important; 
   z-index: 9999 !important;
   user-select: none;
@@ -354,6 +357,7 @@ body.light-theme .tool-btn.active { color: var(--accent-hover); }
 }
 .tool-group.flyout-open .tool-flyout { display: flex; }
 
+/* High Contrast Flyout Text Fix */
 .flyout-item {
   display: flex;
   align-items: center;
@@ -366,6 +370,7 @@ body.light-theme .tool-btn.active { color: var(--accent-hover); }
 .flyout-item:hover { background: var(--accent); color: #fff; }
 .flyout-item.active { background: var(--highlight); font-weight: bold; color: var(--text-bright); }
 
+/* Tooltip */
 .tool-btn::after {
   content: attr(title);
   position: absolute;
