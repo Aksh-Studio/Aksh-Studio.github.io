@@ -91,7 +91,7 @@
   </div>
   <div class="menu-brand-right">
     <!-- THEME TOGGLE BUTTON -->
-    <button id="theme-toggle" class="panel-btn" title="Toggle Light/Dark Theme" style="margin-right: 6px; padding: 2px 6px;">☀️</button>
+    <button id="theme-toggle" class="panel-btn" title="Toggle Light/Dark Theme" style="margin-right: 6px; padding: 3px 8px; font-size:14px; background: transparent; border: none;">☀️</button>
     <img src="../../photoshop-logo.png" alt="Aksh Photoshop Logo" class="menu-logo" onerror="this.src='../../aksh-logo.png'">
     <span id="app-title">Aksh Photoshop</span>
   </div>
@@ -442,11 +442,11 @@
     <button class="panel-btn danger" onclick="app.tools.tools['count']?.clearCount()">Clear Count</button>
   </div>
 
-  <!-- Scrubby Zoom Tool (Phase 4) -->
+  <!-- MODIFIED ZOOM TOOL -->
   <div class="tool-opt-section" id="opt-zoom">
     <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🔍 Zoom:</span>
-    <button class="panel-btn" onclick="app.zoom = app.zoom * 1.25; app._centreCanvas(); app._updateZoomLabel();">Zoom In (+)</button>
-    <button class="panel-btn" onclick="app.zoom = app.zoom * 0.8; app._centreCanvas(); app._updateZoomLabel();">Zoom Out (-)</button>
+    <button class="panel-btn" onclick="app.zoom = Math.min(app.zoom * 1.1, 30); app._centreCanvas(); app._updateZoomLabel();">Zoom In (+)</button>
+    <button class="panel-btn" onclick="app.zoom = Math.max(app.zoom * 0.9, 0.05); app._centreCanvas(); app._updateZoomLabel();">Zoom Out (-)</button>
     <button class="panel-btn" onclick="app.fitToScreen()">Fit Screen</button>
     <button class="panel-btn" onclick="app.zoom = 1; app._centreCanvas(); app._updateZoomLabel();">100%</button>
     <div class="opt-sep"></div>
@@ -753,7 +753,9 @@
 <!-- STATUS BAR -->
 <div id="status-bar">
   <span class="status-item" id="zoom-display" title="Click to fit screen">100%</span>
-  <span class="status-sep">|</span>
+  <!-- NEW RECENTER BUTTON TO RESCUE LOST CANVAS -->
+  <button class="panel-btn" style="margin-left: 6px; padding: 2px 6px; font-size: 10px;" onclick="app.fitToScreen()" title="Find Lost Canvas">⌖ Recenter</button>
+  <span class="status-sep" style="margin-left: 6px">|</span>
   <span class="status-item" id="cursor-pos">X: 0  Y: 0</span>
   <span class="status-sep">|</span>
   <span class="status-item" id="canvas-size-display">800 × 600</span>
@@ -1063,7 +1065,7 @@
 <!-- Hidden File Input -->
 <input type="file" id="file-input" accept="image/*" style="display:none">
 
-<!-- SCRIPTS — load order matters (utils → managers → tools → app) -->
+<!-- SCRIPTS -->
 <script src="js/utils.js"></script>
 <script src="js/history.js"></script>
 <script src="js/layers.js"></script>
@@ -1071,12 +1073,11 @@
 <script src="js/adjustments.js"></script>
 <script type="module" src="js/app.js"></script>
 
-<!-- THEME TOGGLE SCRIPT -->
+<!-- THEME TOGGLE SCRIPT (Syncs with Dashboard) -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const themeBtn = document.getElementById('theme-toggle');
     
-    // Check local storage for theme preference
     const applyTheme = (theme) => {
       if (theme === 'light') {
         document.body.classList.add('light-theme');
@@ -1087,23 +1088,26 @@
       }
     };
 
-    // Initialize theme
-    const currentTheme = localStorage.getItem('aksh-theme') || 'dark';
-    applyTheme(currentTheme);
+    // Safely look for theme keys your dashboard might be using
+    const getStoredTheme = () => {
+      return localStorage.getItem('theme') || localStorage.getItem('aksh-theme') || 'dark';
+    };
 
-    // Toggle button click listener
+    applyTheme(getStoredTheme());
+
     themeBtn.addEventListener('click', () => {
       const isLight = document.body.classList.contains('light-theme');
       const newTheme = isLight ? 'dark' : 'light';
       applyTheme(newTheme);
+      
+      // Save it back to all possible keys so the dashboard knows!
       localStorage.setItem('aksh-theme', newTheme);
+      localStorage.setItem('theme', newTheme); 
     });
 
-    // Listen for storage changes if updated from the Dashboard in another tab
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'aksh-theme') {
-        applyTheme(e.newValue);
-      }
+    // Auto-update if the user changes the theme on the Dashboard in another tab
+    window.addEventListener('storage', () => {
+      applyTheme(getStoredTheme());
     });
   });
 </script>
