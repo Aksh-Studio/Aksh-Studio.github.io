@@ -2,12 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
- <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Aksh Photoshop</title>
  <link rel="icon" type="image/png" href="/photoshop-logo.png">
 <link rel="stylesheet" href="css/styles.css">
- 
 </head>
 <body>
 
@@ -92,10 +90,12 @@
     </div>
   </div>
   <div class="menu-brand-right">
+    <!-- THEME TOGGLE BUTTON -->
+    <button id="theme-toggle" class="panel-btn" title="Toggle Light/Dark Theme" style="margin-right: 6px; padding: 2px 6px;">☀️</button>
     <img src="../../photoshop-logo.png" alt="Aksh Photoshop Logo" class="menu-logo" onerror="this.src='../../aksh-logo.png'">
     <span id="app-title">Aksh Photoshop</span>
   </div>
-</div></div>
+</div>
 
 <!-- TOOL OPTIONS BAR -->
 <div id="tool-options-bar">
@@ -437,7 +437,7 @@
   <!-- Count Tool (Phase 4) -->
   <div class="tool-opt-section" id="opt-count">
     <span class="opt-label" style="font-weight:600;color:var(--text-bright)">🔢 Count Tool:</span>
-    <span class="opt-label">Total Badges: <strong id="count-display-val" style="color:#fff">0</strong></span>
+    <span class="opt-label">Total Badges: <strong id="count-display-val" style="color:var(--text-bright)">0</strong></span>
     <div class="opt-sep"></div>
     <button class="panel-btn danger" onclick="app.tools.tools['count']?.clearCount()">Clear Count</button>
   </div>
@@ -666,7 +666,7 @@
     <!-- FG / BG Color Palettes -->
     <div class="color-display" id="fg-bg-display">
       <div class="color-bg-swatch" id="bg-color-display" title="Background Color"></div>
-      <div class="color-fg" id="fg-color-display" style="background:#000" title="Foreground Color"></div>
+      <div class="color-fg" id="fg-color-display" style="background:var(--text-primary)" title="Foreground Color"></div>
       <div class="color-reset-btn" id="reset-colors-btn" title="Reset Colors (D)">D</div>
       <div class="color-swap-btn" id="swap-colors-btn" title="Swap Colors (X)">⇄</div>
       <input type="color" id="fg-color-picker" value="#000000" style="position:fixed;top:-999px;left:-999px;opacity:0;width:1px;height:1px;">
@@ -730,7 +730,7 @@
         <div class="layer-controls-row">
           <span class="opt-label" style="flex-shrink:0">Opacity:</span>
           <input type="range" id="layer-opacity" min="0" max="100" value="100" style="flex:1">
-          <span id="layer-opacity-val" style="font-size:11px;width:32px;text-align:right;flex-shrink:0">100%</span>
+          <span id="layer-opacity-val" style="font-size:11px;width:32px;text-align:right;flex-shrink:0;color:var(--text-primary)">100%</span>
         </div>
         <ul id="layers-list"></ul>
       </div>
@@ -805,11 +805,11 @@
     </div>
     <div class="modal-body">
       <div class="adj-row">
-        <div class="adj-row-header"><span>Brightness</span><span id="adj-brightness-val">0</span></div>
+        <div class="adj-row-header"><span>Brightness</span><span id="adj-brightness-val" style="color:var(--text-primary)">0</span></div>
         <input type="range" class="adj-slider" id="adj-brightness" min="-150" max="150" value="0">
       </div>
       <div class="adj-row">
-        <div class="adj-row-header"><span>Contrast</span><span id="adj-contrast-val">0</span></div>
+        <div class="adj-row-header"><span>Contrast</span><span id="adj-contrast-val" style="color:var(--text-primary)">0</span></div>
         <input type="range" class="adj-slider" id="adj-contrast" min="-150" max="150" value="0">
       </div>
       <p class="adj-note">Applies to active layer only</p>
@@ -830,15 +830,15 @@
     </div>
     <div class="modal-body">
       <div class="adj-row">
-        <div class="adj-row-header"><span>Hue Shift (°):</span><span id="hsl-hue-val">0</span></div>
+        <div class="adj-row-header"><span>Hue Shift (°):</span><span id="hsl-hue-val" style="color:var(--text-primary)">0</span></div>
         <input type="range" class="adj-slider" id="hsl-hue" min="-180" max="180" value="0">
       </div>
       <div class="adj-row">
-        <div class="adj-row-header"><span>Saturation (%):</span><span id="hsl-sat-val">0</span></div>
+        <div class="adj-row-header"><span>Saturation (%):</span><span id="hsl-sat-val" style="color:var(--text-primary)">0</span></div>
         <input type="range" class="adj-slider" id="hsl-sat" min="-100" max="100" value="0">
       </div>
       <div class="adj-row">
-        <div class="adj-row-header"><span>Lightness (%):</span><span id="hsl-lgt-val">0</span></div>
+        <div class="adj-row-header"><span>Lightness (%):</span><span id="hsl-lgt-val" style="color:var(--text-primary)">0</span></div>
         <input type="range" class="adj-slider" id="hsl-lgt" min="-100" max="100" value="0">
       </div>
       <p class="adj-note">Applies to active layer only</p>
@@ -864,11 +864,11 @@
         <input type="color" id="c2a-color" value="#ffffff" style="opacity:0;position:absolute;pointer-events:none;">
       </div>
       <div class="adj-row">
-        <div class="adj-row-header"><span>Tolerance (Threshold):</span><span id="c2a-tolerance-val">30</span></div>
+        <div class="adj-row-header"><span>Tolerance (Threshold):</span><span id="c2a-tolerance-val" style="color:var(--text-primary)">30</span></div>
         <input type="range" class="adj-slider" id="c2a-tolerance" min="0" max="255" value="30">
       </div>
       <div class="adj-row">
-        <div class="adj-row-header"><span>Edge Feathering (Softness):</span><span id="c2a-feather-val">5</span></div>
+        <div class="adj-row-header"><span>Edge Feathering (Softness):</span><span id="c2a-feather-val" style="color:var(--text-primary)">5</span></div>
         <input type="range" class="adj-slider" id="c2a-feather" min="0" max="50" value="5">
       </div>
       <p class="adj-note">Shifts pixels matching color to transparent</p>
@@ -899,7 +899,7 @@
         <input type="color" id="replace-dst-color" value="#0078d4" style="opacity:0;position:absolute;pointer-events:none;">
       </div>
       <div class="adj-row">
-        <div class="adj-row-header"><span>Fuzziness:</span><span id="replace-fuzziness-val">40</span></div>
+        <div class="adj-row-header"><span>Fuzziness:</span><span id="replace-fuzziness-val" style="color:var(--text-primary)">40</span></div>
         <input type="range" class="adj-slider" id="replace-fuzziness" min="1" max="200" value="40">
       </div>
       <p class="adj-note">Shifts matching color hue &amp; saturation, preserving shadows &amp; highlights</p>
@@ -925,7 +925,7 @@
         <input type="color" id="color-range-color" value="#000000" style="opacity:0;position:absolute;pointer-events:none;">
       </div>
       <div class="adj-row">
-        <div class="adj-row-header"><span>Fuzziness (Range):</span><span id="color-range-fuzziness-val">40</span></div>
+        <div class="adj-row-header"><span>Fuzziness (Range):</span><span id="color-range-fuzziness-val" style="color:var(--text-primary)">40</span></div>
         <input type="range" class="adj-slider" id="color-range-fuzziness" min="1" max="200" value="40">
       </div>
       <div class="modal-row">
@@ -951,7 +951,7 @@
     </div>
     <div class="modal-body">
       <div class="adj-row">
-        <div class="adj-row-header"><span>Strength (%):</span><span id="sharpen-strength-val">100</span></div>
+        <div class="adj-row-header"><span>Strength (%):</span><span id="sharpen-strength-val" style="color:var(--text-primary)">100</span></div>
         <input type="range" class="adj-slider" id="sharpen-strength" min="1" max="100" value="100">
       </div>
       <p class="adj-note">3×3 Laplacian convolution kernel</p>
@@ -972,7 +972,7 @@
     </div>
     <div class="modal-body">
       <div class="adj-row">
-        <div class="adj-row-header"><span>Strength (%):</span><span id="emboss-strength-val">100</span></div>
+        <div class="adj-row-header"><span>Strength (%):</span><span id="emboss-strength-val" style="color:var(--text-primary)">100</span></div>
         <input type="range" class="adj-slider" id="emboss-strength" min="1" max="100" value="100">
       </div>
       <p class="adj-note">45° directional 3×3 relief kernel with mid-gray bias</p>
@@ -993,7 +993,7 @@
     </div>
     <div class="modal-body">
       <div class="adj-row">
-        <div class="adj-row-header"><span>Radius (px)</span><span id="blur-radius-val">3</span></div>
+        <div class="adj-row-header"><span>Radius (px)</span><span id="blur-radius-val" style="color:var(--text-primary)">3</span></div>
         <input type="range" class="adj-slider" id="blur-radius" min="1" max="30" value="3">
       </div>
     </div>
@@ -1070,5 +1070,43 @@
 <script src="js/tools.js"></script>
 <script src="js/adjustments.js"></script>
 <script type="module" src="js/app.js"></script>
+
+<!-- THEME TOGGLE SCRIPT -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const themeBtn = document.getElementById('theme-toggle');
+    
+    // Check local storage for theme preference
+    const applyTheme = (theme) => {
+      if (theme === 'light') {
+        document.body.classList.add('light-theme');
+        themeBtn.innerText = '🌙';
+      } else {
+        document.body.classList.remove('light-theme');
+        themeBtn.innerText = '☀️';
+      }
+    };
+
+    // Initialize theme
+    const currentTheme = localStorage.getItem('aksh-theme') || 'dark';
+    applyTheme(currentTheme);
+
+    // Toggle button click listener
+    themeBtn.addEventListener('click', () => {
+      const isLight = document.body.classList.contains('light-theme');
+      const newTheme = isLight ? 'dark' : 'light';
+      applyTheme(newTheme);
+      localStorage.setItem('aksh-theme', newTheme);
+    });
+
+    // Listen for storage changes if updated from the Dashboard in another tab
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'aksh-theme') {
+        applyTheme(e.newValue);
+      }
+    });
+  });
+</script>
+
 </body>
 </html>
