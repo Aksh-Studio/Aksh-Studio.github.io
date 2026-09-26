@@ -984,3 +984,33 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
     padding-bottom: 5px;
   }
 }
+
+/* =====================================================
+   HIGH CONTRAST TEXT & NAMES FIX
+   ===================================================== */
+:root {
+  /* Boost base text brightness */
+  --text-main: #ffffff !important;
+  --text-muted: #d0d7de !important; /* brighter secondary text */
+}
+
+/* Layer names, panel headings, tool titles */
+.layer-item-name,
+.panel-header,
+.panel-title,
+.tool-flyout-item,
+.menu-item,
+.menu-dropdown-item {
+  color: #ffffff !important;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Secondary labels and values */
+.layer-item-meta,
+.status-item,
+.tool-options-bar label,
+.control-label {
+  color: #d8e2ec !important;
+  font-weight: 400;
+}
