@@ -1,6 +1,6 @@
 /* =====================================================
    AKSH PHOTOSHOP — styles.css
-   Theme: Photoshop CC Dark
+   Theme: Photoshop CC Dark (High Contrast)
    ===================================================== */
 
 /* ── CSS Variables ── */
@@ -15,10 +15,13 @@
   --border-light: #4a4a4a;
   --accent:       #0078d4;
   --accent-hover: #106ebe;
-  --text-primary: #cccccc;
-  --text-secondary:#999999;
-  --text-dim:     #555555;
+  
+  /* BRIGHTENED TEXT VARIABLES FOR HIGH CONTRAST */
+  --text-primary: #ffffff;      /* Changed from #cccccc */
+  --text-secondary:#d0d7de;     /* Changed from #999999 */
+  --text-dim:     #a0a0a0;      /* Changed from #555555 */
   --text-bright:  #ffffff;
+  
   --highlight:    #094771;
   --tool-hover:   #3a3a3a;
   --tool-active:  #094771;
@@ -83,7 +86,8 @@ body {
   display: flex;
   align-items: center;
   cursor: default;
-  color: var(--text-primary);
+  color: var(--text-bright);
+  font-weight: 500;
   font-size: 12px;
   border-radius: var(--radius);
   white-space: nowrap;
@@ -112,7 +116,7 @@ body {
   align-items: center;
   padding: 5px 14px;
   cursor: default;
-  color: var(--text-primary);
+  color: var(--text-bright);
   font-size: 12px;
   white-space: nowrap;
   transition: background var(--transition);
@@ -130,12 +134,35 @@ body {
 .menu-item:hover .menu-shortcut,
 .menu-dropdown-item:hover .menu-shortcut { color: rgba(255,255,255,0.6); }
 
-#app-title {
+/* Top-right brand container */
+.menu-brand-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding-right: 12px;
-  color: var(--text-dim);
-  font-size: 11px;
-  font-style: italic;
+  user-select: none;
+}
+
+/* Logo image styling */
+.menu-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* High Contrast App Title Fix */
+#app-title {
+  margin-left: 0;
+  padding-right: 0;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
 }
 
@@ -223,35 +250,6 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
 }
 
-/* Top-right brand container */
-.menu-brand-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 12px;
-  user-select: none;
-}
-
-/* Logo image styling */
-.menu-logo {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  object-fit: cover;
-  display: block;
-}
-
-/* Update app-title to remove the old margin-left */
-#app-title {
-  margin-left: 0;
-  padding-right: 0;
-  color: var(--text-dim);
-  font-size: 11px;
-  font-style: italic;
-  pointer-events: none;
-}
-
 /* =====================================================
    MAIN AREA
    ===================================================== */
@@ -275,8 +273,8 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   gap: 2px;
   flex-shrink: 0;
   /* CRITICAL FIX: Changed from 'overflow-y: auto' to 'visible' so flyouts can break out of the box */
-  overflow: visible; 
-  z-index: 9999;
+  overflow: visible !important; 
+  z-index: 9999 !important;
   user-select: none;
 }
 
@@ -313,7 +311,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   height: 0;
   border-style: solid;
   border-width: 0 0 5px 5px;
-  border-color: transparent transparent var(--text-dim) transparent;
+  border-color: transparent transparent var(--text-secondary) transparent;
   pointer-events: none;
 }
 
@@ -333,17 +331,19 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 }
 .tool-group.flyout-open .tool-flyout { display: flex; }
 
+/* High Contrast Flyout Text Fix */
 .flyout-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
   cursor: pointer;
-  color: var(--text-primary);
+  color: #ffffff;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .flyout-item:hover { background: var(--accent); color: #fff; }
 .flyout-item.active { background: var(--highlight); font-weight: bold; color: #fff; }
-
 
 /* Tooltip */
 .tool-btn::after {
@@ -354,7 +354,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   transform: translateY(-50%);
   background: var(--bg-lighter);
   border: 1px solid var(--border-light);
-  color: var(--text-primary);
+  color: var(--text-bright);
   font-size: 11px;
   padding: 4px 8px;
   border-radius: var(--radius);
@@ -407,7 +407,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   position: absolute;
   top: 1px; right: 1px;
   font-size: 8px; font-weight: 700;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   cursor: pointer;
   background: var(--bg-mid);
   width: 11px; height: 11px;
@@ -415,12 +415,12 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   border-radius: 1px; z-index: 4;
   transition: color var(--transition);
 }
-.color-reset-btn:hover { color: var(--text-primary); }
+.color-reset-btn:hover { color: var(--text-bright); }
 .color-swap-btn {
   position: absolute;
   bottom: 1px; left: 1px;
   font-size: 9px;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   cursor: pointer;
   background: var(--bg-mid);
   width: 11px; height: 11px;
@@ -428,7 +428,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   border-radius: 1px; z-index: 4;
   transition: color var(--transition);
 }
-.color-swap-btn:hover { color: var(--text-primary); }
+.color-swap-btn:hover { color: var(--text-bright); }
 
 /* =====================================================
    CANVAS VIEWPORT
@@ -471,6 +471,10 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   top: 0; left: 0;
   pointer-events: none;
   z-index: 10;
+}
+
+#canvas-area, canvas {
+  z-index: 1 !important;
 }
 
 #text-input-overlay {
@@ -528,7 +532,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 .panel-title {
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text-bright);
   letter-spacing: 0.8px;
 }
 .panel-toggle {
@@ -561,7 +565,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 .panel-btn {
   background: var(--bg-lighter);
   border: 1px solid var(--border);
-  color: var(--text-primary);
+  color: var(--text-bright);
   padding: 3px 8px;
   border-radius: var(--radius);
   cursor: pointer;
@@ -623,6 +627,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   flex-shrink: 0;
   width: 18px;
   text-align: center;
+  color: var(--text-bright);
   transition: opacity var(--transition);
 }
 .layer-visibility.hidden { opacity: 0.25; }
@@ -659,16 +664,17 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 .layer-info { flex: 1; min-width: 0; }
 .layer-name {
   font-size: 12px;
-  color: var(--text-primary);
+  font-weight: 500;
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.layer-item.active .layer-name { color: white; }
+.layer-item.active .layer-name { color: white; font-weight: 600; }
 .layer-name-input {
   background: var(--bg-darkest);
   border: 1px solid var(--accent);
-  color: var(--text-primary);
+  color: var(--text-bright);
   font-size: 12px;
   width: 100%;
   padding: 1px 3px;
@@ -692,8 +698,8 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   border-bottom: 1px solid var(--border);
   transition: background var(--transition);
 }
-.history-item:hover { background: var(--bg-lighter); color: var(--text-primary); }
-.history-item.current { color: var(--text-primary); background: var(--bg-lighter); font-weight: 600; }
+.history-item:hover { background: var(--bg-lighter); color: var(--text-bright); }
+.history-item.current { color: var(--text-bright); background: var(--bg-lighter); font-weight: 600; }
 .history-item.future { opacity: 0.35; }
 .history-icon { font-size: 12px; }
 
@@ -838,7 +844,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 .ctx-item {
   padding: 6px 16px;
   font-size: 12px;
-  color: var(--text-primary);
+  color: var(--text-bright);
   cursor: default;
   transition: background var(--transition);
 }
@@ -846,13 +852,13 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 .ctx-sep { height: 1px; background: var(--border); margin: 3px 0; }
 
 /* =====================================================
-   RESPONSIVE
+   RESPONSIVE & MOBILE OPTIMIZATION
    ===================================================== */
 @media (max-width: 900px) {
   :root { --panel-width: 200px; }
 }
 @media (max-width: 680px) {
-  #right-panels { display: none; }
+  #right-panels { display: none !important; }
 }
 /* --- Right Side Multi-Panel Dock --- */
 .panel-tab-group {
@@ -881,10 +887,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 .panel-tab.active { background: var(--bg-dark); color: #fff; font-weight: 600; }
 .panel-tab-content { flex: 1; overflow-y: auto; padding: 6px; }
 
-/* =====================================================
-   MOBILE OPTIMIZATION
-   ===================================================== */
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   /* Compact the toolbox height and width to fit 55 tools on a phone screen */
   :root {
     --toolbox-width: 42px;
@@ -895,13 +898,16 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
     gap: 0;
   }
 
-  .tool-group {
-    width: 32px;
-    height: 32px;
+  .tool-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 15px;
   }
 
-  .tool-btn {
-    font-size: 15px;
+  /* Prevent flyouts from extending off the top or bottom of the screen */
+  .tool-flyout {
+    min-width: 150px;
+    top: 0; 
   }
 
   /* Hide the heavy right panels to give the canvas full screen width */
@@ -911,9 +917,9 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 
   /* Enable smooth horizontal swiping for the tool options bar */
   #tool-options-bar {
-    overflow-x: auto;
+    overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 2px;
+    padding-bottom: 5px;
   }
 
   /* Compact the top menu bar */
@@ -929,113 +935,4 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
     font-size: 10px;
     -webkit-overflow-scrolling: touch;
   }
-
-  /* Prevent flyouts from extending off the top or bottom of the screen */
-  .tool-flyout {
-    min-width: 150px;
-    top: -10px; 
-  }
-}
-
-/* =====================================================
-   1. FIX: Right-Click / Flyout Menus Hiding Behind Canvas
-   ===================================================== */
-#toolbox {
-  overflow: visible !important; 
-  z-index: 9999 !important; 
-}
-
-#canvas-area, canvas {
-  z-index: 1 !important;
-}
-
-/* =====================================================
-   2. FIX: Mobile Optimization
-   ===================================================== */
-@media screen and (max-width: 768px) {
-  :root {
-    --toolbox-width: 45px;
-  }
-
-  #toolbox {
-    padding: 2px 0;
-    gap: 0;
-  }
-
-  .tool-btn {
-    width: 35px;
-    height: 35px;
-    font-size: 16px;
-  }
-
-  .tool-flyout {
-    min-width: 150px;
-    top: 0; 
-  }
-
-  #right-panels {
-    display: none !important;
-  }
-
-  #tool-options-bar {
-    overflow-x: auto !important;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 5px;
-  }
-}
-
-/* =====================================================
-   HIGH CONTRAST TEXT & NAMES FIX
-   ===================================================== */
-:root {
-  /* Boost base text brightness */
-  --text-main: #ffffff !important;
-  --text-muted: #d0d7de !important; /* brighter secondary text */
-}
-
-/* Layer names, panel headings, tool titles */
-.layer-item-name,
-.panel-header,
-.panel-title,
-.tool-flyout-item,
-.menu-item,
-.menu-dropdown-item {
-  color: #ffffff !important;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-/* Secondary labels and values */
-.layer-item-meta,
-.status-item,
-.tool-options-bar label,
-.control-label {
-  color: #d8e2ec !important;
-  font-weight: 400;
-}
-
-/* Fix tool flyout menu text contrast */
-.flyout-item {
-  color: #ffffff !important;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-.flyout-item:hover {
-  background: var(--accent) !important;
-  color: #ffffff !important;
-}
-
-/* Fix top-right branding name contrast */
-#app-title {
-  color: #ffffff !important;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.4px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-}
-
-.menu-logo {
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
