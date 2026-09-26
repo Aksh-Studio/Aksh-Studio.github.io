@@ -1,9 +1,9 @@
 /* =====================================================
    AKSH PHOTOSHOP — styles.css
-   Theme: Photoshop CC Dark (High Contrast)
+   Theme: Photoshop CC Dark / Light (High Contrast)
    ===================================================== */
 
-/* ── CSS Variables ── */
+/* ── CSS Variables (Default Dark Theme) ── */
 :root {
   --bg-darkest:   #141414;
   --bg-dark:      #1e1e1e;
@@ -17,17 +17,22 @@
   --accent-hover: #106ebe;
   
   /* BRIGHTENED TEXT VARIABLES FOR HIGH CONTRAST */
-  --text-primary: #ffffff;      /* Changed from #cccccc */
-  --text-secondary:#d0d7de;     /* Changed from #999999 */
-  --text-dim:     #a0a0a0;      /* Changed from #555555 */
+  --text-primary: #ffffff;      
+  --text-secondary:#e2e8f0;     
+  --text-dim:     #cbd5e1;      
   --text-bright:  #ffffff;
   
   --highlight:    #094771;
   --tool-hover:   #3a3a3a;
   --tool-active:  #094771;
-  --scrollbar-thumb: #424242;
+  --scrollbar-thumb: #555555;
   --scrollbar-track: #1e1e1e;
   --danger:       #f44747;
+  
+  /* Canvas Background */
+  --canvas-bg-center: #4a4a4a;
+  --canvas-bg-edge:   #383838;
+
   --panel-width:  260px;
   --toolbox-width: 50px;
   --menu-height:  28px;
@@ -39,12 +44,30 @@
   --transition:   0.12s ease;
 }
 
-body.dark-theme {
-  --bg-darkest:   #121212;
-  --bg-dark:      #1a1a1a;
-  --bg-mid:       #222222;
-  --bg-light:     #2a2a2a;
-  --bg-lighter:   #303030;
+/* ── Light Theme Overrides ── */
+body.light-theme {
+  --bg-darkest:   #d4d4d4;
+  --bg-dark:      #e5e5e5;
+  --bg-mid:       #f3f3f3;
+  --bg-light:     #ffffff;
+  --bg-lighter:   #e0e0e0;
+  --bg-panel:     #f8f8f8;
+  --border:       #cccccc;
+  --border-light: #bbbbbb;
+  
+  --text-primary: #111111;      
+  --text-secondary:#333333;     
+  --text-dim:     #555555;      
+  --text-bright:  #000000;
+  
+  --highlight:    #cce4f7;
+  --tool-hover:   #d0d0d0;
+  --tool-active:  #cce4f7;
+  --scrollbar-thumb: #aaaaaa;
+  --scrollbar-track: #f0f0f0;
+  
+  --canvas-bg-center: #d0d0d0;
+  --canvas-bg-edge:   #a0a0a0;
 }
 
 /* ── Reset ── */
@@ -62,7 +85,7 @@ body {
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
 
 /* =====================================================
    MENU BAR
@@ -114,16 +137,17 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 14px;
+  padding: 6px 14px;
   cursor: default;
   color: var(--text-bright);
+  font-weight: 500;
   font-size: 12px;
   white-space: nowrap;
   transition: background var(--transition);
 }
 .menu-dropdown-item:hover:not(.separator):not(.disabled) {
   background: var(--accent);
-  color: var(--text-bright);
+  color: #ffffff;
 }
 .menu-dropdown-item.separator {
   height: 1px; background: var(--border);
@@ -132,7 +156,7 @@ body {
 .menu-dropdown-item.disabled { color: var(--text-dim); pointer-events: none; }
 .menu-shortcut { color: var(--text-dim); font-size: 11px; }
 .menu-item:hover .menu-shortcut,
-.menu-dropdown-item:hover .menu-shortcut { color: rgba(255,255,255,0.6); }
+.menu-dropdown-item:hover .menu-shortcut { color: rgba(255,255,255,0.7); }
 
 /* Top-right brand container */
 .menu-brand-right {
@@ -151,18 +175,17 @@ body {
   border-radius: 4px;
   object-fit: cover;
   display: block;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--border-light);
 }
 
 /* High Contrast App Title Fix */
 #app-title {
   margin-left: 0;
   padding-right: 0;
-  color: #ffffff;
+  color: var(--text-bright);
   font-weight: 600;
   font-size: 12px;
   letter-spacing: 0.4px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
 }
 
@@ -188,6 +211,7 @@ body {
 
 .opt-label {
   color: var(--text-secondary);
+  font-weight: 500;
   font-size: 11px;
   white-space: nowrap;
 }
@@ -209,7 +233,7 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
   transition: background var(--transition);
 }
-input[type="range"]::-webkit-slider-thumb:hover { background: white; }
+input[type="range"]::-webkit-slider-thumb:hover { background: var(--accent); }
 
 .opt-number {
   width: 44px;
@@ -272,7 +296,6 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   padding: 6px 0;
   gap: 2px;
   flex-shrink: 0;
-  /* CRITICAL FIX: Changed from 'overflow-y: auto' to 'visible' so flyouts can break out of the box */
   overflow: visible !important; 
   z-index: 9999 !important;
   user-select: none;
@@ -299,7 +322,8 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   background: transparent;
 }
 .tool-btn:hover { background: var(--tool-hover); color: var(--text-bright); }
-.tool-btn.active { background: var(--tool-active); color: var(--text-bright); border-color: var(--accent); }
+.tool-btn.active { background: var(--tool-active); color: var(--accent); border-color: var(--accent); }
+body.light-theme .tool-btn.active { color: var(--accent-hover); }
 
 /* Little triangle indicating sub-tools flyout */
 .tool-group.has-flyout::after {
@@ -338,12 +362,11 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   justify-content: space-between;
   padding: 6px 12px;
   cursor: pointer;
-  color: #ffffff;
+  color: var(--text-bright);
   font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .flyout-item:hover { background: var(--accent); color: #fff; }
-.flyout-item.active { background: var(--highlight); font-weight: bold; color: #fff; }
+.flyout-item.active { background: var(--highlight); font-weight: bold; color: var(--text-bright); }
 
 /* Tooltip */
 .tool-btn::after {
@@ -383,7 +406,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 }
 .color-fg {
   width: 26px; height: 26px;
-  border: 2px solid var(--text-primary);
+  border: 2px solid var(--border-light);
   border-radius: 2px;
   position: absolute;
   top: 2px; left: 2px;
@@ -391,10 +414,10 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   cursor: pointer;
   transition: border-color var(--transition);
 }
-.color-fg:hover { border-color: white; }
+.color-fg:hover { border-color: var(--text-primary); }
 .color-bg-swatch {
   width: 22px; height: 22px;
-  border: 2px solid var(--text-secondary);
+  border: 2px solid var(--border-light);
   border-radius: 2px;
   position: absolute;
   bottom: 2px; right: 2px;
@@ -435,11 +458,11 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
    ===================================================== */
 #canvas-viewport {
   flex: 1;
-  background: #404040;
+  background: var(--bg-darkest);
   overflow: hidden;
   position: relative;
   cursor: crosshair;
-  background-image: radial-gradient(circle, #4a4a4a 0%, #383838 100%);
+  background-image: radial-gradient(circle, var(--canvas-bg-center) 0%, var(--canvas-bg-edge) 100%);
 }
 #canvas-viewport.space-held { cursor: grab !important; }
 #canvas-viewport.panning    { cursor: grabbing !important; }
@@ -571,6 +594,7 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   cursor: pointer;
   font-size: 11px;
   white-space: nowrap;
+  font-weight: 500;
   font-family: var(--font);
   transition: background var(--transition), border-color var(--transition), opacity var(--transition);
 }
@@ -586,8 +610,8 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 
 .mask-toolbar {
   padding: 3px 6px;
-  background: #1a1a1a;
-  border-top: 1px solid #2a2a2a;
+  background: var(--bg-darkest);
+  border-top: 1px solid var(--border-light);
 }
 .mask-toolbar .panel-btn {
   font-size: 10px;
@@ -665,12 +689,12 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 .layer-name {
   font-size: 12px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--text-bright);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.layer-item.active .layer-name { color: white; font-weight: 600; }
+.layer-item.active .layer-name { font-weight: 600; }
 .layer-name-input {
   background: var(--bg-darkest);
   border: 1px solid var(--accent);
@@ -765,10 +789,10 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
 
 .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .modal-row { display: flex; align-items: center; gap: 10px; }
-.modal-label { width: 110px; font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
+.modal-label { width: 110px; font-size: 12px; color: var(--text-secondary); flex-shrink: 0; font-weight: 500;}
 .modal-input {
   flex: 1;
-  background: #1a1a1a;
+  background: var(--bg-darkest);
   border: 1px solid var(--border);
   color: var(--text-primary);
   font-size: 12px;
@@ -845,10 +869,11 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   padding: 6px 16px;
   font-size: 12px;
   color: var(--text-bright);
+  font-weight: 500;
   cursor: default;
   transition: background var(--transition);
 }
-.ctx-item:hover { background: var(--accent); color: white; }
+.ctx-item:hover { background: var(--accent); color: #fff; }
 .ctx-sep { height: 1px; background: var(--border); margin: 3px 0; }
 
 /* =====================================================
@@ -884,51 +909,25 @@ input[type="range"]::-webkit-slider-thumb:hover { background: white; }
   color: var(--text-secondary);
   border-right: 1px solid var(--border);
 }
-.panel-tab.active { background: var(--bg-dark); color: #fff; font-weight: 600; }
+.panel-tab.active { background: var(--bg-dark); color: var(--text-primary); font-weight: 600; }
 .panel-tab-content { flex: 1; overflow-y: auto; padding: 6px; }
 
 @media screen and (max-width: 768px) {
-  /* Compact the toolbox height and width to fit 55 tools on a phone screen */
-  :root {
-    --toolbox-width: 42px;
-  }
+  :root { --toolbox-width: 42px; }
   
-  #toolbox {
-    padding: 2px 0;
-    gap: 0;
-  }
+  #toolbox { padding: 2px 0; gap: 0; }
+  .tool-btn { width: 35px; height: 35px; font-size: 15px; }
+  .tool-flyout { min-width: 150px; top: 0; }
+  #right-panels { display: none !important; }
 
-  .tool-btn {
-    width: 35px;
-    height: 35px;
-    font-size: 15px;
-  }
-
-  /* Prevent flyouts from extending off the top or bottom of the screen */
-  .tool-flyout {
-    min-width: 150px;
-    top: 0; 
-  }
-
-  /* Hide the heavy right panels to give the canvas full screen width */
-  #right-panels {
-    display: none !important;
-  }
-
-  /* Enable smooth horizontal swiping for the tool options bar */
   #tool-options-bar {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 5px;
   }
 
-  /* Compact the top menu bar */
-  .menu-item {
-    padding: 0 6px;
-    font-size: 11px;
-  }
+  .menu-item { padding: 0 6px; font-size: 11px; }
 
-  /* Enable horizontal swiping for the bottom status bar */
   #status-bar {
     overflow-x: auto;
     white-space: nowrap;
