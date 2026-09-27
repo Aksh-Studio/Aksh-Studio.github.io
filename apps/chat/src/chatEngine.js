@@ -703,12 +703,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 let fileData = event.target.result;
                 const curId = currentUser?.id || currentUser?.uid;
                 
-               const basePayload = {
+            const basePayload = {
     senderId: curId,
     senderName: currentUser?.name || 'User',
     isOwner: currentUser?.isOwner === true,
+
     timestamp: Date.now(),
-    localTimestamp: Date.now()
+    localTimestamp: Date.now(),
+
+    expireAt: Timestamp.fromMillis(
+        Date.now() + 90 * 24 * 60 * 60 * 1000
+    )
 };
                 if (isImage) {
                     const img = new Image();
