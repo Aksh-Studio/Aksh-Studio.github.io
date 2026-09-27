@@ -576,8 +576,11 @@ export const sendMessage = async () => {
     const payload = { 
         text, senderId: curId, senderName: currentUser?.name || 'User', 
         isOwner: currentUser?.isOwner === true, 
-        timestamp: Date.now(), localTimestamp: Date.now() 
-    };
+timestamp: Date.now(),
+localTimestamp: Date.now(),
+expireAt: Timestamp.fromMillis(
+    Date.now() + 90 * 24 * 60 * 60 * 1000
+)    };
 
     if (replyContext) {
         payload.replyToText = replyContext.text;
