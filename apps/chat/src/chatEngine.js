@@ -655,8 +655,11 @@ window.forwardSelectedMessages = async () => {
                             senderId: curId,
                             senderName: currentUser?.name || 'User',
                             isOwner: currentUser?.isOwner === true,
-                            timestamp: Date.now(), localTimestamp: Date.now()
-                        };
+timestamp: Date.now(),
+localTimestamp: Date.now(),
+expireAt: Timestamp.fromMillis(
+    Date.now() + 90 * 24 * 60 * 60 * 1000
+)                        };
                         await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
                     }
                 } catch(e) {}
