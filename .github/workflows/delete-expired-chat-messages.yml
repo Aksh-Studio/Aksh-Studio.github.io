@@ -2,8 +2,8 @@ name: Delete Expired Chat Messages
 
 on:
   schedule:
-    - cron: '30 21 * * *' # Runs at 21:30 UTC / 03:00 AM IST daily
-  workflow_dispatch: # Allows you to click "Run workflow" manually to test it
+    - cron: '0 0 * * *' # Runs every day at 00:00 UTC
+  workflow_dispatch: # Keeps the manual run button available
 
 jobs:
   cleanup:
