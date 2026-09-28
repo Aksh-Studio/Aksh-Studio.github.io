@@ -55,31 +55,32 @@ onAuthStateChanged(auth, user => {
         currentUser = user; 
         loadHistory(); 
         
-        // SAFE PROFILE FETCHING
+        // IMMEDIATE FALLBACK & AUTH PROFILE BINDING
         const nameEl = document.getElementById('calc-profile-name');
         const emailEl = document.getElementById('calc-profile-email');
         const avatarEl = document.getElementById('calc-header-avatar');
         
-        const fallbackProfile = () => {
-            if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${user.displayName || 'User'}`;
-            if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${user.email || '-'}`;
-            if (avatarEl && user.photoURL) avatarEl.src = user.photoURL;
-        };
+        // Directly populate using Google Auth properties (Guaranteed to load instantly)
+        if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${user.displayName || 'User'}`;
+        if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${user.email || '-'}`;
+        if (avatarEl && user.photoURL) avatarEl.src = user.photoURL;
 
+        // Optional: Try fetching extra fields from Firestore if they exist, without breaking if they don't
         try {
             const userRef = doc(db, `users/${user.uid}`);
             onSnapshot(userRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${data.name || user.displayName || 'User'}`;
-                    if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${data.email || user.email || '-'}`;
-                    if (avatarEl && (data.photoURL || user.photoURL)) avatarEl.src = data.photoURL || user.photoURL;
-                } else {
-                    fallbackProfile();
+                    if (nameEl && data.name) nameEl.innerHTML = `<strong>Name:</strong> ${data.name}`;
+                    if (emailEl && data.email) emailEl.innerHTML = `<strong>Email:</strong> ${data.email}`;
+                    if (avatarEl && data.photoURL) avatarEl.src = data.photoURL;
                 }
-            }, () => fallbackProfile());
+            }, (error) => {
+                // Silently ignore permission errors so the UI never locks up
+                console.log("Firestore profile sync skipped:", error.code);
+            });
         } catch (err) {
-            fallbackProfile();
+            // Do nothing, standard Auth profile is already showing
         }
     } else {
         window.location.href = "../../index.html"; 
