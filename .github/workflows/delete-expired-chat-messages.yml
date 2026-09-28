@@ -1,0 +1,27 @@
+name: Delete Expired Chat Messages
+
+on:
+  schedule:
+    - cron: '30 21 * * *' # Runs at 21:30 UTC / 03:00 AM IST daily
+  workflow_dispatch: # Allows you to click "Run workflow" manually to test it
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase Admin
+        run: npm install firebase-admin
+
+      - name: Run Cleanup Script
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/delete-expired-chat-messages.js
