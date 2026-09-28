@@ -316,7 +316,7 @@ const disclaimerHTML = `
                 <strong>End-to-End Encrypted</strong><br>
                 <span style="font-size: 11px;">
                     Messages are secured and private. <br>
-                    Note: Messages are stored for 3 months only. <br>
+                    Note: Messages are stored for 60 days only. <br>
                     For support: <a href="mailto:akshstudioofficial@gmail.com" style="color:var(--primary);">akshstudioofficial@gmail.com</a>
                 </span>
             </div>
@@ -532,8 +532,8 @@ const listenToRoomState = (roomId) => {
 export const listenToMessages = (roomId) => {
     if (unsubscribeListener) unsubscribeListener();
     
-    // Calculate the cutoff timestamp for 3 months ago (90 days)
-    const threeMonthsAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+    // Calculate the cutoff timestamp for 60 days ago
+    const sixtyDaysAgo = Date.now() - (60 * 24 * 60 * 60 * 1000);
 
     const q = query(
         collection(db, `chats/${roomId}/messages`), 
@@ -543,11 +543,11 @@ export const listenToMessages = (roomId) => {
     unsubscribeListener = onSnapshot(q, (snapshot) => {
         if (currentRoomId !== roomId) return; 
         
-        // Filter out any messages older than 3 months before rendering the UI
+        // Filter out any messages older than 60 days before rendering the UI
         currentMessagesSnapshot = snapshot.docs.filter(docObj => {
             const msg = docObj.data();
             const msgTime = msg.localTimestamp || msg.timestamp || Date.now();
-            return msgTime > threeMonthsAgo;
+            return msgTime > sixtyDaysAgo;
         });
         
         const curId = currentUser?.id || currentUser?.uid;
@@ -576,11 +576,11 @@ export const sendMessage = async () => {
     const payload = { 
         text, senderId: curId, senderName: currentUser?.name || 'User', 
         isOwner: currentUser?.isOwner === true, 
-timestamp: Date.now(),
-localTimestamp: Date.now(),
-expireAt: Timestamp.fromMillis(
-    Date.now() + 90 * 24 * 60 * 60 * 1000
-)    };
+        timestamp: Date.now(),
+        localTimestamp: Date.now(),
+        expireAt: Timestamp.fromMillis(
+            Date.now() + 60 * 24 * 60 * 60 * 1000
+        )    };
 
     if (replyContext) {
         payload.replyToText = replyContext.text;
@@ -655,11 +655,11 @@ window.forwardSelectedMessages = async () => {
                             senderId: curId,
                             senderName: currentUser?.name || 'User',
                             isOwner: currentUser?.isOwner === true,
-timestamp: Date.now(),
-localTimestamp: Date.now(),
-expireAt: Timestamp.fromMillis(
-    Date.now() + 90 * 24 * 60 * 60 * 1000
-)                        };
+                            timestamp: Date.now(),
+                            localTimestamp: Date.now(),
+                            expireAt: Timestamp.fromMillis(
+                                Date.now() + 60 * 24 * 60 * 60 * 1000
+                            )                        };
                         await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
                     }
                 } catch(e) {}
@@ -703,18 +703,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 let fileData = event.target.result;
                 const curId = currentUser?.id || currentUser?.uid;
                 
-            const basePayload = {
-    senderId: curId,
-    senderName: currentUser?.name || 'User',
-    isOwner: currentUser?.isOwner === true,
+                const basePayload = {
+                    senderId: curId,
+                    senderName: currentUser?.name || 'User',
+                    isOwner: currentUser?.isOwner === true,
 
-    timestamp: Date.now(),
-    localTimestamp: Date.now(),
+                    timestamp: Date.now(),
+                    localTimestamp: Date.now(),
 
-    expireAt: Timestamp.fromMillis(
-        Date.now() + 90 * 24 * 60 * 60 * 1000
-    )
-};
+                    expireAt: Timestamp.fromMillis(
+                        Date.now() + 60 * 24 * 60 * 60 * 1000
+                    )
+                };
                 if (isImage) {
                     const img = new Image();
                     img.onload = async () => {
