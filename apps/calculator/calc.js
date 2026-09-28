@@ -1,7 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
 // ==========================================
 // UNIVERSAL THEME SYNC ENGINE
 // ==========================================
@@ -29,16 +25,7 @@ if (themeBtn) {
         }
     };
 }
-const firebaseConfig = {
-    apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
-    authDomain: "aksh-studio.firebaseapp.com",
-    projectId: "aksh-studio"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
 
-let currentUser = null;
 let currentEq = ""; 
 let currentMode = "scientific";
 
@@ -46,51 +33,8 @@ const dMain = document.getElementById('display-main');
 const dHist = document.getElementById('display-history');
 const displayContainer = document.getElementById('main-display-container');
 
-onAuthStateChanged(auth, user => { 
-    if(user){ 
-        currentUser = user; 
-        loadHistory(); 
-        
-        // SAFE PROFILE FETCHING
-        const nameEl = document.getElementById('calc-profile-name');
-        const emailEl = document.getElementById('calc-profile-email');
-        const avatarEl = document.getElementById('calc-header-avatar');
-        
-        const fallbackProfile = () => {
-            if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${user.displayName || 'User'}`;
-            if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${user.email || '-'}`;
-            if (avatarEl && user.photoURL) avatarEl.src = user.photoURL;
-        };
-
-        try {
-            const userRef = doc(db, `users/${user.uid}`);
-            onSnapshot(userRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (nameEl) nameEl.innerHTML = `<strong>Name:</strong> ${data.name || user.displayName || 'User'}`;
-                    if (emailEl) emailEl.innerHTML = `<strong>Email:</strong> ${data.email || user.email || '-'}`;
-                    if (avatarEl && (data.photoURL || user.photoURL)) avatarEl.src = data.photoURL || user.photoURL;
-                } else {
-                    fallbackProfile();
-                }
-            }, () => fallbackProfile());
-        } catch (err) {
-            fallbackProfile();
-        }
-    } else {
-        window.location.href = "../../index.html"; 
-    }
-});
-
-// SAFELY ATTACH SIGN OUT
-setTimeout(() => {
-    const signoutBtn = document.getElementById('calc-btn-signout');
-    if (signoutBtn) {
-        signoutBtn.addEventListener('click', () => {
-            auth.signOut().then(() => window.location.href = "../../index.html");
-        });
-    }
-}, 500);
+// Load history immediately on load
+document.addEventListener('DOMContentLoaded', loadHistory);
 
 // ==========================================
 // TAB CONTROLLER
@@ -203,26 +147,36 @@ function solveCalculus() {
     } catch(e) { updateDisplay("Calculus Error", currentEq); currentEq=""; }
 }
 
-// --- History Sync ---
-async function saveHist(eq, res) {
-    if(!currentUser) return;
-    await addDoc(collection(db, `users/${currentUser.uid}/calculatorHistory`), { eq: eq, res: res, time: serverTimestamp() });
+// --- Local Storage History Sync ---
+function saveHist(eq, res) {
+    let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+    history.push({ eq: eq, res: res, time: Date.now() });
+    localStorage.setItem('calcHistory', JSON.stringify(history));
+    loadHistory();
 }
+
 function loadHistory() {
-    if(!currentUser) return;
-    onSnapshot(query(collection(db, `users/${currentUser.uid}/calculatorHistory`), orderBy("time", "desc")), (snap) => {
-        const list = document.getElementById('history-list');
-        list.innerHTML = "";
-        snap.forEach(d => {
-            list.innerHTML += `<li class="history-item"><div class="eq">${d.data().eq}</div><div class="res">${d.data().res}</div></li>`;
-        });
+    let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+    // Sort so newest items appear at the top
+    history.sort((a, b) => b.time - a.time);
+
+    const list = document.getElementById('history-list');
+    if (!list) return;
+    
+    list.innerHTML = "";
+    history.forEach(d => {
+        list.innerHTML += `<li class="history-item"><div class="eq">${d.eq}</div><div class="res">${d.res}</div></li>`;
     });
 }
-document.getElementById('btn-clear-history').onclick = async () => {
-    if(!confirm("Clear History?")) return;
-    const snap = await getDocs(collection(db, `users/${currentUser.uid}/calculatorHistory`));
-    snap.forEach(async (d) => await deleteDoc(d.ref));
-};
+
+const clearBtn = document.getElementById('btn-clear-history');
+if (clearBtn) {
+    clearBtn.onclick = () => {
+        if(!confirm("Clear History?")) return;
+        localStorage.removeItem('calcHistory');
+        window.location.reload(true); // Forces hard refresh
+    };
+}
 
 // ==========================================
 // KEYBOARD HANDLER (Strict Math Mode Check)
