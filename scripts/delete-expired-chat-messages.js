@@ -1,12 +1,9 @@
 const admin = require('firebase-admin');
 
-if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-  console.error('ERROR: FIREBASE_SERVICE_ACCOUNT environment variable is missing.');
-  process.exit(1);
-}
-
+// Parse the service account credentials passed from GitHub Secrets
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
+// Initialize Firebase Admin correctly
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -14,38 +11,31 @@ admin.initializeApp({
 const db = admin.firestore();
 
 async function deleteExpiredMessages() {
-  console.log('Starting expired message cleanup...');
-  const messagesRef = db.collectionGroup('messages');
   const now = admin.firestore.Timestamp.now();
+  console.log("Starting expired message cleanup...");
 
-  let totalDeleted = 0;
-  let hasMore = true;
+  const snapshot = await db.collectionGroup("messages")
+    .where("expireAt", "<=", now)
+    .limit(500)
+    .get();
 
-  while (hasMore) {
-    const snapshot = await messagesRef.where('expireAt', '<', now).limit(500).get();
-
-    if (snapshot.empty) {
-      console.log('No more expired messages found.');
-      hasMore = false;
-      break;
-    }
-
-    console.log(`Found ${snapshot.size} expired messages in this batch. Deleting...`);
-    const batch = db.batch();
-
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-
-    await batch.commit();
-    totalDeleted += snapshot.size;
-    console.log(`Successfully deleted ${snapshot.size} messages.`);
+  if (snapshot.empty) {
+    console.log("No expired messages found.");
+    return;
   }
 
-  console.log(`Cleanup complete. Total expired messages deleted: ${totalDeleted}`);
+  const batch = db.batch();
+  snapshot.docs.forEach(doc => {
+    batch.delete(doc.ref);
+  });
+
+  await batch.commit();
+  console.log(`Successfully deleted ${snapshot.size} expired messages.`);
 }
 
-deleteExpiredMessages().catch((error) => {
-  console.error('Fatal error during expired message deletion:', error);
-  process.exit(1);
-});
+deleteExpiredMessages()
+  .then(() => process.exit(0))
+  .catch(err => {
+    console.error("Cleanup error:", err);
+    process.exit(1);
+  });
