@@ -1,17 +1,18 @@
-const admin = require('firebase-admin');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 
 // Parse the service account credentials passed from GitHub Secrets
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
-// Initialize Firebase Admin correctly
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+// Initialize Firebase Admin using the v12+ modular syntax
+initializeApp({
+  credential: cert(serviceAccount)
 });
 
-const db = admin.firestore();
+const db = getFirestore();
 
 async function deleteExpiredMessages() {
-  const now = admin.firestore.Timestamp.now();
+  const now = Timestamp.now();
   console.log("Starting expired message cleanup...");
 
   const snapshot = await db.collectionGroup("messages")
