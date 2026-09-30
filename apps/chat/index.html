@@ -32,27 +32,29 @@
         </div>
     </div>
 
-    <div class="aksh-chat-app" id="app-root">
-        <nav class="top-nav">
-            <div class="nav-left">
-                <a href="../../dashboard.html" class="back-link">← Dashboard</a>
-                <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
+   <nav class="top-nav">
+    <div class="nav-left">
+        <a href="../../dashboard.html" class="back-link">← Dashboard</a>
+        <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
+    </div>
+    
+    <div class="nav-right">
+        <!-- MOVED HERE: Now perfectly aligned on the right -->
+        <button id="navHelpBtn" class="btn-outline" style="display: none;">Help</button> 
+        
+        <button id="theme-btn" class="btn-outline">Dark Mode</button>
+        <div class="profile-menu">
+            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar" id="nav-profile-pic">
+            <div class="dropdown-content">
+                <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600;">Personal Profile</p>
+                <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);" id="nav-profile-name">Name: Loading...</p>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" id="nav-profile-email">Email: Loading...</p>
+                <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
+                <a href="../../index.html" style="display: block; width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; text-align: center; text-decoration: none;">Sign Out</a>
             </div>
-            <button id="navHelpBtn" class="nav-btn">Help</button>
-            <div class="nav-right">
-                <button id="theme-btn" class="btn-outline">Dark Mode</button>
-                <div class="profile-menu">
-                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar" id="nav-profile-pic">
-                    <div class="dropdown-content">
-                        <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600;">Personal Profile</p>
-                        <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);" id="nav-profile-name">Name: Loading...</p>
-                        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" id="nav-profile-email">Email: Loading...</p>
-                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
-                        <a href="../../index.html" style="display: block; width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; text-align: center; text-decoration: none;">Sign Out</a>
-                    </div>
-                </div>
-            </div>
-        </nav>
+        </div>
+    </div>
+</nav>
 
         <div id="main-layout" class="app-layout">
             <nav class="side-rail">
