@@ -1,10 +1,8 @@
 import { db, collection, getDocs, setDoc, doc } from "../firebase.js";
 
 export function initHelpEngine(currentUser) {
-    // 1. Configuration
     const ownerEmail = 'akshat124.am12@gmail.com';
     
-    // 2. DOM Elements Mapping
     const helpBtn = document.getElementById('navHelpBtn');
     const ownerBtn = document.getElementById('ownerPanelBtn');
     const helpModal = document.getElementById('helpModal');
@@ -15,29 +13,27 @@ export function initHelpEngine(currentUser) {
     const closeHelpBtn = document.getElementById('closeHelpBtn');
     const closeOwnerBtn = document.getElementById('closeOwnerBtn');
 
-    // 3. ROLE-BASED VISIBILITY LOGIC
+    // --- ROLE-BASED VISIBILITY ---
     if (currentUser && currentUser.email === ownerEmail) {
-        // --- OWNER VIEW ---
         if (ownerBtn) ownerBtn.style.display = 'flex'; 
-        if (helpBtn) helpBtn.style.display = 'none'; // Hide Help button from you
+        if (helpBtn) helpBtn.style.display = 'none'; 
         
         ownerBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            ownerModal.style.display = 'block';
+            ownerModal.style.display = 'flex'; // Changed to flex for centering
             await fetchAndRenderComplaints();
         });
     } else {
-        // --- USER VIEW ---
         if (ownerBtn) ownerBtn.style.display = 'none'; 
-        if (helpBtn) helpBtn.style.display = 'inline-block'; // Show Help button to users
+        if (helpBtn) helpBtn.style.display = 'inline-block'; 
         
         helpBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            helpModal.style.display = 'block';
+            helpModal.style.display = 'flex'; // Changed to flex for centering
         });
     }
 
-    // 4. Modals Close Logic
+    // --- MODAL CLOSE LOGIC ---
     if (closeHelpBtn) closeHelpBtn.addEventListener('click', () => helpModal.style.display = 'none');
     if (closeOwnerBtn) closeOwnerBtn.addEventListener('click', () => ownerModal.style.display = 'none');
 
@@ -46,7 +42,7 @@ export function initHelpEngine(currentUser) {
         if (e.target === ownerModal) ownerModal.style.display = 'none';
     });
 
-    // 5. Help Form Submission Logic
+    // --- FORM SUBMISSION ---
     if (helpForm) {
         helpForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -80,21 +76,21 @@ export function initHelpEngine(currentUser) {
                 alert('Connection error. Please try submitting again.');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit';
+                submitBtn.textContent = 'Submit Ticket';
             }
         });
     }
 
-    // 6. Owner Dashboard Rendering
+    // --- OWNER DASHBOARD ---
     async function fetchAndRenderComplaints() {
-        complaintsList.innerHTML = '<div class="loader">Loading secure database...</div>';
+        complaintsList.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Loading secure database...</p>';
         
         try {
             const snapshot = await getDocs(collection(db, "help_complaints"));
             complaintsList.innerHTML = ''; 
             
             if (snapshot.empty) {
-                complaintsList.innerHTML = '<div class="empty-state">No complaints registered yet.</div>';
+                complaintsList.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No complaints registered yet.</p>';
                 return;
             }
 
@@ -105,24 +101,23 @@ export function initHelpEngine(currentUser) {
             complaints.forEach((data) => {
                 const displayDate = new Date(data.date).toLocaleString();
                 const card = document.createElement('div');
-                card.className = 'complaint-card';
+                // Apply theme variables directly
+                card.style.cssText = "background: var(--app-bg); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; border: 1px solid var(--border);";
                 card.innerHTML = `
-                    <div class="complaint-header">
-                        <h4>${data.subject}</h4>
-                        <span class="complaint-date">${displayDate}</span>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <h4 style="margin: 0; color: var(--text-main); font-size: 15px;">${data.subject}</h4>
+                        <span style="font-size: 11px; color: var(--text-muted);">${displayDate}</span>
                     </div>
-                    <div class="complaint-user">
-                        <strong>${data.name}</strong> &lt;${data.email}&gt;
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+                        <strong style="color: var(--text-main);">${data.name}</strong> &lt;${data.email}&gt;
                     </div>
-                    <div class="complaint-body">
-                        ${data.details}
-                    </div>
+                    <div style="font-size: 14px; color: var(--text-main); white-space: pre-wrap; line-height: 1.4;">${data.details}</div>
                 `;
                 complaintsList.appendChild(card);
             });
         } catch (error) {
             console.error("Error retrieving complaints:", error);
-            complaintsList.innerHTML = '<div class="error-state">Failed to load complaints. Verify Firestore indexing and permissions.</div>';
+            complaintsList.innerHTML = '<p style="text-align: center; color: #ef4444;">Failed to load complaints. Verify Firestore permissions.</p>';
         }
     }
 }
