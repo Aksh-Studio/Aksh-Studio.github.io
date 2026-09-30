@@ -310,7 +310,7 @@ const renderMessagesUI = () => {
     if (!container) return;
 
     const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
-const disclaimerHTML = `
+    const disclaimerHTML = `
         <div class="chat-disclaimer-wrapper">
             <div class="chat-disclaimer">
                 <span class="material-symbols-rounded lock-icon" style="font-size: 13px; vertical-align: middle;">lock</span> 
@@ -342,6 +342,10 @@ const disclaimerHTML = `
         const isMe = msg.senderId === curId; 
         const isFirstInGroup = previousSenderId !== msg.senderId;
         const isSystemAdminMsg = msg.isOwner === true && (currentRoomId === 'global_channel' || currentRoomId === 'aksh_help');
+
+        // Decrypt text content
+        const decryptedText = msg.text ? decryptMessage(msg.text) : "";
+        const formattedTextContent = parseWhatsAppFormatting(decryptedText);
 
         let timeString = "Sending...";
         let tickHTML = "";
@@ -384,7 +388,9 @@ const disclaimerHTML = `
         const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
         const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
         
-        const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(msg.replyToText)}</div></div>` : '';
+        // Decrypt replied content
+        const decryptedReplyText = msg.replyToText ? decryptMessage(msg.replyToText) : "";
+        const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(decryptedReplyText)}</div></div>` : '';
 
         const actionMenuHTML = `
             <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
@@ -401,8 +407,6 @@ const disclaimerHTML = `
         const checkboxHTML = `<div class="msg-checkbox-wrapper"><input type="checkbox" class="msg-checkbox" value="${msgId}" data-sender="${msg.senderId}"></div>`;
         const alignmentClass = isSystemAdminMsg ? 'admin' : (isMe ? 'me' : 'other');
         const bubbleClass = isSystemAdminMsg ? 'msg-admin' : (isMe ? 'msg-me' : 'msg-other');
-        
-        const formattedTextContent = parseWhatsAppFormatting(msg.text);
         
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
@@ -466,7 +470,10 @@ const listenToRoomState = (roomId) => {
         
         const banner = document.getElementById('pinned-message-banner');
         if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
-            document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(currentRoomData.pinnedMessage);
+            // Decrypt pinned message
+            const decPin = decryptMessage(currentRoomData.pinnedMessage);
+            document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(decPin);
+            
             const titleEl = banner.querySelector('p');
             if (titleEl) titleEl.innerText = "Pinned Message";
             banner.style.display = 'flex';
@@ -574,17 +581,25 @@ export const sendMessage = async () => {
 
     inputField.value = ''; 
     const curId = currentUser?.id || currentUser?.uid;
+    
+    // Encrypt main text
+    const scrambledText = encryptMessage(text);
+    
     const payload = { 
-        text, senderId: curId, senderName: currentUser?.name || 'User', 
+        text: scrambledText, 
+        senderId: curId, 
+        senderName: currentUser?.name || 'User', 
         isOwner: currentUser?.isOwner === true, 
         timestamp: Date.now(),
         localTimestamp: Date.now(),
         expireAt: Timestamp.fromMillis(
             Date.now() + 60 * 24 * 60 * 60 * 1000
-        )    };
+        )    
+    };
 
     if (replyContext) {
-        payload.replyToText = replyContext.text;
+        // Encrypt reply reference
+        payload.replyToText = encryptMessage(replyContext.text);
         payload.replyToName = replyContext.senderName;
         window.cancelReply(); 
     }
@@ -643,12 +658,14 @@ window.forwardSelectedMessages = async () => {
                     if (msgDoc.exists()) {
                         const originalData = msgDoc.data();
                         
+                        // Decrypt before checking prefix
+                        let finalizedText = originalData.text ? decryptMessage(originalData.text) : "";
                         const prefix = "_▶ Forwarded_\n";
-                        let finalizedText = originalData.text;
+                        
                         if (!finalizedText.includes("Forwarded")) finalizedText = prefix + finalizedText;
 
                         const fwdPayload = {
-                            text: finalizedText,
+                            text: encryptMessage(finalizedText), // Re-encrypt for new doc
                             imageUrl: originalData.imageUrl || null,
                             fileUrl: originalData.fileUrl || null,
                             fileType: originalData.fileType || null,
@@ -730,7 +747,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
                         const payload = { 
                             ...basePayload,
-                            text: "📷 Image Attached", fileUrl: compressedBase64,
+                            text: encryptMessage("📷 Image Attached"), 
+                            fileUrl: compressedBase64,
                             fileType: file.type, fileName: file.name
                         };
                         try { 
@@ -743,7 +761,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     const payload = { 
                         ...basePayload,
-                        text: `📄 Document: ${file.name}`, fileUrl: fileData,
+                        text: encryptMessage(`📄 Document: ${file.name}`), 
+                        fileUrl: fileData,
                         fileType: file.type, fileName: file.name
                     };
                     try { 
@@ -772,7 +791,9 @@ document.addEventListener('DOMContentLoaded', () => {
             snapshot.forEach(docObj => {
                 const m = docObj.data();
                 const stamp = new Date(m.localTimestamp || m.timestamp || Date.now()).toLocaleString();
-                logOutput += `[${stamp}] ${m.senderName || 'User'}: ${m.text}\n`;
+                // Decrypt for export
+                const decText = m.text ? decryptMessage(m.text) : "";
+                logOutput += `[${stamp}] ${m.senderName || 'User'}: ${decText}\n`;
             });
             const fileBlob = new Blob([logOutput], { type: 'text/plain' });
             const fileUrl = URL.createObjectURL(fileBlob);
@@ -826,7 +847,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!textEl) return;
             const hours = parseInt(e.target.getAttribute('data-hours'));
             const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
-            try { await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: textEl.innerText, pinExpiry: expiryTime }, { merge: true }); } catch (err) {}
+            try { 
+                // Encrypt pin
+                const encPin = encryptMessage(textEl.innerText);
+                await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: encPin, pinExpiry: expiryTime }, { merge: true }); 
+            } catch (err) {}
             document.getElementById('pin-modal').style.display = 'none';
             messageToPin = null;
         });
