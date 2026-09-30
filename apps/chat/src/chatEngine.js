@@ -1,6 +1,7 @@
 // src/chatEngine.js
 import { db, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, getDocs, getDoc, updateDoc, Timestamp } from './firebase.js';
 import { currentUser } from './auth.js';
+import { encryptMessage, decryptMessage } from './siteCipher.js';
 
 let unsubscribeListener = null;
 let roomStateListener = null;
