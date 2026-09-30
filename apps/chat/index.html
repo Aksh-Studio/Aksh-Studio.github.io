@@ -163,8 +163,30 @@
     </div>
 </div>
 
-<!-- Owner Dashboard Modal -->
-<div id="ownerModal" class="help-modal-overlay">
+<!-- Secret Owner Button (Added inline display:none) -->
+<button id="ownerPanelBtn" title="Owner Dashboard" style="display: none;">?</button>
+
+<!-- Help Form Modal for Users (Added inline display:none) -->
+<div id="helpModal" class="help-modal-overlay" style="display: none;">
+    <div class="help-modal-content">
+        <span id="closeHelpBtn" class="help-close-btn">&times;</span>
+        <h2>Contact Support</h2>
+        <form id="helpForm">
+            <div class="help-form-group">
+                <label for="helpSubject">Problem Subject</label>
+                <input type="text" id="helpSubject" required placeholder="Briefly describe the issue">
+            </div>
+            <div class="help-form-group">
+                <label for="helpDetails">Details</label>
+                <textarea id="helpDetails" required placeholder="Provide more details here..."></textarea>
+            </div>
+            <button type="submit" class="help-submit-btn">Submit</button>
+        </form>
+    </div>
+</div>
+
+<!-- Owner Dashboard Modal (Added inline display:none) -->
+<div id="ownerModal" class="help-modal-overlay" style="display: none;">
     <div class="help-modal-content owner-modal-content">
         <span id="closeOwnerBtn" class="help-close-btn">&times;</span>
         <h2>Owner Dashboard - Complaints</h2>
