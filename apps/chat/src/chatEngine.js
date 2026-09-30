@@ -410,11 +410,15 @@ const renderMessagesUI = () => {
         
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
+            // Decrypt the file data and name
+            const rawFileUrl = decryptMessage(msg.fileUrl);
+            const rawFileName = msg.fileName ? decryptMessage(msg.fileName) : 'attachment';
+
             if (msg.fileType && msg.fileType.startsWith('image')) {
                 mediaAttachmentHTML = `
                     <div style="position:relative; margin-bottom: 5px;">
-                        <img src="${msg.fileUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'image.jpg'}" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;" title="Download Image">
+                        <img src="${rawFileUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
+                        <a href="${rawFileUrl}" download="${rawFileName}" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;" title="Download Image">
                             <span class="material-symbols-rounded" style="font-size:16px;">download</span>
                         </a>
                     </div>`;
@@ -423,18 +427,20 @@ const renderMessagesUI = () => {
                     <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; margin-bottom: 5px;">
                         <span class="material-symbols-rounded" style="font-size: 32px; color: var(--primary);">description</span>
                         <div style="flex: 1; overflow: hidden;">
-                            <p style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${msg.fileName || 'Document'}</p>
+                            <p style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rawFileName}</p>
                         </div>
-                        <a href="${msg.fileUrl}" download="${msg.fileName || 'document'}" target="_blank" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; background: rgba(0, 168, 132, 0.1); width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;" title="Download Document">
+                        <a href="${rawFileUrl}" download="${rawFileName}" target="_blank" style="color: var(--primary); text-decoration: none; display: flex; align-items: center; justify-content: center; background: rgba(0, 168, 132, 0.1); width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;" title="Download Document">
                             <span class="material-symbols-rounded" style="font-size:16px;">download</span>
                         </a>
                     </div>`;
             }
         } else if (msg.imageUrl) {
+            // Fallback for any legacy unencrypted imageUrls
+            const rawImageUrl = decryptMessage(msg.imageUrl);
             mediaAttachmentHTML = `
                 <div style="position:relative; margin-bottom: 5px;">
-                    <img src="${msg.imageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
-                    <a href="${msg.imageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;" title="Download Image">
+                    <img src="${rawImageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
+                    <a href="${rawImageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;" title="Download Image">
                         <span class="material-symbols-rounded" style="font-size:16px;">download</span>
                     </a>
                 </div>`;
@@ -667,6 +673,7 @@ window.forwardSelectedMessages = async () => {
                         const fwdPayload = {
                             text: encryptMessage(finalizedText), // Re-encrypt for new doc
                             imageUrl: originalData.imageUrl || null,
+                            // fileUrl & fileName are passed straight across, no need to decrypt/re-encrypt
                             fileUrl: originalData.fileUrl || null,
                             fileType: originalData.fileType || null,
                             fileName: originalData.fileName || null,
@@ -748,8 +755,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         const payload = { 
                             ...basePayload,
                             text: encryptMessage("📷 Image Attached"), 
-                            fileUrl: compressedBase64,
-                            fileType: file.type, fileName: file.name
+                            fileUrl: encryptMessage(compressedBase64),
+                            fileType: file.type, 
+                            fileName: encryptMessage(file.name)
                         };
                         try { 
                             await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
@@ -762,8 +770,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const payload = { 
                         ...basePayload,
                         text: encryptMessage(`📄 Document: ${file.name}`), 
-                        fileUrl: fileData,
-                        fileType: file.type, fileName: file.name
+                        fileUrl: encryptMessage(fileData),
+                        fileType: file.type, 
+                        fileName: encryptMessage(file.name)
                     };
                     try { 
                         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
