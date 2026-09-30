@@ -58,7 +58,6 @@ export function initHelpEngine(currentUser) {
             submitBtn.textContent = 'Submitting...';
 
             try {
-                // Using setDoc instead of addDoc to match your existing firebase.js exports
                 const newTicketId = `ticket_${timestamp}`;
                 await setDoc(doc(db, "help_complaints", newTicketId), complaintPayload);
 
@@ -80,7 +79,6 @@ export function initHelpEngine(currentUser) {
         complaintsList.innerHTML = '<div class="loader">Loading secure database...</div>';
         
         try {
-            // Using standard getDocs to bypass needing 'query' and 'orderBy' exports
             const snapshot = await getDocs(collection(db, "help_complaints"));
             complaintsList.innerHTML = ''; 
             
@@ -89,7 +87,6 @@ export function initHelpEngine(currentUser) {
                 return;
             }
 
-            // Extract to array and sort by date descending using JavaScript
             const complaints = [];
             snapshot.forEach(docObj => complaints.push(docObj.data()));
             complaints.sort((a, b) => b.date - a.date);
