@@ -13,6 +13,12 @@ export function initHelpEngine(currentUser) {
     const closeHelpBtn = document.getElementById('closeHelpBtn');
     const closeOwnerBtn = document.getElementById('closeOwnerBtn');
 
+    // --- AUTO-STYLE THE OWNER BUTTON ---
+    // This guarantees the button floats beautifully on the bottom right, even if HTML CSS is missing
+    if (ownerBtn) {
+        ownerBtn.style.cssText = "display: none; position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; background-color: #ef4444; color: white; border-radius: 50%; border: none; font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); z-index: 10000; align-items: center; justify-content: center;";
+    }
+
     // --- ROLE-BASED VISIBILITY ---
     if (currentUser && currentUser.email === ownerEmail) {
         if (ownerBtn) ownerBtn.style.display = 'flex'; 
@@ -20,7 +26,7 @@ export function initHelpEngine(currentUser) {
         
         ownerBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            ownerModal.style.display = 'flex'; // Changed to flex for centering
+            ownerModal.style.display = 'flex'; 
             await fetchAndRenderComplaints();
         });
     } else {
@@ -29,7 +35,7 @@ export function initHelpEngine(currentUser) {
         
         helpBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            helpModal.style.display = 'flex'; // Changed to flex for centering
+            helpModal.style.display = 'flex'; 
         });
     }
 
@@ -101,7 +107,6 @@ export function initHelpEngine(currentUser) {
             complaints.forEach((data) => {
                 const displayDate = new Date(data.date).toLocaleString();
                 const card = document.createElement('div');
-                // Apply theme variables directly
                 card.style.cssText = "background: var(--app-bg); border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; border: 1px solid var(--border);";
                 card.innerHTML = `
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
