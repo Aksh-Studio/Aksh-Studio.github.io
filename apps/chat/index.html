@@ -141,58 +141,49 @@
     </div>
     <script type="module" src="src/app.js"></script>
 
+<!-- ================= HELP & OWNER SYSTEM ================= -->
     <!-- Secret Owner Button -->
-<button id="ownerPanelBtn" title="Owner Dashboard">?</button>
+    <button id="ownerPanelBtn" title="Owner Dashboard" style="display: none; position: fixed; bottom: 25px; right: 25px; width: 52px; height: 52px; background: #ea0038; color: white; border-radius: 50%; border: none; font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 14px rgba(234, 0, 56, 0.4); z-index: 99998; align-items: center; justify-content: center; transition: transform 0.2s;">?</button>
 
-<!-- Help Form Modal for Users -->
-<div id="helpModal" class="help-modal-overlay">
-    <div class="help-modal-content">
-        <span id="closeHelpBtn" class="help-close-btn">&times;</span>
-        <h2>Contact Support</h2>
-        <form id="helpForm">
-            <div class="help-form-group">
-                <label for="helpSubject">Problem Subject</label>
-                <input type="text" id="helpSubject" required placeholder="Briefly describe the issue">
+    <!-- Help Form Modal for Users -->
+    <div id="helpModal" style="display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 15px; box-sizing: border-box;">
+        <div style="background: var(--card-bg, #ffffff); color: var(--text-main, #111827); width: 100%; max-width: 460px; padding: 25px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border, #e5e7eb); position: relative; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main, #111827);">Contact Support</h3>
+                <span id="closeHelpBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted, #6b7280); font-size: 22px;">close</span>
             </div>
-            <div class="help-form-group">
-                <label for="helpDetails">Details</label>
-                <textarea id="helpDetails" required placeholder="Provide more details here..."></textarea>
+            <form id="helpForm" style="display: flex; flex-direction: column; gap: 12px; margin: 0;">
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted, #6b7280); margin-bottom: 5px;">Subject</label>
+                    <input type="text" id="helpSubject" required placeholder="What is your issue?" style="width: 100%; padding: 12px; background: var(--app-bg, #f9fafb); color: var(--text-main, #111827); border: 1px solid var(--border, #d1d5db); border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted, #6b7280); margin-bottom: 5px;">Details</label>
+                    <textarea id="helpDetails" required placeholder="Describe your problem in detail..." style="width: 100%; padding: 12px; background: var(--app-bg, #f9fafb); color: var(--text-main, #111827); border: 1px solid var(--border, #d1d5db); border-radius: 8px; font-family: inherit; font-size: 14px; min-height: 120px; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button type="button" id="cancelHelpBtn" style="flex: 1; padding: 11px; background: transparent; color: var(--text-muted, #6b7280); border: 1px solid var(--border, #d1d5db); border-radius: 8px; cursor: pointer; font-weight: 600;">Cancel</button>
+                    <button type="submit" id="submitHelpBtn" style="flex: 2; padding: 11px; background: var(--primary, #00a884); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Submit Ticket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Owner Dashboard Modal -->
+    <div id="ownerModal" style="display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 15px; box-sizing: border-box;">
+        <div style="background: var(--card-bg, #ffffff); color: var(--text-main, #111827); width: 100%; max-width: 650px; max-height: 85vh; padding: 25px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border, #e5e7eb); display: flex; flex-direction: column; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border, #e5e7eb);">
+                <div>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main, #111827);">Complaints & Requests</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-muted, #6b7280);">Owner View (akshat124.am12@gmail.com)</p>
+                </div>
+                <span id="closeOwnerBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted, #6b7280); font-size: 22px;">close</span>
             </div>
-            <button type="submit" class="help-submit-btn">Submit</button>
-        </form>
-    </div>
-</div>
-
-<!-- Secret Owner Button -->
-<button id="ownerPanelBtn" title="Owner Dashboard" style="display: none; position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; background-color: #ef4444; color: white; border-radius: 50%; border: none; font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); z-index: 10000; align-items: center; justify-content: center;">?</button>
-
-<!-- Help Form Modal for Users -->
-<div id="helpModal" class="guest-overlay" style="display: none; z-index: 10001;">
-    <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 450px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0; color: var(--text-main);">Contact Support</h3>
-            <span id="closeHelpBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted);">close</span>
-        </div>
-        <form id="helpForm">
-            <input type="text" id="helpSubject" required placeholder="Problem Subject" style="width: 100%; padding: 12px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; outline: none; font-family: inherit;">
-            <textarea id="helpDetails" required placeholder="Provide more details here..." style="width: 100%; padding: 12px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; min-height: 120px; resize: vertical; outline: none; font-family: inherit;"></textarea>
-            <button type="submit" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Submit Ticket</button>
-        </form>
-    </div>
-</div>
-
-<!-- Owner Dashboard Modal -->
-<div id="ownerModal" class="guest-overlay" style="display: none; z-index: 10001;">
-    <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 600px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0; color: var(--text-main);">Owner Dashboard - Complaints</h3>
-            <span id="closeOwnerBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted);">close</span>
-        </div>
-        <div id="complaintsList" style="max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
-            <!-- Complaints will be injected here by JavaScript -->
+            <div id="complaintsList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px;">
+                <!-- Complaints will be rendered here -->
+            </div>
         </div>
     </div>
-</div>
     
 </body>
 </html>
