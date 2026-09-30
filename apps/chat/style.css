@@ -274,3 +274,22 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     .app-layout.mobile-chat-active .chat-sidebar { display: none; }
     .app-layout.mobile-chat-active .chat-main { display: flex; }
 }
+
+/* --- FULL SCREEN CHAT UI FIX --- */
+.chat-main {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Fills the calc(100vh - 60px) of main-layout */
+}
+
+#chat-messages-container {
+    flex: 1; /* Forces this container to take up all available vertical space */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-input-area {
+    flex-shrink: 0; /* Prevents the input area from squishing */
+    margin-top: auto; /* Guarantees it locks to the bottom */
+}
