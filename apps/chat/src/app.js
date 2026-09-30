@@ -2,6 +2,7 @@
 import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc, deleteDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
+import { initHelpEngine } from './help/helpEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
@@ -381,7 +382,13 @@ export const renderSidebarList = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
-        if (currentUser) listenToCloudRooms(); 
+        if (currentUser) {
+            listenToCloudRooms(); 
+            
+            // --- INITIALIZE HELP & OWNER ENGINE HERE ---
+            initHelpEngine(currentUser);
+        }
+        
         initSettingsAndTheme();
         initNavigation();
         renderSidebarList();
