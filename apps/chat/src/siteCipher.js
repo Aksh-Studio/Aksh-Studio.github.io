@@ -1,7 +1,8 @@
 // apps/chat/src/siteCipher.js
 
-const SITE_ORIGIN = "https://aksh-studio.github.io/";
+const SITE_ORIGIN = "https://aksh-studio.github.io";
 const INTERNAL_SALT = "aksh_chat_vault_2026_xK9";
+const PAYLOAD_PREFIX = "enc:v1:";
 
 function createKeyStream(keyStr) {
   const S = new Uint8Array(256);
@@ -45,6 +46,9 @@ function getSiteKey() {
   return origin + "::" + INTERNAL_SALT;
 }
 
+/**
+ * Encrypts plain message into a scrambled Base64 string prefixed with enc:v1:
+ */
 export function encryptMessage(plainText) {
   if (!plainText) return "";
   const key = getSiteKey();
@@ -56,14 +60,25 @@ export function encryptMessage(plainText) {
   for (let i = 0; i < cipherBytes.length; i++) {
     binary += String.fromCharCode(cipherBytes[i]);
   }
-  return btoa(binary);
+  return PAYLOAD_PREFIX + btoa(binary);
 }
 
+/**
+ * Decrypts scrambled Base64 string back into readable message.
+ * Safely falls back to returning the raw string if it was sent prior to encryption.
+ */
 export function decryptMessage(encryptedPayload) {
   if (!encryptedPayload) return "";
+
+  // 1. If message doesn't have the prefix, treat it as legacy plain text
+  if (!encryptedPayload.startsWith(PAYLOAD_PREFIX)) {
+    return encryptedPayload;
+  }
+
   try {
+    const rawBase64 = encryptedPayload.slice(PAYLOAD_PREFIX.length);
     const key = getSiteKey();
-    const binary = atob(encryptedPayload);
+    const binary = atob(rawBase64);
     const cipherBytes = new Uint8Array(binary.length);
 
     for (let i = 0; i < binary.length; i++) {
@@ -73,6 +88,7 @@ export function decryptMessage(encryptedPayload) {
     const plainBytes = transformBytes(cipherBytes, key);
     return new TextDecoder().decode(plainBytes);
   } catch (err) {
-    return "[Encrypted Message]";
+    // Fallback if parsing fails
+    return encryptedPayload;
   }
 }
