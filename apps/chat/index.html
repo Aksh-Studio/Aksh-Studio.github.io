@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="/global-mobile.css">
+    <link rel="stylesheet" href="./src/help/helpModal.css">
 </head>
 <body>
     
@@ -38,6 +39,7 @@
                 <a href="../../dashboard.html" class="back-link">← Dashboard</a>
                 <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
             </div>
+            <button id="navHelpBtn" class="nav-btn">Help</button>
             <div class="nav-right">
                 <button id="theme-btn" class="btn-outline">Dark Mode</button>
                 <div class="profile-menu">
@@ -140,5 +142,39 @@
         </div>
     </div>
     <script type="module" src="src/app.js"></script>
+
+    <!-- Secret Owner Button -->
+<button id="ownerPanelBtn" title="Owner Dashboard">?</button>
+
+<!-- Help Form Modal for Users -->
+<div id="helpModal" class="help-modal-overlay">
+    <div class="help-modal-content">
+        <span id="closeHelpBtn" class="help-close-btn">&times;</span>
+        <h2>Contact Support</h2>
+        <form id="helpForm">
+            <div class="help-form-group">
+                <label for="helpSubject">Problem Subject</label>
+                <input type="text" id="helpSubject" required placeholder="Briefly describe the issue">
+            </div>
+            <div class="help-form-group">
+                <label for="helpDetails">Details</label>
+                <textarea id="helpDetails" required placeholder="Provide more details here..."></textarea>
+            </div>
+            <button type="submit" class="help-submit-btn">Submit</button>
+        </form>
+    </div>
+</div>
+
+<!-- Owner Dashboard Modal -->
+<div id="ownerModal" class="help-modal-overlay">
+    <div class="help-modal-content owner-modal-content">
+        <span id="closeOwnerBtn" class="help-close-btn">&times;</span>
+        <h2>Owner Dashboard - Complaints</h2>
+        <div id="complaintsList" class="complaints-list">
+            <!-- Complaints will be injected here by JavaScript -->
+        </div>
+    </div>
+</div>
+    
 </body>
 </html>
