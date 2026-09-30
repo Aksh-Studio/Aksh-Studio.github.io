@@ -1,5 +1,5 @@
+import { collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
 import { db, collection, addDoc, getDocs, query, orderBy } from "../firebase.js";
-import { db } from "../firebase.js"; // Assumes your initialized Firestore instance is exported as 'db'
 
 export function initHelpEngine(currentUser) {
     // 1. Configuration & Security
