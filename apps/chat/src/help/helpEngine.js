@@ -15,18 +15,29 @@ export function initHelpEngine(currentUser) {
     const closeHelpBtn = document.getElementById('closeHelpBtn');
     const closeOwnerBtn = document.getElementById('closeOwnerBtn');
 
-    // 3. Owner Authentication & Dashboard Access
+    // 3. ROLE-BASED VISIBILITY LOGIC
     if (currentUser && currentUser.email === ownerEmail) {
+        // --- OWNER VIEW ---
         if (ownerBtn) ownerBtn.style.display = 'flex'; 
+        if (helpBtn) helpBtn.style.display = 'none'; // Hide Help button from you
         
-        ownerBtn.addEventListener('click', async () => {
+        ownerBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
             ownerModal.style.display = 'block';
             await fetchAndRenderComplaints();
         });
+    } else {
+        // --- USER VIEW ---
+        if (ownerBtn) ownerBtn.style.display = 'none'; 
+        if (helpBtn) helpBtn.style.display = 'inline-block'; // Show Help button to users
+        
+        helpBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            helpModal.style.display = 'block';
+        });
     }
 
-    // 4. Modals Logic
-    if (helpBtn) helpBtn.addEventListener('click', () => helpModal.style.display = 'block');
+    // 4. Modals Close Logic
     if (closeHelpBtn) closeHelpBtn.addEventListener('click', () => helpModal.style.display = 'none');
     if (closeOwnerBtn) closeOwnerBtn.addEventListener('click', () => ownerModal.style.display = 'none');
 
