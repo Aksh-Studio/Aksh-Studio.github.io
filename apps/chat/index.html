@@ -87,19 +87,32 @@
             </aside>
 
             <main class="chat-main" id="chat-main-panel">
-                <div class="chat-header" id="standard-chat-header">
-                    <button id="btn-mobile-back" class="mobile-back-btn"><span class="material-symbols-rounded">arrow_back</span></button>
-                    <div class="global-icon-box" id="active-room-icon-box" style="width:40px; height:40px; cursor: pointer;">
-                        <span id="active-room-icon" class="material-symbols-rounded">public</span>
-                    </div>
-                    <div style="flex: 1; cursor: pointer;" id="header-room-info">
-                        <h3 id="active-room-name" style="font-size:16px;">Select a chat</h3>
-                        <p style="font-size:12px; color:var(--primary);" id="active-room-status">...</p>
-                    </div>
-                    <div style="display: flex; gap: 15px; color: var(--text-muted);">
-                        <button id="btn-export-chat" style="background:none; border:none; color:inherit; cursor:pointer;"><span class="material-symbols-rounded">download</span></button>
-                    </div>
-                </div>
+              <div class="chat-header" id="standard-chat-header">
+    <button id="btn-mobile-back" class="mobile-back-btn"><span class="material-symbols-rounded">arrow_back</span></button>
+    <div class="global-icon-box" id="active-room-icon-box" style="width:40px; height:40px; cursor: pointer;">
+        <span id="active-room-icon" class="material-symbols-rounded">public</span>
+    </div>
+    <div style="flex: 1; cursor: pointer;" id="header-room-info">
+        <h3 id="active-room-name" style="font-size:16px;">Select a chat</h3>
+        <p style="font-size:12px; color:var(--primary);" id="active-room-status">...</p>
+    </div>
+    
+    <!-- 3-Dot Menu & Export -->
+    <div style="display: flex; gap: 5px; color: var(--text-muted); position: relative; align-items: center;">
+        <button id="btn-export-chat" style="background:none; border:none; color:inherit; cursor:pointer; padding: 5px;"><span class="material-symbols-rounded">download</span></button>
+        
+        <div style="position: relative;" id="chat-options-container">
+            <button id="btn-chat-options" style="background:none; border:none; color:inherit; cursor:pointer; padding: 5px;"><span class="material-symbols-rounded">more_vert</span></button>
+            <!-- 3-Dot Dropdown -->
+            <div id="chat-options-dropdown" class="dropdown-content" style="display: none; top: 35px; right: 0; width: 160px; padding: 8px; z-index: 100;">
+                <button id="btn-opt-report" class="msg-action-btn" style="color: #ea0038;">Report User</button>
+                <button id="btn-opt-block" class="msg-action-btn" style="color: #ea0038;">Block User</button>
+                <button id="btn-opt-clear" class="msg-action-btn">Clear Chat</button>
+                <button id="btn-opt-delete" class="msg-action-btn" style="color: #ea0038; border-top: 1px solid var(--border); margin-top: 5px; padding-top: 10px;">Delete Chat</button>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <div class="chat-header" id="selection-chat-header" style="display: none; background: rgba(0, 168, 132, 0.1);">
                     <button id="btn-cancel-selection" style="background:none; border:none; color:var(--text-main); cursor:pointer;"><span class="material-symbols-rounded">close</span></button>
