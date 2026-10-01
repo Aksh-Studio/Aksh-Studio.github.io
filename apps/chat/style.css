@@ -239,21 +239,45 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
 
 /* --- THE MOBILE BREAKPOINTS --- */
 @media screen and (max-width: 900px) {
-    /* Side rail totally hidden */
-    .side-rail { display: none !important; }
+    /* 1. FLEX REORDERING: Pushes side-rail to bottom */
+    .app-layout { flex-direction: column !important; }
     
-    /* Layout toggles between sidebar and chat window */
-    .chat-sidebar { width: 100%; border-right: none; }
-    .chat-main { display: none; width: 100%; }
+    .side-rail { 
+        display: flex !important; 
+        flex-direction: row; 
+        width: 100%; 
+        height: 65px; 
+        border-right: none; 
+        border-top: 1px solid var(--border); 
+        padding: 0 25px; 
+        order: 3; /* Puts it at the bottom */
+        justify-content: space-between;
+        align-items: center;
+        background: var(--card-bg);
+        z-index: 50;
+    }
     
-    /* When a chat is opened, hide sidebar and show chat main */
+    /* Hide the empty flex spacer on mobile */
+    .side-rail > div[style*="flex: 1"] { display: none; }
+    
+    .chat-sidebar { order: 1; height: calc(100% - 65px); width: 100%; }
+    .chat-main { order: 2; height: calc(100% - 65px); width: 100%; }
+    
+    /* Reverse the dropdown menus so they pop UP */
+    #profile-menu-wrapper { margin-bottom: 0 !important; }
+    #settings-dropdown-menu, #profile-dropdown-menu {
+        bottom: 60px !important;
+        left: 10px !important;
+        width: 250px !important;
+    }
+
+    /* 2. CHAT TOGGLING */
     .app-layout.mobile-chat-active .chat-sidebar { display: none !important; }
     .app-layout.mobile-chat-active .chat-main { display: flex !important; }
     
     /* Group Info Panel Full Screen overlay */
     .info-sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 100% !important; border-left: none; z-index: 100; }
     
-    /* Reveal the back button */
     .mobile-back-btn { display: flex; align-items: center; justify-content: center; }
 
     /* Top Nav Compression */
