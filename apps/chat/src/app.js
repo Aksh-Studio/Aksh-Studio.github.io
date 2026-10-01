@@ -1,7 +1,9 @@
 import { db, collection, getDocs, onSnapshot, query, setDoc, doc, getDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
+// Correctly imports switchChatRoom and leaveChatRoom from chatEngine
 import { switchChatRoom, leaveChatRoom, sendMessage } from './chatEngine.js';
 import { initHelpEngine } from './help/helpEngine.js';
+// Only imports global settings from advancedEngine
 import { initGlobalSettings } from './advancedEngine.js';
 import { initGroupEngine } from './groupEngine.js';
 import { initMediaEngine } from './mediaEngine.js';
@@ -94,7 +96,7 @@ const listenToCloudRooms = () => {
             }
         });
         renderSidebarList(); 
-    }, (error) => { /* Suppress Error Logs Safely */ });
+    }, (error) => { /* Suppress logs to keep console clean */ });
 };
 
 const initThemeAndListeners = () => {
@@ -241,25 +243,34 @@ const fetchNetworkUsers = async () => {
             `;
 
             item.addEventListener('click', async () => {
-                const deterministicId = myUid < user.uid ? `dm_${myUid}_${user.uid}` : `dm_${user.uid}_${myUid}`;
-                const myPic = currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
-                
                 const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
                 const isTargetOwner = user.email === 'akshat124.am12@gmail.com';
+                const deterministicId = myUid < user.uid ? `dm_${myUid}_${user.uid}` : `dm_${user.uid}_${myUid}`;
+                const myPic = currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
-                // FIX: Only write the initial DB room if Current is Owner, or Target is NOT Owner
-                // This prevents users from initiating chat with Owner and making it visible on the Owner's screen
-                if (isCurrentOwner || !isTargetOwner) {
+                // CRITICAL FIX: Owner Privacy Interception
+                // If a normal user clicks on the Owner, check if the chat already exists.
+                // If the chat does NOT exist, block the creation so the Owner's screen isn't spammed.
+                if (!isCurrentOwner && isTargetOwner) {
                     try {
-                        await setDoc(doc(db, "chats", deterministicId), {
-                            type: 'dm', participants: [myUid, user.uid],
-                            [`deletedFor_${myUid}`]: false,
-                            names: { [myUid]: currentUser.name, [user.uid]: user.name },
-                            emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, 
-                            avatars: { [myUid]: myPic, [user.uid]: user.pic }
-                        }, { merge: true });
+                        const checkDoc = await getDoc(doc(db, "chats", deterministicId));
+                        if (!checkDoc.exists()) {
+                            alert("You cannot initiate a chat with the App Owner.");
+                            return; // Halts execution. Does not open chat.
+                        }
                     } catch(e) {}
                 }
+
+                // If safe to proceed, ensure the document exists
+                try {
+                    await setDoc(doc(db, "chats", deterministicId), {
+                        type: 'dm', participants: [myUid, user.uid],
+                        [`deletedFor_${myUid}`]: false, // Re-enable if previously deleted locally
+                        names: { [myUid]: currentUser.name, [user.uid]: user.name },
+                        emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, 
+                        avatars: { [myUid]: myPic, [user.uid]: user.pic }
+                    }, { merge: true });
+                } catch(e) {}
 
                 appState.activeChatId = deterministicId;
                 appState.isMobileChatOpen = true;
