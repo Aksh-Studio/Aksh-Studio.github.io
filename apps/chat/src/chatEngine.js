@@ -1,7 +1,7 @@
-// src/chatEngine.js
 import { db, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, getDocs, getDoc, updateDoc, Timestamp } from './firebase.js';
 import { currentUser } from './auth.js';
 import { encryptMessage, decryptMessage } from './siteCipher.js';
+import { initChatOptions } from './advancedEngine.js';
 
 let unsubscribeListener = null;
 let roomStateListener = null;
@@ -136,8 +136,6 @@ const injectGroupAdminModal = () => {
     document.getElementById('btn-delete-group').addEventListener('click', async () => {
         if (confirm("WARNING: This will permanently destroy this group and all messages for everyone. Proceed?")) {
             try {
-                // --- THE DEEP DELETE FIX ---
-                // Forces the UI to destroy all orphaned sub-messages before the group goes down
                 const msgsSnap = await getDocs(collection(db, `chats/${currentRoomId}/messages`));
                 const deletePromises = [];
                 msgsSnap.forEach(d => deletePromises.push(deleteDoc(doc(db, `chats/${currentRoomId}/messages`, d.id))));
@@ -195,7 +193,8 @@ const populateGroupManagement = async (participants, admins) => {
                 
                 if (!isMemAdmin) transferSelectEl.innerHTML += `<option value="${uid}">${name}</option>`;
 
-                const kickBtnHTML = (uid !== curId && canEdit) ? `<button onclick="window.kickUser('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Remove</button>` : '';
+                // NEW: Use the window.removeGroupMember function injected by advancedEngine.js
+                const kickBtnHTML = (uid !== curId && canEdit) ? `<button onclick="window.removeGroupMember('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Remove</button>` : '';
 
                 listEl.innerHTML += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--app-bg);">
@@ -292,6 +291,9 @@ export const switchChatRoom = (roomId, passedName, passedIcon, passedType) => {
         }
     }
 
+    // NEW: Expose room data globally for advancedEngine to use
+    window.currentRoomData = currentRoomMeta;
+
     listenToRoomState(roomId); 
     listenToMessages(roomId);
     
@@ -334,23 +336,26 @@ const renderMessagesUI = () => {
     }
     const otherParticipants = participantList.filter(id => id !== curId);
 
+    // NEW: Filter out "Cleared" messages
+    const clearTimestamp = currentRoomData ? (currentRoomData[`clearedAt_${curId}`] || 0) : 0;
+
     currentMessagesSnapshot.forEach((documentObj) => {
         const msgId = documentObj.id;
-        if (hiddenMsgs.includes(msgId)) return;
-
         const msg = documentObj.data();
+        const msgTime = msg.localTimestamp || msg.timestamp || Date.now();
+        
+        // Skip rendering if the message was sent before the user cleared the chat, or if hidden
+        if (msgTime <= clearTimestamp || hiddenMsgs.includes(msgId)) return;
+
         const isMe = msg.senderId === curId; 
         const isFirstInGroup = previousSenderId !== msg.senderId;
         const isSystemAdminMsg = msg.isOwner === true && (currentRoomId === 'global_channel' || currentRoomId === 'aksh_help');
 
-        // Decrypt text content
         const decryptedText = msg.text ? decryptMessage(msg.text) : "";
         const formattedTextContent = parseWhatsAppFormatting(decryptedText);
 
         let timeString = "Sending...";
         let tickHTML = "";
-        
-        let msgTime = msg.localTimestamp || Date.now();
         
         if (msg.timestamp && typeof msg.timestamp.toDate === 'function') {
             timeString = msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -369,7 +374,6 @@ const renderMessagesUI = () => {
                         else if (recObj.seconds) rTime = recObj.seconds * 1000;
                         else if (typeof recObj === 'number') rTime = recObj;
                     }
-                    
                     return rTime > 0 && rTime >= (msgTime - 5000);
                 });
             }
@@ -388,7 +392,6 @@ const renderMessagesUI = () => {
         const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
         const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
         
-        // Decrypt replied content
         const decryptedReplyText = msg.replyToText ? decryptMessage(msg.replyToText) : "";
         const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(decryptedReplyText)}</div></div>` : '';
 
@@ -410,7 +413,6 @@ const renderMessagesUI = () => {
         
         let mediaAttachmentHTML = '';
         if (msg.fileUrl) {
-            // Decrypt the file data and name
             const rawFileUrl = decryptMessage(msg.fileUrl);
             const rawFileName = msg.fileName ? decryptMessage(msg.fileName) : 'attachment';
 
@@ -435,7 +437,6 @@ const renderMessagesUI = () => {
                     </div>`;
             }
         } else if (msg.imageUrl) {
-            // Fallback for any legacy unencrypted imageUrls
             const rawImageUrl = decryptMessage(msg.imageUrl);
             mediaAttachmentHTML = `
                 <div style="position:relative; margin-bottom: 5px;">
@@ -464,22 +465,48 @@ const renderMessagesUI = () => {
     container.scrollTop = container.scrollHeight; 
 };
 
-const listenToRoomState = (roomId) => {
+const listenToRoomState = async (roomId) => {
     if (roomStateListener) roomStateListener();
+
+    // NEW: Fetch my user doc to check if the other person is blocked
+    const curId = currentUser?.id || currentUser?.uid;
+    const uDoc = await getDoc(doc(db, "users", curId));
+    const myBlockedList = uDoc.data()?.blockedUsers || [];
+
     roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
         currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
+        window.currentRoomData = currentRoomData;
         
         if (roomId.startsWith('dm_') && (!currentRoomData.participants || currentRoomData.participants.length === 0)) {
             const splitIds = roomId.replace('dm_', '').split('_');
             currentRoomData.participants = splitIds;
         }
+
+        // NEW: Check Block Status
+        const isGroup = currentRoomData.type === 'group';
+        let isBlocked = false;
+        if (!isGroup) {
+            const targetUid = currentRoomData.participants.find(id => id !== curId);
+            if (myBlockedList.includes(targetUid)) isBlocked = true;
+        }
+
+        const inputWrapper = document.getElementById('chat-input-wrapper');
+        const blockedWrapper = document.getElementById('blocked-state-wrapper');
+        if (isBlocked) {
+            if(inputWrapper) inputWrapper.style.display = 'none';
+            if(blockedWrapper) blockedWrapper.style.display = 'block';
+        } else {
+            if(inputWrapper) inputWrapper.style.display = 'flex';
+            if(blockedWrapper) blockedWrapper.style.display = 'none';
+        }
+
+        // Initialize Advanced 3-Dot Options
+        initChatOptions(currentUser, roomId, currentRoomData);
         
         const banner = document.getElementById('pinned-message-banner');
         if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
-            // Decrypt pinned message
             const decPin = decryptMessage(currentRoomData.pinnedMessage);
             document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(decPin);
-            
             const titleEl = banner.querySelector('p');
             if (titleEl) titleEl.innerText = "Pinned Message";
             banner.style.display = 'flex';
@@ -487,7 +514,6 @@ const listenToRoomState = (roomId) => {
             banner.style.display = 'none';
         }
 
-        const curId = currentUser?.id || currentUser?.uid;
         const isOwner = currentUser?.isOwner;
         const isAdmin = currentRoomData?.admins?.includes(curId);
         
@@ -500,7 +526,6 @@ const listenToRoomState = (roomId) => {
         if (existingGear) existingGear.remove();
 
         const titleEl = document.getElementById('active-room-name');
-        
         if (titleEl) {
             let displayRoomName = currentRoomData.name || 'Chat';
             if (currentRoomData.type === 'dm') {
@@ -545,8 +570,6 @@ const listenToRoomState = (roomId) => {
 
 export const listenToMessages = (roomId) => {
     if (unsubscribeListener) unsubscribeListener();
-    
-    // Calculate the cutoff timestamp for 60 days ago
     const sixtyDaysAgo = Date.now() - (60 * 24 * 60 * 60 * 1000);
 
     const q = query(
@@ -557,7 +580,6 @@ export const listenToMessages = (roomId) => {
     unsubscribeListener = onSnapshot(q, (snapshot) => {
         if (currentRoomId !== roomId) return; 
         
-        // Filter out any messages older than 60 days before rendering the UI
         currentMessagesSnapshot = snapshot.docs.filter(docObj => {
             const msg = docObj.data();
             const msgTime = msg.localTimestamp || msg.timestamp || Date.now();
@@ -588,7 +610,6 @@ export const sendMessage = async () => {
     inputField.value = ''; 
     const curId = currentUser?.id || currentUser?.uid;
     
-    // Encrypt main text
     const scrambledText = encryptMessage(text);
     
     const payload = { 
@@ -604,7 +625,6 @@ export const sendMessage = async () => {
     };
 
     if (replyContext) {
-        // Encrypt reply reference
         payload.replyToText = encryptMessage(replyContext.text);
         payload.replyToName = replyContext.senderName;
         window.cancelReply(); 
@@ -664,16 +684,13 @@ window.forwardSelectedMessages = async () => {
                     if (msgDoc.exists()) {
                         const originalData = msgDoc.data();
                         
-                        // Decrypt before checking prefix
                         let finalizedText = originalData.text ? decryptMessage(originalData.text) : "";
                         const prefix = "_▶ Forwarded_\n";
-                        
                         if (!finalizedText.includes("Forwarded")) finalizedText = prefix + finalizedText;
 
                         const fwdPayload = {
-                            text: encryptMessage(finalizedText), // Re-encrypt for new doc
+                            text: encryptMessage(finalizedText),
                             imageUrl: originalData.imageUrl || null,
-                            // fileUrl & fileName are passed straight across, no need to decrypt/re-encrypt
                             fileUrl: originalData.fileUrl || null,
                             fileType: originalData.fileType || null,
                             fileName: originalData.fileName || null,
@@ -791,31 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelSelectionBtn = document.getElementById('btn-cancel-selection');
     if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', () => window.enableSelectionMode(false));
 
-    document.getElementById('btn-export-chat')?.addEventListener('click', async () => {
-        if (!currentRoomId) return;
-        try {
-            const q = query(collection(db, `chats/${currentRoomId}/messages`), orderBy("timestamp", "asc"));
-            const snapshot = await getDocs(q);
-            let logOutput = `=== WhatsApp Chat Export Logs [Room: ${currentRoomId}] ===\n\n`;
-            snapshot.forEach(docObj => {
-                const m = docObj.data();
-                const stamp = new Date(m.localTimestamp || m.timestamp || Date.now()).toLocaleString();
-                // Decrypt for export
-                const decText = m.text ? decryptMessage(m.text) : "";
-                logOutput += `[${stamp}] ${m.senderName || 'User'}: ${decText}\n`;
-            });
-            const fileBlob = new Blob([logOutput], { type: 'text/plain' });
-            const fileUrl = URL.createObjectURL(fileBlob);
-            const anchor = document.createElement('a');
-            anchor.href = fileUrl;
-            anchor.download = `Aksh-Chat_Chat_${currentRoomId}.txt`;
-            document.body.appendChild(anchor);
-            anchor.click();
-            document.body.removeChild(anchor);
-            URL.revokeObjectURL(fileUrl);
-        } catch(err) { alert("Export operational processing failure."); }
-    });
-
+    // Delete Messages Checkbox Logic
     document.getElementById('btn-action-delete')?.addEventListener('click', () => {
         const selected = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
         if (selected.length === 0) return;
@@ -857,7 +850,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const hours = parseInt(e.target.getAttribute('data-hours'));
             const expiryTime = Date.now() + (hours * 60 * 60 * 1000);
             try { 
-                // Encrypt pin
                 const encPin = encryptMessage(textEl.innerText);
                 await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: encPin, pinExpiry: expiryTime }, { merge: true }); 
             } catch (err) {}
