@@ -1,9 +1,8 @@
-import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, Timestamp, writeBatch, arrayRemove, arrayUnion } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, Timestamp, writeBatch } from './firebase.js';
 import { currentUser } from './auth.js';
 import { encryptMessage, decryptMessage } from './siteCipher.js';
+import { initChatOptions } from './advancedEngine.js';
 import { injectGroupAdminModal, populateGroupManagement } from './groupEngine.js';
-
-const ownerEmail = 'akshat124.am12@gmail.com';
 
 let unsubscribeListener = null;
 let roomStateListener = null;
@@ -37,7 +36,6 @@ export const updateReadReceipt = async (roomId, uid) => {
     }
 };
 
-// FIX: Must have explicit export to prevent app.js from crashing
 export const leaveChatRoom = () => {
     currentRoomId = null;
     if (unsubscribeListener) unsubscribeListener();
@@ -91,7 +89,7 @@ const renderMessagesUI = () => {
     let previousSenderId = null; 
     
     const curId = currentUser?.id || currentUser?.uid;
-    const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === ownerEmail;
+    const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     const readReceipts = currentRoomData?.readReceipts || {};
     
     const safeParticipants = Array.isArray(currentRoomData?.participants) ? currentRoomData.participants : [];
@@ -101,6 +99,7 @@ const renderMessagesUI = () => {
         participantList = currentRoomId.replace('dm_', '').split('_');
     }
     const otherParticipants = participantList.filter(id => id !== curId);
+
     const clearTimestamp = currentRoomData ? (currentRoomData[`clearedAt_${curId}`] || 0) : 0;
     const isSystemGroup = currentRoomId === 'global_channel' || currentRoomId === 'aksh_help';
 
@@ -158,7 +157,7 @@ const renderMessagesUI = () => {
         const decryptedReplyText = msg.replyToText ? decryptMessage(msg.replyToText) : "";
         const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(decryptedReplyText)}</div></div>` : '';
 
-        // FIX: Pin Message Privileges (Only Owner in Global, Owner+Admins elsewhere)
+        // FIX: Pin Message Privileges
         let canPin = false;
         if (isSystemGroup) {
             canPin = isCurrentOwner;
@@ -169,7 +168,6 @@ const renderMessagesUI = () => {
         
         const pinBtnHTML = canPin ? `<button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>` : '';
 
-        // FIX: Direct Action Modals for Single Delete/Forward bypassing green selection UI
         const actionMenuHTML = `
             <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
                 <span class="material-symbols-rounded" style="font-size: 20px;">keyboard_arrow_down</span>
@@ -211,15 +209,6 @@ const renderMessagesUI = () => {
                         </a>
                     </div>`;
             }
-        } else if (msg.imageUrl) {
-            const rawImageUrl = decryptMessage(msg.imageUrl);
-            mediaAttachmentHTML = `
-                <div style="position:relative; margin-bottom: 5px;">
-                    <img src="${rawImageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
-                    <a href="${rawImageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;">
-                        <span class="material-symbols-rounded" style="font-size:16px;">download</span>
-                    </a>
-                </div>`;
         }
 
         messagesHTML += `
@@ -239,206 +228,6 @@ const renderMessagesUI = () => {
     container.innerHTML = messagesHTML;
     container.scrollTop = container.scrollHeight; 
 };
-
-// ==========================================
-// ACTIVE CHAT LOGIC (3-Dot Menu Options)
-// ==========================================
-function initChatOptions(currentUser, activeChatId, activeChatData) {
-    const curId = currentUser?.id || currentUser?.uid;
-    if (!activeChatId || !activeChatData || !curId) return;
-
-    const optionsBtn = document.getElementById('btn-chat-options');
-    const optionsMenu = document.getElementById('chat-options-menu');
-    const isGroup = activeChatData.type === 'group' || activeChatId === 'global_channel' || activeChatId === 'aksh_help';
-    const isCurrentOwner = currentUser?.isOwner || String(currentUser.email).toLowerCase().trim() === ownerEmail;
-    
-    let targetUid = null;
-    let targetName = 'Unknown User';
-    let isTargetOwner = window.isTargetOwner || false; 
-    
-    if (!isGroup) {
-        const safeParticipants = Array.isArray(activeChatData.participants) ? activeChatData.participants : [];
-        targetUid = safeParticipants.find(id => id !== curId);
-        if (targetUid && activeChatData.names && activeChatData.names[targetUid]) {
-            targetName = activeChatData.names[targetUid];
-        }
-    }
-
-    if (optionsBtn) {
-        optionsBtn.style.display = 'block';
-        optionsBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (optionsMenu) {
-                optionsMenu.style.display = optionsMenu.style.display === 'block' ? 'none' : 'block';
-            }
-        };
-    }
-    
-    const hideHarshOptions = isGroup || isTargetOwner || isCurrentOwner;
-    const reportBtn = document.getElementById('btn-opt-report');
-    const blockBtn = document.getElementById('btn-opt-block');
-    const leaveGroupBtn = document.getElementById('btn-opt-leave');
-    const deleteBtn = document.getElementById('btn-opt-delete');
-    
-    if (reportBtn) reportBtn.style.display = hideHarshOptions ? 'none' : 'block';
-    if (blockBtn) blockBtn.style.display = hideHarshOptions ? 'none' : 'block';
-    
-    if (leaveGroupBtn) {
-        leaveGroupBtn.style.display = (isGroup && activeChatId !== 'global_channel' && activeChatId !== 'aksh_help') ? 'block' : 'none';
-        leaveGroupBtn.onclick = async () => {
-            if (!confirm("Are you sure you want to leave this group?")) return;
-            try {
-                // FIX: Must detach listener before removing self to prevent permission errors
-                leaveChatRoom();
-                await updateDoc(doc(db, "chats", activeChatId), {
-                    participants: arrayRemove(curId),
-                    admins: arrayRemove(curId)
-                });
-                window.location.reload();
-            } catch(e) { alert("Failed to leave group."); }
-        };
-    }
-
-    if (deleteBtn) {
-        // FIX: Users cannot delete chat. Only the owner sees the Delete Chat button now.
-        deleteBtn.style.display = isCurrentOwner ? 'block' : 'none';
-        deleteBtn.onclick = () => {
-            const delModal = document.getElementById('deleteChatModal');
-            if (delModal) delModal.style.display = 'flex';
-            if (optionsMenu) optionsMenu.style.display = 'none';
-            
-            const btnEveryone = document.getElementById('btn-del-chat-both');
-            if (btnEveryone) btnEveryone.style.display = isCurrentOwner ? 'block' : 'none';
-        };
-    }
-
-    const exportBtn = document.getElementById('btn-opt-export');
-    if (exportBtn) {
-        exportBtn.onclick = async () => {
-            try {
-                const q = query(collection(db, `chats/${activeChatId}/messages`), orderBy("timestamp", "asc"));
-                const snapshot = await getDocs(q);
-                let logOutput = `=== Chat Export Logs [Room: ${activeChatData.name || 'Chat'}] ===\n\n`;
-                snapshot.forEach(docObj => {
-                    const m = docObj.data();
-                    const stamp = new Date(m.localTimestamp || m.timestamp || Date.now()).toLocaleString();
-                    const decText = m.text ? decryptMessage(m.text) : "";
-                    logOutput += `[${stamp}] ${m.senderName || 'User'}: ${decText}\n`;
-                });
-                const fileBlob = new Blob([logOutput], { type: 'text/plain' });
-                const fileUrl = URL.createObjectURL(fileBlob);
-                const anchor = document.createElement('a');
-                anchor.href = fileUrl;
-                anchor.download = `Aksh-Chat_${String(activeChatData.name || 'Chat').replace(/\s+/g, '_')}.txt`;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-                URL.revokeObjectURL(fileUrl);
-                if (optionsMenu) optionsMenu.style.display = 'none';
-            } catch (err) {}
-        };
-    }
-
-    if (reportBtn) {
-        reportBtn.onclick = async () => {
-            if (!targetUid) return;
-            if (!confirm(`Are you sure you want to report ${targetName} to the Owner?`)) return;
-            try {
-                const q = query(collection(db, `chats/${activeChatId}/messages`), orderBy("timestamp", "desc"), limit(10));
-                const snap = await getDocs(q);
-                let historyStr = "";
-                snap.forEach(d => {
-                    const msg = d.data();
-                    const time = new Date(msg.timestamp || Date.now()).toLocaleString();
-                    const sender = msg.senderId === curId ? currentUser.name : targetName;
-                    const decText = msg.text ? decryptMessage(msg.text) : "";
-                    historyStr = `[${time}] ${sender}: ${decText}\n` + historyStr; 
-                });
-                const ticketId = `report_${Date.now()}`;
-                await setDoc(doc(db, "help_complaints", ticketId), {
-                    name: currentUser.name,
-                    email: currentUser.email,
-                    subject: `🚨 REPORT: ${currentUser.name} reported ${targetName}`,
-                    details: `Target UID: ${targetUid}\n\n--- EVIDENCE (LAST 10 MESSAGES) ---\n${historyStr || 'No recent messages recorded.'}`,
-                    date: Date.now(),
-                    status: 'Unresolved'
-                });
-                alert("Report submitted successfully.");
-                if (optionsMenu) optionsMenu.style.display = 'none';
-            } catch (err) {}
-        };
-    }
-
-    if (blockBtn) {
-        blockBtn.onclick = async () => {
-            if (!targetUid) return;
-            if (!confirm(`Block ${targetName}? They will no longer be able to message you.`)) return;
-            await updateDoc(doc(db, "users", curId), {
-                blockedUsers: arrayUnion(targetUid)
-            });
-            alert("User blocked.");
-            window.location.reload();
-        };
-    }
-
-    const clearBtn = document.getElementById('btn-opt-clear');
-    if (clearBtn) {
-        clearBtn.onclick = async () => {
-            if (!confirm("Clear your chat history? The chat will remain in your list.")) return;
-            await updateDoc(doc(db, "chats", activeChatId), {
-                [`clearedAt_${curId}`]: Date.now()
-            });
-            alert("Chat cleared.");
-            window.location.reload(); 
-        };
-    }
-    
-    const closeDelChat = document.getElementById('btn-close-del-chat');
-    if (closeDelChat) closeDelChat.onclick = () => { 
-        const delModal = document.getElementById('deleteChatModal');
-        if(delModal) delModal.style.display = 'none'; 
-    };
-
-    const delMe = document.getElementById('btn-del-chat-me');
-    if (delMe) {
-        delMe.onclick = async () => {
-            // FIX: Gracefully apply deletedFor and clearedAt flags to hide locally without breaking permissions
-            if (isGroup) {
-                leaveChatRoom(); // Detach listeners before removing self
-                await updateDoc(doc(db, "chats", activeChatId), {
-                    participants: arrayRemove(curId),
-                    admins: arrayRemove(curId)
-                });
-            } else {
-                await updateDoc(doc(db, "chats", activeChatId), {
-                    [`deletedFor_${curId}`]: true,
-                    [`clearedAt_${curId}`]: Date.now() 
-                });
-            }
-            window.location.reload();
-        };
-    }
-
-    const delBoth = document.getElementById('btn-del-chat-both');
-    if (delBoth) {
-        delBoth.onclick = async () => {
-            if (!confirm("Permanently delete this chat and all messages for everyone?")) return;
-            delBoth.textContent = "Deleting...";
-            try {
-                leaveChatRoom(); // Detach listeners before blowing up the database
-                const snap = await getDocs(collection(db, `chats/${activeChatId}/messages`));
-                const batch = writeBatch(db);
-                snap.forEach(d => batch.delete(d.ref));
-                await batch.commit();
-                await deleteDoc(doc(db, "chats", activeChatId));
-                window.location.reload();
-            } catch (e) {
-                alert("Failed to delete chat: Check database permissions.");
-                delBoth.textContent = "Delete for Both";
-            }
-        };
-    }
-}
 
 const listenToRoomState = async (roomId) => {
     if (roomStateListener) roomStateListener();
@@ -480,7 +269,7 @@ const listenToRoomState = async (roomId) => {
             if (Array.isArray(currentRoomData.participants) && !currentRoomData.participants.includes(curId) && !isCurrentOwner) {
                 if (currentRoomId === roomId) {
                     alert("You have been removed from this group.");
-                    leaveChatRoom(); // Safely detach listeners
+                    leaveChatRoom(); 
                     window.location.reload();
                 }
                 return;
@@ -525,7 +314,6 @@ const listenToRoomState = async (roomId) => {
             if (blockedWrapper) blockedWrapper.style.display = 'none';
         }
 
-        // INIT 3-DOT MENU 
         initChatOptions(currentUser, roomId, currentRoomData);
         
         const banner = document.getElementById('pinned-message-banner');
@@ -632,11 +420,19 @@ export const sendMessage = async () => {
     if (!text || !currentRoomId) return; 
 
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+    const curId = currentUser?.id || currentUser?.uid;
+    const clearTimestamp = currentRoomData ? (currentRoomData[`clearedAt_${curId}`] || 0) : 0;
     
+    // FIX: Require the owner to have a visible message in history before replying
     if (window.isTargetOwner && !isCurrentOwner) {
         const ownerHasMessaged = currentMessagesSnapshot.some(docObj => {
-            return docObj.data().isOwner === true || String(docObj.data().senderName).includes('Owner');
+            const msg = docObj.data();
+            const msgTime = msg.localTimestamp || msg.timestamp || Date.now();
+            // User cannot reply if they cleared the chat and wiped out the owner's message
+            if (msgTime <= clearTimestamp) return false;
+            return msg.isOwner === true || String(msg.senderName).includes('Owner');
         });
+        
         if (!ownerHasMessaged) {
             inputField.value = ''; 
             alert("You cannot message the Owner until they initiate a conversation with you.");
@@ -645,8 +441,6 @@ export const sendMessage = async () => {
     }
 
     inputField.value = ''; 
-    const curId = currentUser?.id || currentUser?.uid;
-    
     const scrambledText = encryptMessage(text);
     const payload = { 
         text: scrambledText, 
@@ -672,7 +466,7 @@ export const sendMessage = async () => {
         if (currentRoomData?.type === 'dm') {
             const otherParticipant = currentRoomData.participants.find(id => id !== curId);
             if (otherParticipant) {
-                targetUpdate[`deletedFor_${otherParticipant}`] = false;
+                targetUpdate[`deletedFor_${otherParticipant}`] = false; // Opens it for them
             }
         }
         
