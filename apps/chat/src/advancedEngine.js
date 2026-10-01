@@ -3,8 +3,11 @@ import { decryptMessage } from "./siteCipher.js";
 
 const ownerEmail = 'akshat124.am12@gmail.com';
 
+// ==========================================
+// 1. GLOBAL LAYOUT & SETTINGS LOGIC
+// ==========================================
 export function initGlobalSettings(currentUser) {
-    // 1. Profile Dropdown Toggle
+    // 1. Profile Dropdown Click Toggle
     const profilePic = document.getElementById('nav-profile-pic');
     const profileDropdown = document.getElementById('profile-dropdown-menu');
     
@@ -109,6 +112,9 @@ export function initGlobalSettings(currentUser) {
     document.getElementById('btn-close-unblock').onclick = () => unblockModal.style.display = 'none';
 }
 
+// ==========================================
+// 2. ACTIVE CHAT LOGIC (3-Dot Menu)
+// ==========================================
 export function initChatOptions(currentUser, activeChatId, activeChatData) {
     if (!activeChatId || !activeChatData) return;
 
@@ -140,6 +146,31 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     optionsBtn.onclick = (e) => {
         e.stopPropagation();
         optionsMenu.style.display = optionsMenu.style.display === 'block' ? 'none' : 'block';
+    };
+
+    // --- EXPORT CHAT ---
+    document.getElementById('btn-opt-export').onclick = async () => {
+        try {
+            const q = query(collection(db, `chats/${activeChatId}/messages`), orderBy("timestamp", "asc"));
+            const snapshot = await getDocs(q);
+            let logOutput = `=== WhatsApp Chat Export Logs [Room: ${activeChatData.name}] ===\n\n`;
+            snapshot.forEach(docObj => {
+                const m = docObj.data();
+                const stamp = new Date(m.localTimestamp || m.timestamp || Date.now()).toLocaleString();
+                const decText = m.text ? decryptMessage(m.text) : "";
+                logOutput += `[${stamp}] ${m.senderName || 'User'}: ${decText}\n`;
+            });
+            const fileBlob = new Blob([logOutput], { type: 'text/plain' });
+            const fileUrl = URL.createObjectURL(fileBlob);
+            const anchor = document.createElement('a');
+            anchor.href = fileUrl;
+            anchor.download = `Aksh-Chat_Chat_${activeChatData.name.replace(/\s+/g, '_')}.txt`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(fileUrl);
+            optionsMenu.style.display = 'none';
+        } catch(err) { alert("Export operational processing failure."); }
     };
 
     // --- REPORT USER ---
@@ -224,7 +255,9 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     };
 }
 
-// --- FIX GROUP REMOVE USER ---
+// ==========================================
+// 3. GROUP REMOVAL FIX
+// ==========================================
 window.removeGroupMember = async (uidToRemove) => {
     const activeChatId = window.appState?.activeChatId;
     const activeChatData = window.currentRoomData;
