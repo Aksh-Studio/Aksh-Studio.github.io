@@ -203,6 +203,36 @@
             </div>
         </div>
     </div>
+
+    <!-- Customisation Modal -->
+<div id="customisationModal" class="guest-overlay" style="display: none; z-index: 10001;">
+    <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px;">
+        <h3 style="margin-bottom: 15px; color: var(--text-main);">Customisation</h3>
+        <input type="text" id="custom-nickname" placeholder="Aksh Chat Nickname" style="width: 100%; padding: 12px; margin-bottom: 15px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main);">
+        <input type="url" id="custom-wallpaper" placeholder="Wallpaper Image URL" style="width: 100%; padding: 12px; margin-bottom: 20px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main);">
+        <button id="btn-save-customisation" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Save Changes</button>
+        <button id="btn-close-customisation" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
+    </div>
+</div>
+
+<!-- Unblock Users Modal -->
+<div id="unblockModal" class="guest-overlay" style="display: none; z-index: 10001;">
+    <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px; max-height: 70vh; display: flex; flex-direction: column;">
+        <h3 style="margin-bottom: 15px; color: var(--text-main);">Blocked Users</h3>
+        <div id="blocked-users-list" style="flex: 1; overflow-y: auto; text-align: left; margin-bottom: 15px;"></div>
+        <button id="btn-close-unblock" style="width: 100%; padding: 12px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-weight: 600;">Close</button>
+    </div>
+</div>
+
+<!-- Delete Chat Modal -->
+<div id="deleteChatModal" class="guest-overlay" style="display: none; z-index: 10001;">
+    <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px;">
+        <h3 style="margin-bottom: 15px; color: var(--text-main);">Delete Chat</h3>
+        <button id="btn-delete-chat-me" style="width: 100%; padding: 12px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Delete for Me</button>
+        <button id="btn-delete-chat-both" style="width: 100%; padding: 12px; background: #ea0038; color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Delete for Both</button>
+        <button id="btn-cancel-delete-chat" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
+    </div>
+</div>
     
 </body>
 </html>
