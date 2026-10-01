@@ -257,18 +257,27 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     .chat-sidebar { order: 1; height: calc(100% - 65px); width: 100%; }
     .chat-main { order: 2; height: calc(100% - 65px); width: 100%; }
     
-    /* FIX: Force Profile and Settings Dropdowns to behave like centered Modals on mobile */
+    /* FIX: Force Dropdowns to behave exactly like centered Modals on mobile */
     #settings-dropdown-menu, #profile-dropdown-menu, #chat-options-menu {
         position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        width: 85% !important; 
-        max-width: 320px !important;
-        box-shadow: 0 10px 50px rgba(0,0,0,0.5) !important;
-        z-index: 99999 !important;
-        bottom: auto !important;
-        right: auto !important;
+        top: 0 !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
+        margin: auto !important;
+        width: 85vw !important; 
+        max-width: 300px !important;
+        height: max-content !important;
+        padding: 20px !important;
+        border-radius: 16px !important;
+        box-shadow: 0 0 0 2000px rgba(0,0,0,0.6), 0 10px 40px rgba(0,0,0,0.3) !important;
+        z-index: 999999 !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    #settings-dropdown-menu[style*="display: none"], 
+    #profile-dropdown-menu[style*="display: none"], 
+    #chat-options-menu[style*="display: none"] {
+        display: none !important;
     }
 
     .app-layout.mobile-chat-active .chat-sidebar { display: none !important; }
