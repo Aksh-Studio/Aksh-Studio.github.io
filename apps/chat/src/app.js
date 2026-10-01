@@ -9,7 +9,7 @@ import { initMediaEngine } from './mediaEngine.js';
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 window.appState = appState;
 window.currentUserAuth = currentUser;
-window.isTargetOwner = false; // Global flag to track if the current DM is with the Owner
+window.isTargetOwner = false; 
 
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group', isImage: false },
@@ -182,7 +182,6 @@ const fetchNetworkUsers = async () => {
         const querySnapshot = await getDocs(collection(db, "users"));
         listContainer.innerHTML = '';
         const myUid = String(currentUser?.id || currentUser?.uid || "").trim();
-        const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
         const allNetworkUsers = new Map(); 
 
         querySnapshot.forEach((docObj) => {
@@ -191,9 +190,7 @@ const fetchNetworkUsers = async () => {
             const safeEmail = String(u.email || '').toLowerCase().trim();
             const rawName = (u.fullName || u.name || u.firstName || (safeEmail ? safeEmail.split('@')[0] : 'Network User')).trim();
             
-            // HIDE OWNER FROM NORMAL USERS: They cannot search or initiate chat with the Owner.
-            if (!isCurrentOwner && safeEmail === 'akshat124.am12@gmail.com') return;
-
+            // Allow the Owner to be visible in the Search Network for everyone
             if (targetUid === myUid || !rawName) return; 
             
             allNetworkUsers.set(targetUid, {
@@ -244,7 +241,9 @@ export const renderSidebarList = () => {
     const myName = String(currentUser.name || "").toLowerCase().trim();
 
     const sortedRoomIds = Object.keys(combinedRooms).sort((a, b) => {
-        return (combinedRooms[b].lastMessageTime || 0) - (combinedRooms[a].lastMessageTime || 0);
+        const timeA = combinedRooms[a].lastMessageTime || 0;
+        const timeB = combinedRooms[b].lastMessageTime || 0;
+        return timeB - timeA;
     });
 
     sortedRoomIds.forEach(id => {
