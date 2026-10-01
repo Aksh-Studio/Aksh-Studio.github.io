@@ -32,13 +32,15 @@
         </div>
     </div>
 
-   <nav class="top-nav">
-    <div class="nav-left">
-        <a href="../../dashboard.html" class="back-link">← Dashboard</a>
-        <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
-    </div>
-    
-  <div class="nav-right" style="display: flex; align-items: center; gap: 12px;">
+    <!-- THIS IS THE WRAPPER THAT WAS ACCIDENTALLY DELETED -->
+    <div class="aksh-chat-app" id="app-root">
+        <nav class="top-nav">
+            <div class="nav-left">
+                <a href="../../dashboard.html" class="back-link">← Dashboard</a>
+                <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
+            </div>
+            
+            <div class="nav-right" style="display: flex; align-items: center; gap: 12px;">
                 <!-- Owner Dashboard Button -->
                 <button id="ownerPanelBtn" class="btn-outline" style="display: none; background: #ea0038; color: white; border: none; padding: 6px 14px; font-weight: bold; border-radius: 8px;" title="Owner Dashboard">?</button>
                 
@@ -141,10 +143,11 @@
                 </div>
             </aside>
         </div>
-    </div>
+    </div> <!-- /aksh-chat-app END -->
+
     <script type="module" src="src/app.js"></script>
 
-<!-- ================= HELP & OWNER SYSTEM ================= -->
+    <!-- ================= HELP & OWNER SYSTEM ================= -->
     <!-- Help Form Modal for Users -->
     <div id="helpModal" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 99999; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
         <div style="background: var(--card-bg, #ffffff); color: var(--text-main, #111827); width: 100%; max-width: 550px; padding: 35px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); border: 1px solid var(--border, #e5e7eb); position: relative; box-sizing: border-box;">
