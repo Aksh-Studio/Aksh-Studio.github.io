@@ -1,44 +1,48 @@
 import { db, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, orderBy, limit, getDocs, arrayUnion, arrayRemove, writeBatch } from "./firebase.js";
+import { decryptMessage } from "./siteCipher.js";
 
 const ownerEmail = 'akshat124.am12@gmail.com';
 
-// ==========================================
-// 1. GLOBAL LAYOUT & SETTINGS LOGIC
-// ==========================================
 export function initGlobalSettings(currentUser) {
-    // 1A. Clickable Profile Dropdown
+    // 1. Profile Dropdown Toggle
     const profilePic = document.getElementById('nav-profile-pic');
     const profileDropdown = document.getElementById('profile-dropdown-menu');
     
-    // 1B. Clickable Settings Dropdown
-    const settingsToggle = document.getElementById('btn-settings-toggle');
-    const settingsDropdown = document.getElementById('settings-dropdown-menu');
-
-    if (profilePic) {
-        profilePic.onclick = (e) => {
+    if (profilePic && !window.profileMenuAttached) {
+        profilePic.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (settingsDropdown) settingsDropdown.style.display = 'none';
             profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
-        };
+        });
+        window.profileMenuAttached = true;
     }
+
+    // 2. Settings Slide Panel Logic
+    const settingsToggle = document.getElementById('btn-settings-slide');
+    const settingsBack = document.getElementById('btn-settings-back');
+    const chatsPanel = document.getElementById('chats-sidebar-panel');
+    const settingsPanel = document.getElementById('settings-sidebar-panel');
 
     if (settingsToggle) {
-        settingsToggle.onclick = (e) => {
-            e.stopPropagation();
-            if (profileDropdown) profileDropdown.style.display = 'none';
-            settingsDropdown.style.display = settingsDropdown.style.display === 'block' ? 'none' : 'block';
+        settingsToggle.onclick = () => {
+            chatsPanel.style.display = 'none';
+            settingsPanel.style.display = 'flex';
+        };
+    }
+    if (settingsBack) {
+        settingsBack.onclick = () => {
+            settingsPanel.style.display = 'none';
+            chatsPanel.style.display = 'flex';
         };
     }
 
-    // Close dropdowns when clicking outside
+    // 3. Global Click Listener to close dropdowns
     window.addEventListener('click', () => {
         if (profileDropdown) profileDropdown.style.display = 'none';
-        if (settingsDropdown) settingsDropdown.style.display = 'none';
         const chatMenu = document.getElementById('chat-options-menu');
         if (chatMenu) chatMenu.style.display = 'none';
     });
 
-    // 1C. Customisation Modal
+    // 4. Customisation Modal
     const customModal = document.getElementById('customModal');
     document.getElementById('btn-open-customisation').onclick = async () => {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
@@ -68,7 +72,7 @@ export function initGlobalSettings(currentUser) {
     };
     document.getElementById('btn-close-custom').onclick = () => customModal.style.display = 'none';
 
-    // 1D. Unblock Users Modal
+    // 5. Unblock Users Modal
     const unblockModal = document.getElementById('unblockModal');
     document.getElementById('btn-open-unblock').onclick = async () => {
         const listDiv = document.getElementById('blocked-users-list');
@@ -105,10 +109,6 @@ export function initGlobalSettings(currentUser) {
     document.getElementById('btn-close-unblock').onclick = () => unblockModal.style.display = 'none';
 }
 
-
-// ==========================================
-// 2. ACTIVE CHAT LOGIC (3-Dot Menu)
-// ==========================================
 export function initChatOptions(currentUser, activeChatId, activeChatData) {
     if (!activeChatId || !activeChatData) return;
 
@@ -116,7 +116,6 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const optionsMenu = document.getElementById('chat-options-menu');
     const isGroup = activeChatData.type === 'group';
     
-    // Determine if the target user in a DM is the Owner
     let targetUid = null;
     let targetName = 'Unknown User';
     let isTargetOwner = false;
@@ -131,9 +130,9 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     }
 
     // Configure 3-Dot Visibility
-    optionsBtn.style.display = 'block';
+    optionsBtn.style.display = isGroup ? 'none' : 'block';
     
-    // Hide Report/Block for Groups, System Chats, and if target is Owner
+    // Hide Report/Block if target is Owner
     const hideHarshOptions = isGroup || isTargetOwner || activeChatId === 'global_channel';
     document.getElementById('btn-opt-report').style.display = hideHarshOptions ? 'none' : 'block';
     document.getElementById('btn-opt-block').style.display = hideHarshOptions ? 'none' : 'block';
@@ -148,7 +147,6 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         if (!confirm(`Are you sure you want to report ${targetName} to the Owner?`)) return;
         
         try {
-            // Fetch last 10 messages for evidence
             const q = query(collection(db, `chats/${activeChatId}/messages`), orderBy("timestamp", "desc"), limit(10));
             const snap = await getDocs(q);
             let historyStr = "";
@@ -157,7 +155,8 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                 const msg = d.data();
                 const time = new Date(msg.timestamp).toLocaleString();
                 const sender = msg.senderId === currentUser.uid ? currentUser.name : targetName;
-                historyStr = `[${time}] ${sender}: ${msg.text}\n` + historyStr; // Reverse to chronological
+                const decText = msg.text ? decryptMessage(msg.text) : "";
+                historyStr = `[${time}] ${sender}: ${decText}\n` + historyStr; 
             });
 
             const ticketId = `report_${Date.now()}`;
@@ -172,10 +171,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
 
             alert("Report sent securely to the Owner's Dashboard.");
             optionsMenu.style.display = 'none';
-        } catch (err) {
-            console.error(err);
-            alert("Failed to send report.");
-        }
+        } catch (err) { alert("Failed to send report."); }
     };
 
     // --- BLOCK USER ---
@@ -217,25 +213,27 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         if (!confirm("This will permanently delete the chat and all messages for everyone. Continue?")) return;
         document.getElementById('btn-del-chat-both').textContent = "Deleting...";
         
-        // Delete subcollection messages first
-        const snap = await getDocs(collection(db, `chats/${activeChatId}/messages`));
-        const batch = writeBatch(db);
-        snap.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-        
-        // Delete main document
-        await deleteDoc(doc(db, "chats", activeChatId));
-        window.location.reload();
+        try {
+            const snap = await getDocs(collection(db, `chats/${activeChatId}/messages`));
+            const batch = writeBatch(db);
+            snap.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+            await deleteDoc(doc(db, "chats", activeChatId));
+            window.location.reload();
+        } catch(e) { alert("Failed. Check permissions."); }
     };
 }
 
-// ==========================================
-// 3. GROUP REMOVAL FIX
-// ==========================================
-export async function removeGroupMember(currentUser, activeChatId, activeChatData, uidToRemove) {
-    const ownerEmail = 'akshat124.am12@gmail.com';
-    const isOwner = currentUser.email === ownerEmail;
-    const isAdmin = activeChatData.admins?.includes(currentUser.uid);
+// --- FIX GROUP REMOVE USER ---
+window.removeGroupMember = async (uidToRemove) => {
+    const activeChatId = window.appState?.activeChatId;
+    const activeChatData = window.currentRoomData;
+    const curId = window.currentUserAuth?.uid || window.currentUserAuth?.id;
+    const isOwner = window.currentUserAuth?.email === ownerEmail;
+    
+    if(!activeChatId || !activeChatData) return;
+
+    const isAdmin = activeChatData.admins?.includes(curId);
 
     if (!isAdmin && !isOwner) {
         alert("Only group admins or the Owner can remove members.");
@@ -249,4 +247,4 @@ export async function removeGroupMember(currentUser, activeChatId, activeChatDat
         });
         alert("User removed successfully.");
     }
-}
+};
