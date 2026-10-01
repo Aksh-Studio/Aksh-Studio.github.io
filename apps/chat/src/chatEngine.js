@@ -1,4 +1,4 @@
-import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, getDocs, deleteDoc, Timestamp } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, Timestamp } from './firebase.js';
 import { currentUser } from './auth.js';
 import { encryptMessage, decryptMessage } from './siteCipher.js';
 import { initChatOptions } from './advancedEngine.js';
@@ -25,13 +25,18 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
+// --- FIX: Proper updateDoc format to prevent nested mapping errors ---
 export const updateReadReceipt = async (roomId, uid) => {
     if (!roomId || !uid) return;
     try {
-        await setDoc(doc(db, "chats", roomId), {
+        await updateDoc(doc(db, "chats", roomId), {
             [`readReceipts.${uid}`]: Date.now()
-        }, { merge: true });
-    } catch (error) {}
+        });
+    } catch (error) {
+        try {
+            await setDoc(doc(db, "chats", roomId), { readReceipts: { [uid]: Date.now() } }, { merge: true });
+        } catch(e) {}
+    }
 };
 
 export const leaveChatRoom = () => {
@@ -195,6 +200,15 @@ const renderMessagesUI = () => {
                         </a>
                     </div>`;
             }
+        } else if (msg.imageUrl) {
+            const rawImageUrl = decryptMessage(msg.imageUrl);
+            mediaAttachmentHTML = `
+                <div style="position:relative; margin-bottom: 5px;">
+                    <img src="${rawImageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
+                    <a href="${rawImageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;">
+                        <span class="material-symbols-rounded" style="font-size:16px;">download</span>
+                    </a>
+                </div>`;
         }
 
         messagesHTML += `
@@ -219,6 +233,7 @@ const listenToRoomState = async (roomId) => {
     if (roomStateListener) roomStateListener();
 
     const curId = currentUser?.id || currentUser?.uid;
+    const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     let myBlockedList = [];
 
     if (curId) {
@@ -231,27 +246,46 @@ const listenToRoomState = async (roomId) => {
     }
 
     roomStateListener = onSnapshot(doc(db, "chats", roomId), async (documentObj) => {
-        currentRoomData = documentObj.data() || { type: (roomId === 'global_channel' || roomId === 'aksh_help' ? 'group' : 'dm'), participants: [] }; 
+        // --- FIX: REAL-TIME KICK AND DELETE SYNC ---
+        if (!documentObj.exists()) {
+            if (currentRoomId === roomId) {
+                alert("This chat has been deleted.");
+                window.location.reload();
+            }
+            return;
+        }
+
+        currentRoomData = documentObj.data(); 
         window.currentRoomData = currentRoomData;
-        window.isTargetOwner = false; // Reset the target ownership check
+        window.isTargetOwner = false; 
 
         if (roomId.startsWith('dm_') && (!Array.isArray(currentRoomData.participants) || currentRoomData.participants.length === 0)) {
             currentRoomData.participants = roomId.replace('dm_', '').split('_');
         }
 
-        const isGroup = currentRoomData.type === 'group' || roomId === 'global_channel' || roomId === 'aksh_help';
+        const isGroup = currentRoomData.type === 'group';
+        const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
+
+        // --- FIX: ENFORCE REAL-TIME GROUP REMOVAL ---
+        if (isGroup && !isSystemGroup) {
+            if (Array.isArray(currentRoomData.participants) && !currentRoomData.participants.includes(curId) && !isCurrentOwner) {
+                if (currentRoomId === roomId) {
+                    alert("You have been removed from this group.");
+                    window.location.reload();
+                }
+                return;
+            }
+        }
+
         let isBlocked = false;
         let theyBlockedMe = false;
 
-        // MUTUAL BLOCKING CHECK
-        if (!isGroup && curId) {
+        if (!isGroup && !isSystemGroup && curId) {
             const safeParticipants = Array.isArray(currentRoomData.participants) ? currentRoomData.participants : [];
             const targetUid = safeParticipants.find(id => id !== curId);
             if (targetUid) {
-                // Check if I blocked them
                 if (myBlockedList.includes(targetUid)) isBlocked = true;
                 
-                // Fetch target user to check if they blocked me OR if they are the owner
                 try {
                     const targetDoc = await getDoc(doc(db, "users", targetUid));
                     if (targetDoc.exists()) {
@@ -292,17 +326,14 @@ const listenToRoomState = async (roomId) => {
             banner.style.display = 'none';
         }
 
-        const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
         const isAdmin = Array.isArray(currentRoomData.admins) && currentRoomData.admins.includes(curId);
-        
-        const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
         const canEditSystem = isSystemGroup ? isCurrentOwner : false; 
         const canEditCustom = isCurrentOwner || isAdmin;
         const canEdit = isSystemGroup ? canEditSystem : canEditCustom;
         
         const existingGear = document.getElementById('group-settings-btn');
         if (existingGear) {
-            if (isGroup && canEdit) {
+            if ((isGroup || isSystemGroup) && canEdit) {
                 existingGear.style.display = 'inline-flex';
                 existingGear.onclick = (e) => {
                     e.stopPropagation();
@@ -382,10 +413,12 @@ export const sendMessage = async () => {
     const text = inputField.value.trim();
     if (!text || !currentRoomId) return; 
 
-    // OWNER PRIVACY: Prevent normal users from messaging the owner entirely
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+    
+    // OWNER PRIVACY: Ignore messages attempting to reach Owner if they are not the Owner
     if (window.isTargetOwner && !isCurrentOwner) {
-        inputField.value = ''; // Silently fail/disappear
+        inputField.value = ''; 
+        alert("This account does not accept direct messages.");
         return;
     }
 
@@ -412,7 +445,11 @@ export const sendMessage = async () => {
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
-        await setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now(), lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
+        await updateDoc(doc(db, "chats", currentRoomId), {
+            [`readReceipts.${curId}`]: Date.now(),
+            lastMessageTime: Date.now(),
+            lastMessageSenderId: curId
+        });
     } catch (error) {}
 };
 
@@ -429,6 +466,7 @@ window.startDeleteSingleMessage = (msgId) => {
     const box = document.querySelector(`.msg-checkbox[value="${msgId}"]`);
     if (box) box.checked = true;
     updateSelectionCount();
+    window.openDeleteMessagesModal();
 };
 
 const updateSelectionCount = () => {
@@ -464,17 +502,10 @@ window.openDeleteMessagesModal = () => {
     const curId = currentUser?.id || currentUser?.uid;
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
-    const isGroup = currentRoomData?.type === 'group' || currentRoomId === 'global_channel' || currentRoomId === 'aksh_help';
 
-    // RESTRICT "DELETE FOR EVERYONE"
-    let canDeleteEveryone = false;
-    if (isGroup) {
-        const allMine = selectedBoxes.every(b => b.getAttribute('data-sender') === curId);
-        canDeleteEveryone = allMine || isCurrentOwner || isAdmin;
-    } else {
-        // In Direct Messages, ONLY the App Owner can delete for everyone. Normal users can't.
-        canDeleteEveryone = isCurrentOwner;
-    }
+    // --- FIX: SENDER CAN ALWAYS DELETE FOR EVERYONE ---
+    const allMine = selectedBoxes.every(b => b.getAttribute('data-sender') === curId);
+    const canDeleteEveryone = allMine || isCurrentOwner || isAdmin;
 
     const btnEveryone = document.getElementById('btn-delete-everyone');
     if (btnEveryone) btnEveryone.style.display = canDeleteEveryone ? 'block' : 'none';
@@ -523,6 +554,72 @@ document.getElementById('btn-delete-everyone')?.addEventListener('click', async 
     window.enableSelectionMode(false);
 });
 
+window.forwardSelectedMessages = async () => {
+    const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
+    if (selectedBoxes.length === 0) return alert("Select at least one message to forward.");
+
+    if (!document.getElementById('forward-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="forward-modal" class="guest-overlay" style="display: none; z-index: 10003;">
+                <div class="guest-modal" style="padding: 20px; width: 90%; max-width: 350px;">
+                    <h3 style="margin-bottom: 15px; color: var(--primary);">Forward To:</h3>
+                    <div id="forward-rooms-list" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;"></div>
+                    <button id="btn-cancel-forward" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
+                </div>
+            </div>
+        `);
+        document.getElementById('btn-cancel-forward')?.addEventListener('click', () => {
+            document.getElementById('forward-modal').style.display = 'none';
+        });
+    }
+
+    const listEl = document.getElementById('forward-rooms-list');
+    listEl.innerHTML = '';
+    
+    const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
+    Object.keys(availableRooms).forEach(roomId => {
+        const room = availableRooms[roomId];
+        const item = document.createElement('div');
+        item.style = "padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text-main); font-weight: 600;";
+        item.innerText = room.name;
+        item.onclick = async () => {
+            document.getElementById('forward-modal').style.display = 'none';
+            const curId = currentUser?.id || currentUser?.uid;
+            const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+            
+            for (const box of selectedBoxes) {
+                try {
+                    const msgDoc = await getDoc(doc(db, `chats/${currentRoomId}/messages`, box.value));
+                    if (msgDoc.exists()) {
+                        const originalData = msgDoc.data();
+                        let finalizedText = originalData.text ? decryptMessage(originalData.text) : "";
+                        if (!finalizedText.includes("Forwarded")) finalizedText = "_▶ Forwarded_\n" + finalizedText;
+
+                        const fwdPayload = {
+                            text: encryptMessage(finalizedText),
+                            fileUrl: originalData.fileUrl || null,
+                            fileType: originalData.fileType || null,
+                            fileName: originalData.fileName || null,
+                            senderId: curId,
+                            senderName: currentUser?.name || 'User',
+                            isOwner: isOwner,
+                            timestamp: Date.now(),
+                            localTimestamp: Date.now(),
+                            expireAt: Timestamp.fromMillis(Date.now() + 60 * 24 * 60 * 60 * 1000)
+                        };
+                        await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
+                    }
+                } catch(e) {}
+            }
+            await updateDoc(doc(db, "chats", roomId), { lastMessageTime: Date.now(), lastMessageSenderId: curId });
+            window.enableSelectionMode(false);
+            alert("Messages forwarded successfully.");
+        };
+        listEl.appendChild(item);
+    });
+    document.getElementById('forward-modal').style.display = 'flex';
+};
+
 window.toggleActionMenu = (msgId) => { 
     document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); 
     const menu = document.getElementById(`menu-${msgId}`); 
@@ -548,10 +645,10 @@ document.querySelectorAll('.pin-duration-btn').forEach(btn => {
         if (!textEl) return;
         const hours = parseInt(e.target.getAttribute('data-hours'));
         try { 
-            await setDoc(doc(db, "chats", currentRoomId), { 
+            await updateDoc(doc(db, "chats", currentRoomId), { 
                 pinnedMessage: encryptMessage(textEl.innerText), 
                 pinExpiry: Date.now() + (hours * 60 * 60 * 1000) 
-            }, { merge: true }); 
+            }); 
         } catch (err) {}
         const pinModal = document.getElementById('pin-modal');
         if (pinModal) pinModal.style.display = 'none';
@@ -561,7 +658,7 @@ document.querySelectorAll('.pin-duration-btn').forEach(btn => {
 
 document.getElementById('btn-unpin')?.addEventListener('click', async () => {
     if (!currentRoomId) return;
-    try { await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }, { merge: true }); } catch (err) {}
+    try { await updateDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }); } catch (err) {}
 });
 
 window.replyToMessage = (msgId) => {
