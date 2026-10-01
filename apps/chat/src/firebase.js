@@ -33,3 +33,4 @@ export {
     setDoc,
     where
 };
+export { auth, provider, db, collection, getDocs, addDoc, onSnapshot, query, orderBy, limit, where, setDoc, doc, getDoc, updateDoc, deleteDoc, signInWithPopup, signOut, onAuthStateChanged, Timestamp, arrayUnion, arrayRemove, writeBatch };
