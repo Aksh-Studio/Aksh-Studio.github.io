@@ -127,7 +127,6 @@ export function initGlobalSettings(currentUser) {
     if (btnCloseUnblock) btnCloseUnblock.onclick = () => { if (unblockModal) unblockModal.style.display = 'none'; };
 }
 
-
 // ==========================================
 // 2. ACTIVE CHAT LOGIC (3-Dot Menu)
 // ==========================================
@@ -163,7 +162,12 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
     
-    const hideHarshOptions = isGroup || isTargetOwner || isCurrentOwner;
+    // Hide Report & Block for Groups. ALSO hide if the target is the Owner.
+    let hideHarshOptions = isGroup; 
+    if (!isCurrentOwner && isTargetOwner) {
+        hideHarshOptions = true; // Normal users cannot report/block the owner
+    }
+
     const reportBtn = document.getElementById('btn-opt-report');
     const blockBtn = document.getElementById('btn-opt-block');
     const leaveGroupBtn = document.getElementById('btn-opt-leave');
@@ -216,7 +220,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 2. Report User
+    // 2. Report User 
     if (reportBtn) {
         reportBtn.onclick = async () => {
             if (!targetUid) return;
@@ -249,7 +253,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 3. Block User
+    // 3. Block User 
     if (blockBtn) {
         blockBtn.onclick = async () => {
             if (!targetUid) return;
@@ -262,7 +266,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 4. Clear Chat
+    // 4. Clear Chat 
     const clearBtn = document.getElementById('btn-opt-clear');
     if (clearBtn) {
         clearBtn.onclick = async () => {
@@ -275,7 +279,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 5. Delete Chat Options
+    // 5. Delete Chat (Applies deletedFor_ flag so it doesn't break for the other user)
     const delModal = document.getElementById('deleteChatModal');
     const deleteBtn = document.getElementById('btn-opt-delete');
     if (deleteBtn) {
@@ -301,9 +305,9 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const delMe = document.getElementById('btn-del-chat-me');
     if (delMe) {
         delMe.onclick = async () => {
-            // Delete for Me removes you from participants so it drops out of the Sidebar network fetch completely
+            // FIX: Sets a deleted flag instead of pulling out of the array
             await updateDoc(doc(db, "chats", activeChatId), {
-                participants: arrayRemove(curId)
+                [`deletedFor_${curId}`]: true
             });
             window.location.reload();
         };
