@@ -176,6 +176,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         leaveGroupBtn.onclick = async () => {
             if (!confirm("Are you sure you want to leave this group?")) return;
             try {
+                if (window.leaveChatRoom) window.leaveChatRoom();
                 await updateDoc(doc(db, "chats", activeChatId), {
                     participants: arrayRemove(curId),
                     admins: arrayRemove(curId)
@@ -185,6 +186,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
+    // 1. Export Chat
     const exportBtn = document.getElementById('btn-opt-export');
     if (exportBtn) {
         exportBtn.onclick = async () => {
@@ -214,6 +216,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
+    // 2. Report User 
     if (reportBtn) {
         reportBtn.onclick = async () => {
             if (!targetUid) return;
@@ -246,6 +249,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
+    // 3. Block User 
     if (blockBtn) {
         blockBtn.onclick = async () => {
             if (!targetUid) return;
@@ -258,6 +262,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
+    // 4. Clear Chat 
     const clearBtn = document.getElementById('btn-opt-clear');
     if (clearBtn) {
         clearBtn.onclick = async () => {
@@ -270,43 +275,36 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    const delModal = document.getElementById('deleteChatModal');
+    // 5. Delete Chat Option
     const deleteBtn = document.getElementById('btn-opt-delete');
     if (deleteBtn) {
+        // FIX: "User cannot delete its chat." Only the owner sees the Delete Chat button now.
+        deleteBtn.style.display = isCurrentOwner ? 'block' : 'none';
+        
         deleteBtn.onclick = () => {
+            const delModal = document.getElementById('deleteChatModal');
             if (delModal) delModal.style.display = 'flex';
             if (optionsMenu) optionsMenu.style.display = 'none';
             
             const btnEveryone = document.getElementById('btn-del-chat-both');
-            let canDeleteEveryone = false;
-            if (isGroup) {
-                const isAdmin = Array.isArray(activeChatData.admins) && activeChatData.admins.includes(curId);
-                canDeleteEveryone = isCurrentOwner || isAdmin;
-            } else {
-                canDeleteEveryone = isCurrentOwner; 
-            }
-            if (btnEveryone) btnEveryone.style.display = canDeleteEveryone ? 'block' : 'none';
+            if (btnEveryone) btnEveryone.style.display = isCurrentOwner ? 'block' : 'none';
         };
     }
     
     const closeDelChat = document.getElementById('btn-close-del-chat');
-    if (closeDelChat) closeDelChat.onclick = () => { if (delModal) delModal.style.display = 'none'; };
+    if (closeDelChat) closeDelChat.onclick = () => { 
+        const delModal = document.getElementById('deleteChatModal');
+        if(delModal) delModal.style.display = 'none'; 
+    };
 
     const delMe = document.getElementById('btn-del-chat-me');
     if (delMe) {
         delMe.onclick = async () => {
-            // FIX: Gracefully apply deletedFor and clearedAt flags for DMs to avoid breaking the chat room structure for the other participant
-            if (isGroup) {
-                await updateDoc(doc(db, "chats", activeChatId), {
-                    participants: arrayRemove(curId),
-                    admins: arrayRemove(curId)
-                });
-            } else {
-                await updateDoc(doc(db, "chats", activeChatId), {
-                    [`deletedFor_${curId}`]: true,
-                    [`clearedAt_${curId}`]: Date.now() 
-                });
-            }
+            if (window.leaveChatRoom) window.leaveChatRoom();
+            await updateDoc(doc(db, "chats", activeChatId), {
+                [`deletedFor_${curId}`]: true,
+                [`clearedAt_${curId}`]: Date.now() 
+            });
             window.location.reload();
         };
     }
@@ -317,6 +315,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
             if (!confirm("Permanently delete this chat and all messages for everyone?")) return;
             delBoth.textContent = "Deleting...";
             try {
+                if (window.leaveChatRoom) window.leaveChatRoom();
                 const snap = await getDocs(collection(db, `chats/${activeChatId}/messages`));
                 const batch = writeBatch(db);
                 snap.forEach(d => batch.delete(d.ref));
@@ -327,6 +326,15 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                 alert("Failed to delete chat: Check database permissions.");
                 delBoth.textContent = "Delete for Both";
             }
+        };
+    }
+
+    // Bind Select Messages UI
+    const selectBtn = document.getElementById('btn-opt-select');
+    if (selectBtn) {
+        selectBtn.onclick = () => {
+            if (optionsMenu) optionsMenu.style.display = 'none';
+            if (window.enableSelectionMode) window.enableSelectionMode(true);
         };
     }
 }
