@@ -249,29 +249,76 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
 }
 
 /* ==========================================================================
-   9. PHASE 1: GUEST LOCK & RESPONSIVE DESIGN
+   9. GUEST LOCK & ENHANCED MOBILE RESPONSIVENESS
    ========================================================================== */
 .guest-blur { filter: blur(8px); pointer-events: none; user-select: none; }
 .guest-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px); }
-.guest-modal { background: var(--card-bg); padding: 35px 30px; border-radius: 16px; text-align: center; max-width: 400px; width: 90%; box-shadow: var(--shadow-modal); border: 1px solid var(--border); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+/* Added max-height and overflow-y to prevent modals from breaking on small phones */
+.guest-modal { background: var(--card-bg); padding: 35px 30px; border-radius: 16px; text-align: center; max-width: 400px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-modal); border: 1px solid var(--border); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
 @keyframes popIn {
     from { transform: scale(0.8); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
 
-/* Mobile Breakpoints */
-.mobile-back-btn { display: none; background: transparent; border: none; color: var(--text-main); cursor: pointer; padding: 5px; margin-right: 5px; }
+.mobile-back-btn { display: none; background: transparent; border: none; color: var(--text-main); cursor: pointer; padding: 5px; margin-right: 5px; border-radius: 50%; }
+.mobile-back-btn:active { background: rgba(0,0,0,0.1); }
 
+/* --- MOBILE BREAKPOINTS --- */
 @media screen and (max-width: 900px) {
-    .side-rail { display: none; }
+    /* Core Layout Swapping */
+    .side-rail { display: none !important; }
     .chat-sidebar { width: 100%; border-right: none; }
     .chat-main { display: none; width: 100%; }
-    .info-sidebar { position: absolute; right: 0; height: 100%; width: 100% !important; border-left: none; }
-    .mobile-back-btn { display: flex; }
+    .info-sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 100% !important; border-left: none; z-index: 100; }
+    .mobile-back-btn { display: flex; align-items: center; justify-content: center; }
     
     .app-layout.mobile-chat-active .chat-sidebar { display: none; }
     .app-layout.mobile-chat-active .chat-main { display: flex; }
+
+    /* Top Nav Compression */
+    .top-nav { padding: 10px 15px; }
+    .nav-right { gap: 8px; }
+    .btn-outline { padding: 6px 10px; font-size: 12px; }
+    
+    /* Chat Header Compression (Prevents overlapping buttons) */
+    .chat-header { padding: 8px 15px; gap: 10px; }
+    #header-room-info { overflow: hidden; }
+    #active-room-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px !important; }
+    #active-room-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    /* Touch Device Fixes for Chat Bubbles */
+    .msg-bubble { max-width: 85%; } /* Bubbles take more space on small screens */
+    
+    /* Force message action menu trigger to be visible since touch devices lack hover */
+    .msg-action-trigger { 
+        display: flex !important; 
+        opacity: 0.6; 
+        background: var(--card-bg); 
+        border-radius: 50%; 
+        width: 26px; height: 26px; 
+        top: -10px; right: -5px; 
+        box-shadow: var(--shadow-sm); 
+        border: 1px solid var(--border);
+    }
+    .msg-action-trigger:active { opacity: 1; background: var(--app-bg); }
+    .msg-action-trigger span { font-size: 18px !important; }
+    
+    /* Input Area Adjustments */
+    .chat-input-area { padding: 8px 12px; gap: 6px; }
+    .chat-input-area input[type="text"] { padding: 10px 15px; font-size: 14px; }
+    .btn-send { width: 38px; height: 38px; }
+    
+    /* Dropdown Adjustments */
+    #chat-options-menu { right: 10px; top: 50px; }
+}
+
+@media screen and (max-width: 400px) {
+    /* Extra Small Screen Fixes */
+    .brand-title { font-size: 16px; }
+    .brand-title img { width: 24px !important; height: 24px !important; }
+    .guest-modal { padding: 20px 15px; }
 }
 
 /* --- FULL SCREEN CHAT UI FIX --- */
