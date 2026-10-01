@@ -103,6 +103,7 @@ const renderMessagesUI = () => {
         const msg = documentObj.data();
         const msgTime = msg.localTimestamp || msg.timestamp || Date.now();
         
+        // Hide messages if cleared by current user OR deleted for me locally
         if (msgTime <= clearTimestamp || hiddenMsgs.includes(msgId)) return;
 
         const isMe = msg.senderId === curId; 
@@ -220,7 +221,6 @@ const listenToRoomState = async (roomId) => {
     const curId = currentUser?.id || currentUser?.uid;
     let myBlockedList = [];
 
-    // Safe lookup to prevent ResourcePath.fromString indexOf crash
     if (curId) {
         try {
             const uDoc = await getDoc(doc(db, "users", curId));
@@ -230,36 +230,59 @@ const listenToRoomState = async (roomId) => {
         } catch(e) {}
     }
 
-    roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
+    roomStateListener = onSnapshot(doc(db, "chats", roomId), async (documentObj) => {
         currentRoomData = documentObj.data() || { type: (roomId === 'global_channel' || roomId === 'aksh_help' ? 'group' : 'dm'), participants: [] }; 
         window.currentRoomData = currentRoomData;
-        
+        window.isTargetOwner = false; // Reset the target ownership check
+
         if (roomId.startsWith('dm_') && (!Array.isArray(currentRoomData.participants) || currentRoomData.participants.length === 0)) {
             currentRoomData.participants = roomId.replace('dm_', '').split('_');
         }
 
         const isGroup = currentRoomData.type === 'group' || roomId === 'global_channel' || roomId === 'aksh_help';
         let isBlocked = false;
+        let theyBlockedMe = false;
+
+        // MUTUAL BLOCKING CHECK
         if (!isGroup && curId) {
             const safeParticipants = Array.isArray(currentRoomData.participants) ? currentRoomData.participants : [];
             const targetUid = safeParticipants.find(id => id !== curId);
-            if (targetUid && myBlockedList.includes(targetUid)) isBlocked = true;
+            if (targetUid) {
+                // Check if I blocked them
+                if (myBlockedList.includes(targetUid)) isBlocked = true;
+                
+                // Fetch target user to check if they blocked me OR if they are the owner
+                try {
+                    const targetDoc = await getDoc(doc(db, "users", targetUid));
+                    if (targetDoc.exists()) {
+                        const targetData = targetDoc.data();
+                        if (targetData.blockedUsers?.includes(curId)) {
+                            theyBlockedMe = true;
+                            isBlocked = true;
+                        }
+                        if (String(targetData.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com') {
+                            window.isTargetOwner = true;
+                        }
+                    }
+                } catch(e) {}
+            }
         }
 
         const inputWrapper = document.getElementById('chat-input-wrapper');
         const blockedWrapper = document.getElementById('blocked-state-wrapper');
         if (isBlocked) {
             if (inputWrapper) inputWrapper.style.display = 'none';
-            if (blockedWrapper) blockedWrapper.style.display = 'block';
+            if (blockedWrapper) {
+                blockedWrapper.style.display = 'block';
+                blockedWrapper.innerText = theyBlockedMe ? "You have been blocked by this contact." : "You have blocked this contact. Unblock them in settings to send a message.";
+            }
         } else {
             if (inputWrapper) inputWrapper.style.display = 'flex';
             if (blockedWrapper) blockedWrapper.style.display = 'none';
         }
 
-        // Initialize 3-Dot Options
         initChatOptions(currentUser, roomId, currentRoomData);
         
-        // Pinned Message logic
         const banner = document.getElementById('pinned-message-banner');
         if (banner && currentRoomData.pinnedMessage && Date.now() < (currentRoomData.pinExpiry || 0)) {
             const decPin = decryptMessage(currentRoomData.pinnedMessage);
@@ -269,49 +292,41 @@ const listenToRoomState = async (roomId) => {
             banner.style.display = 'none';
         }
 
-        // Group Settings Button for Groups & System Groups (Owner/Admin)
-        const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+        const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
         const isAdmin = Array.isArray(currentRoomData.admins) && currentRoomData.admins.includes(curId);
+        
         const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
-        const canEdit = isSystemGroup ? isOwner : (isOwner || isAdmin);
-
-        const groupSettingsBtn = document.getElementById('group-settings-btn');
-        if (groupSettingsBtn) {
+        const canEditSystem = isSystemGroup ? isCurrentOwner : false; 
+        const canEditCustom = isCurrentOwner || isAdmin;
+        const canEdit = isSystemGroup ? canEditSystem : canEditCustom;
+        
+        const existingGear = document.getElementById('group-settings-btn');
+        if (existingGear) {
             if (isGroup && canEdit) {
-                groupSettingsBtn.style.display = 'inline-flex';
-                groupSettingsBtn.onclick = (e) => {
+                existingGear.style.display = 'inline-flex';
+                existingGear.onclick = (e) => {
                     e.stopPropagation();
-                    injectGroupAdminModal();
+                    injectGroupAdminModal(); 
                     
-                    const groupEditSec = document.getElementById('group-edit-section');
-                    const transferSec = document.getElementById('transfer-admin-section');
-                    const btnSaveGroup = document.getElementById('btn-save-group');
-                    const btnDeleteGroup = document.getElementById('btn-delete-group');
-                    const addMemberSec = document.getElementById('add-member-section');
-                    const manageMemberSec = document.getElementById('manage-members-section');
-
-                    if (groupEditSec) groupEditSec.style.display = canEdit ? 'block' : 'none';
-                    if (transferSec) transferSec.style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    if (btnSaveGroup) btnSaveGroup.style.display = canEdit ? 'block' : 'none';
-                    if (btnDeleteGroup) btnDeleteGroup.style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    if (addMemberSec) addMemberSec.style.display = isSystemGroup ? 'none' : 'block';
-                    if (manageMemberSec) manageMemberSec.style.display = isSystemGroup ? 'none' : 'block';
+                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
+                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
+                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
 
                     if (canEdit) {
-                        const nameInp = document.getElementById('edit-group-name');
-                        const iconInp = document.getElementById('edit-group-icon');
-                        const iconPrev = document.getElementById('group-icon-preview');
-                        if (nameInp) nameInp.value = currentRoomData.name || '';
-                        if (iconInp) iconInp.value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                        if (iconPrev) iconPrev.src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
+                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
                     }
                     
                     populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
-                    const gModal = document.getElementById('group-admin-modal');
-                    if (gModal) gModal.style.display = 'flex';
+                    const groupModal = document.getElementById('group-admin-modal');
+                    if(groupModal) groupModal.style.display = 'flex';
                 };
             } else {
-                groupSettingsBtn.style.display = 'none';
+                existingGear.style.display = 'none';
             }
         }
 
@@ -324,7 +339,7 @@ const listenToRoomState = async (roomId) => {
                     displayRoomName = currentRoomData.names[otherId];
                 }
             }
-            if (displayRoomName !== 'Chat') titleEl.innerText = displayRoomName;
+            if(displayRoomName !== 'Chat') titleEl.innerText = displayRoomName;
         }
         
         if (currentMessagesSnapshot.length > 0) renderMessagesUI();
@@ -367,17 +382,22 @@ export const sendMessage = async () => {
     const text = inputField.value.trim();
     if (!text || !currentRoomId) return; 
 
+    // OWNER PRIVACY: Prevent normal users from messaging the owner entirely
+    const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+    if (window.isTargetOwner && !isCurrentOwner) {
+        inputField.value = ''; // Silently fail/disappear
+        return;
+    }
+
     inputField.value = ''; 
     const curId = currentUser?.id || currentUser?.uid;
-    const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     
     const scrambledText = encryptMessage(text);
-    
     const payload = { 
         text: scrambledText, 
         senderId: curId, 
         senderName: currentUser?.name || 'User', 
-        isOwner: isOwner, 
+        isOwner: isCurrentOwner, 
         timestamp: Date.now(),
         localTimestamp: Date.now(),
         expireAt: Timestamp.fromMillis(Date.now() + 60 * 24 * 60 * 60 * 1000)    
@@ -396,8 +416,7 @@ export const sendMessage = async () => {
     } catch (error) {}
 };
 
-// --- SELECTION & MESSAGE FORWARD/DELETE ACTIONS ---
-
+// --- SELECTION & MESSAGE ACTIONS ---
 window.startForwardSingleMessage = (msgId) => {
     window.enableSelectionMode(true);
     const box = document.querySelector(`.msg-checkbox[value="${msgId}"]`);
@@ -443,12 +462,19 @@ window.openDeleteMessagesModal = () => {
     if (selectedBoxes.length === 0) return alert("Select at least one message to delete.");
 
     const curId = currentUser?.id || currentUser?.uid;
-    const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+    const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
+    const isGroup = currentRoomData?.type === 'group' || currentRoomId === 'global_channel' || currentRoomId === 'aksh_help';
 
-    // Can delete for everyone if I sent all selected messages, or if I am group Admin/Owner
-    const allMine = selectedBoxes.every(b => b.getAttribute('data-sender') === curId);
-    const canDeleteEveryone = allMine || isOwner || isAdmin;
+    // RESTRICT "DELETE FOR EVERYONE"
+    let canDeleteEveryone = false;
+    if (isGroup) {
+        const allMine = selectedBoxes.every(b => b.getAttribute('data-sender') === curId);
+        canDeleteEveryone = allMine || isCurrentOwner || isAdmin;
+    } else {
+        // In Direct Messages, ONLY the App Owner can delete for everyone. Normal users can't.
+        canDeleteEveryone = isCurrentOwner;
+    }
 
     const btnEveryone = document.getElementById('btn-delete-everyone');
     if (btnEveryone) btnEveryone.style.display = canDeleteEveryone ? 'block' : 'none';
@@ -456,74 +482,6 @@ window.openDeleteMessagesModal = () => {
     const delModal = document.getElementById('delete-modal');
     if (delModal) delModal.style.display = 'flex';
 };
-
-window.forwardSelectedMessages = async () => {
-    const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
-    if (selectedBoxes.length === 0) return alert("Select at least one message to forward.");
-
-    if (!document.getElementById('forward-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-            <div id="forward-modal" class="guest-overlay" style="display: none; z-index: 10003;">
-                <div class="guest-modal" style="padding: 20px; width: 90%; max-width: 350px;">
-                    <h3 style="margin-bottom: 15px; color: var(--primary);">Forward To:</h3>
-                    <div id="forward-rooms-list" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;"></div>
-                    <button id="btn-cancel-forward" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
-                </div>
-            </div>
-        `);
-        document.getElementById('btn-cancel-forward')?.addEventListener('click', () => {
-            document.getElementById('forward-modal').style.display = 'none';
-        });
-    }
-
-    const listEl = document.getElementById('forward-rooms-list');
-    listEl.innerHTML = '';
-    
-    const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
-    Object.keys(availableRooms).forEach(roomId => {
-        const room = availableRooms[roomId];
-        const item = document.createElement('div');
-        item.style = "padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text-main); font-weight: 600;";
-        item.innerText = room.name;
-        item.onclick = async () => {
-            document.getElementById('forward-modal').style.display = 'none';
-            const curId = currentUser?.id || currentUser?.uid;
-            const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
-            
-            for (const box of selectedBoxes) {
-                try {
-                    const msgDoc = await getDoc(doc(db, `chats/${currentRoomId}/messages`, box.value));
-                    if (msgDoc.exists()) {
-                        const originalData = msgDoc.data();
-                        let finalizedText = originalData.text ? decryptMessage(originalData.text) : "";
-                        if (!finalizedText.includes("Forwarded")) finalizedText = "_▶ Forwarded_\n" + finalizedText;
-
-                        const fwdPayload = {
-                            text: encryptMessage(finalizedText),
-                            fileUrl: originalData.fileUrl || null,
-                            fileType: originalData.fileType || null,
-                            fileName: originalData.fileName || null,
-                            senderId: curId,
-                            senderName: currentUser?.name || 'User',
-                            isOwner: isOwner,
-                            timestamp: Date.now(),
-                            localTimestamp: Date.now(),
-                            expireAt: Timestamp.fromMillis(Date.now() + 60 * 24 * 60 * 60 * 1000)
-                        };
-                        await addDoc(collection(db, `chats/${roomId}/messages`), fwdPayload);
-                    }
-                } catch(e) {}
-            }
-            await setDoc(doc(db, "chats", roomId), { lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
-            window.enableSelectionMode(false);
-            alert("Messages forwarded successfully.");
-        };
-        listEl.appendChild(item);
-    });
-    document.getElementById('forward-modal').style.display = 'flex';
-};
-
-// --- WIRE ACTIONS RELIABLY (Direct Module Scope) ---
 
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.msg-bubble')) {
@@ -537,20 +495,9 @@ document.addEventListener('change', (e) => {
     }
 });
 
-// Selection Header Button Bindings
-document.getElementById('btn-cancel-selection')?.addEventListener('click', () => {
-    window.enableSelectionMode(false);
-});
-
-document.getElementById('btn-action-delete')?.addEventListener('click', () => {
-    window.openDeleteMessagesModal();
-});
-
-document.getElementById('btn-action-forward')?.addEventListener('click', () => {
-    window.forwardSelectedMessages();
-});
-
-// Delete Modal Bindings
+document.getElementById('btn-cancel-selection')?.addEventListener('click', () => { window.enableSelectionMode(false); });
+document.getElementById('btn-action-delete')?.addEventListener('click', () => { window.openDeleteMessagesModal(); });
+document.getElementById('btn-action-forward')?.addEventListener('click', () => { window.forwardSelectedMessages(); });
 document.getElementById('btn-cancel-delete')?.addEventListener('click', () => {
     const delModal = document.getElementById('delete-modal');
     if (delModal) delModal.style.display = 'none';
@@ -570,15 +517,12 @@ document.getElementById('btn-delete-me')?.addEventListener('click', () => {
 document.getElementById('btn-delete-everyone')?.addEventListener('click', async () => {
     const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
     for (const b of selectedBoxes) {
-        try {
-            await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, b.value));
-        } catch(e) {}
+        try { await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, b.value)); } catch(e) {}
     }
     document.getElementById('delete-modal').style.display = 'none';
     window.enableSelectionMode(false);
 });
 
-// Pin and Reply Handlers
 window.toggleActionMenu = (msgId) => { 
     document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); 
     const menu = document.getElementById(`menu-${msgId}`); 
@@ -617,9 +561,7 @@ document.querySelectorAll('.pin-duration-btn').forEach(btn => {
 
 document.getElementById('btn-unpin')?.addEventListener('click', async () => {
     if (!currentRoomId) return;
-    try { 
-        await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }, { merge: true }); 
-    } catch (err) {}
+    try { await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }, { merge: true }); } catch (err) {}
 });
 
 window.replyToMessage = (msgId) => {
@@ -644,5 +586,4 @@ window.cancelReply = () => {
     const banner = document.getElementById('reply-preview-banner');
     if (banner) banner.style.display = 'none'; 
 };
-
 document.getElementById('btn-cancel-reply')?.addEventListener('click', window.cancelReply);
