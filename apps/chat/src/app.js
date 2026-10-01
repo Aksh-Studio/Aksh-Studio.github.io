@@ -284,4 +284,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelector('.chat-main').style.backgroundSize = "cover";
                 }
             }).catch(()=>{});
+        }
         
+        initThemeAndListeners();
+        renderSidebarList();
+        
+        setTimeout(() => {
+            const defaultBtn = document.getElementById(`btn-room-global_channel`);
+            if(defaultBtn && window.innerWidth > 900) {
+                defaultBtn.click();
+            }
+        }, 300);
+    });
+});
