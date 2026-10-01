@@ -284,23 +284,4 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelector('.chat-main').style.backgroundSize = "cover";
                 }
             }).catch(()=>{});
-        }The reason your messages aren't loading and nothing is working is due to a **fatal ES6 module error**. 
-
-When the browser encounters a `SyntaxError: The requested module ... does not provide an export` in *any* of your module files (in this case, `advancedEngine.js`), it halts the execution of your entire JavaScript bundle. Because `advancedEngine.js` fails to load, `chatEngine.js` never gets the chance to execute, leaving your chat UI blank.
-
-To fix this, you need to update your **`firebase.js`** file to properly export `arrayRemove` (which is a Firebase Firestore function likely being used by `advancedEngine.js` for removing members from groups).
-
-### The Fix: Update `firebase.js`
-
-Open your `firebase.js` file. You need to make sure `arrayRemove` is imported from Firebase and then exported for your other scripts to use.
-
-**1. Find your Firestore import line and add `arrayRemove`:**
-```javascript
-// In your firebase.js file
-import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    // ... your other imports ...
-    arrayRemove // <-- ADD THIS HERE
-} from "firebase/firestore";
+        
