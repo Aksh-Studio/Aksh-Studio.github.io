@@ -25,7 +25,6 @@ const parseWhatsAppFormatting = (text) => {
     return safeHtml;
 };
 
-// --- FIX: Proper updateDoc format to prevent nested mapping errors ---
 export const updateReadReceipt = async (roomId, uid) => {
     if (!roomId || !uid) return;
     try {
@@ -33,9 +32,7 @@ export const updateReadReceipt = async (roomId, uid) => {
             [`readReceipts.${uid}`]: Date.now()
         });
     } catch (error) {
-        try {
-            await setDoc(doc(db, "chats", roomId), { readReceipts: { [uid]: Date.now() } }, { merge: true });
-        } catch(e) {}
+        try { await setDoc(doc(db, "chats", roomId), { readReceipts: { [uid]: Date.now() } }, { merge: true }); } catch(e) {}
     }
 };
 
@@ -91,6 +88,7 @@ const renderMessagesUI = () => {
     let previousSenderId = null; 
     
     const curId = currentUser?.id || currentUser?.uid;
+    const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     const readReceipts = currentRoomData?.readReceipts || {};
     
     const safeParticipants = Array.isArray(currentRoomData?.participants) ? currentRoomData.participants : [];
@@ -102,18 +100,18 @@ const renderMessagesUI = () => {
     const otherParticipants = participantList.filter(id => id !== curId);
 
     const clearTimestamp = currentRoomData ? (currentRoomData[`clearedAt_${curId}`] || 0) : 0;
+    const isSystemGroup = currentRoomId === 'global_channel' || currentRoomId === 'aksh_help';
 
     currentMessagesSnapshot.forEach((documentObj) => {
         const msgId = documentObj.id;
         const msg = documentObj.data();
         const msgTime = msg.localTimestamp || msg.timestamp || Date.now();
         
-        // Hide messages if cleared by current user OR deleted for me locally
         if (msgTime <= clearTimestamp || hiddenMsgs.includes(msgId)) return;
 
         const isMe = msg.senderId === curId; 
         const isFirstInGroup = previousSenderId !== msg.senderId;
-        const isSystemAdminMsg = msg.isOwner === true && (currentRoomId === 'global_channel' || currentRoomId === 'aksh_help');
+        const isSystemAdminMsg = msg.isOwner === true && isSystemGroup;
 
         const decryptedText = msg.text ? decryptMessage(msg.text) : "";
         const formattedTextContent = parseWhatsAppFormatting(decryptedText);
@@ -155,9 +153,12 @@ const renderMessagesUI = () => {
         const showName = isSystemAdminMsg || (!isMe && isFirstInGroup);
         const nameAlign = isSystemAdminMsg ? 'text-align: center; width: 100%;' : '';
         const senderNameHTML = showName ? `<div class="msg-sender-name" style="${nameAlign}">${msg.senderName || 'Network User'}${roleBadge}</div>` : '';
-        
         const decryptedReplyText = msg.replyToText ? decryptMessage(msg.replyToText) : "";
         const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(decryptedReplyText)}</div></div>` : '';
+
+        // FIX: Only Owner can pin in global groups
+        const canPin = !(isSystemGroup && !isCurrentOwner);
+        const pinBtnHTML = canPin ? `<button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>` : '';
 
         const actionMenuHTML = `
             <div class="msg-action-trigger" onclick="window.toggleActionMenu('${msgId}')">
@@ -167,7 +168,7 @@ const renderMessagesUI = () => {
                 <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
                 <button class="msg-action-btn" onclick="window.startForwardSingleMessage('${msgId}')">Forward</button>
                 <button class="msg-action-btn" onclick="window.startDeleteSingleMessage('${msgId}')">Delete</button>
-                <button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>
+                ${pinBtnHTML}
             </div>
         `;
 
@@ -200,15 +201,6 @@ const renderMessagesUI = () => {
                         </a>
                     </div>`;
             }
-        } else if (msg.imageUrl) {
-            const rawImageUrl = decryptMessage(msg.imageUrl);
-            mediaAttachmentHTML = `
-                <div style="position:relative; margin-bottom: 5px;">
-                    <img src="${rawImageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
-                    <a href="${rawImageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;">
-                        <span class="material-symbols-rounded" style="font-size:16px;">download</span>
-                    </a>
-                </div>`;
         }
 
         messagesHTML += `
@@ -233,7 +225,6 @@ const listenToRoomState = async (roomId) => {
     if (roomStateListener) roomStateListener();
 
     const curId = currentUser?.id || currentUser?.uid;
-    const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     let myBlockedList = [];
 
     if (curId) {
@@ -246,7 +237,6 @@ const listenToRoomState = async (roomId) => {
     }
 
     roomStateListener = onSnapshot(doc(db, "chats", roomId), async (documentObj) => {
-        // --- FIX: REAL-TIME KICK AND DELETE SYNC ---
         if (!documentObj.exists()) {
             if (currentRoomId === roomId) {
                 alert("This chat has been deleted.");
@@ -265,8 +255,8 @@ const listenToRoomState = async (roomId) => {
 
         const isGroup = currentRoomData.type === 'group';
         const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
+        const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
 
-        // --- FIX: ENFORCE REAL-TIME GROUP REMOVAL ---
         if (isGroup && !isSystemGroup) {
             if (Array.isArray(currentRoomData.participants) && !currentRoomData.participants.includes(curId) && !isCurrentOwner) {
                 if (currentRoomId === roomId) {
@@ -339,12 +329,19 @@ const listenToRoomState = async (roomId) => {
                     e.stopPropagation();
                     injectGroupAdminModal(); 
                     
-                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
-                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
+                    const groupEditSec = document.getElementById('group-edit-section');
+                    const transferSec = document.getElementById('transfer-admin-section');
+                    const btnSaveGroup = document.getElementById('btn-save-group');
+                    const btnDeleteGroup = document.getElementById('btn-delete-group');
+                    const addMemberSec = document.getElementById('add-member-section');
+                    const manageMemberSec = document.getElementById('manage-members-section');
+
+                    if (groupEditSec) groupEditSec.style.display = canEdit ? 'block' : 'none';
+                    if (transferSec) transferSec.style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    if (btnSaveGroup) btnSaveGroup.style.display = canEdit ? 'block' : 'none';
+                    if (btnDeleteGroup) btnDeleteGroup.style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    if (addMemberSec) addMemberSec.style.display = isSystemGroup ? 'none' : 'block';
+                    if (manageMemberSec) manageMemberSec.style.display = isSystemGroup ? 'none' : 'block';
 
                     if (canEdit) {
                         document.getElementById('edit-group-name').value = currentRoomData.name || '';
@@ -415,16 +412,21 @@ export const sendMessage = async () => {
 
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     
-    // OWNER PRIVACY: Ignore messages attempting to reach Owner if they are not the Owner
+    // --- FIX: OWNER PRIVACY RULE ---
+    // Cannot message the owner UNLESS the owner has initiated the conversation
     if (window.isTargetOwner && !isCurrentOwner) {
-        inputField.value = ''; 
-        alert("This account does not accept direct messages.");
-        return;
+        const ownerHasMessaged = currentMessagesSnapshot.some(docObj => {
+            return docObj.data().isOwner === true || String(docObj.data().senderName).includes('Owner');
+        });
+        if (!ownerHasMessaged) {
+            inputField.value = ''; 
+            alert("You cannot message the Owner until they initiate a conversation with you.");
+            return;
+        }
     }
 
     inputField.value = ''; 
     const curId = currentUser?.id || currentUser?.uid;
-    
     const scrambledText = encryptMessage(text);
     const payload = { 
         text: scrambledText, 
@@ -445,11 +447,22 @@ export const sendMessage = async () => {
     try { 
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
-        await updateDoc(doc(db, "chats", currentRoomId), {
-            [`readReceipts.${curId}`]: Date.now(),
-            lastMessageTime: Date.now(),
-            lastMessageSenderId: curId
-        });
+        
+        // If DM, automatically un-delete it for the other person so they can see this new message
+        const targetUpdate = {};
+        if (currentRoomData?.type === 'dm') {
+            const otherParticipant = currentRoomData.participants.find(id => id !== curId);
+            if (otherParticipant) {
+                targetUpdate[`deletedFor_${otherParticipant}`] = false;
+            }
+        }
+        
+        await setDoc(doc(db, "chats", currentRoomId), { 
+            [`readReceipts.${curId}`]: Date.now(), 
+            lastMessageTime: Date.now(), 
+            lastMessageSenderId: curId,
+            ...targetUpdate
+        }, { merge: true });
     } catch (error) {}
 };
 
