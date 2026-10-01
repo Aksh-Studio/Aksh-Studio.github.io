@@ -16,22 +16,4 @@ export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-export {
-    collection,
-    addDoc,
-    onSnapshot,
-    query,
-    orderBy,
-    serverTimestamp,
-    Timestamp,
-    doc,
-    updateDoc,
-    deleteDoc,
-    getDoc,
-    getDocs,
-    onAuthStateChanged,
-    setDoc,
-    where
-};
-// At the bottom of firebase.js:
 export { auth, provider, db, collection, getDocs, addDoc, onSnapshot, query, orderBy, limit, where, setDoc, doc, getDoc, updateDoc, deleteDoc, signInWithPopup, signOut, onAuthStateChanged, Timestamp, arrayUnion, arrayRemove, writeBatch };
