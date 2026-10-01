@@ -5,7 +5,7 @@ const ownerEmail = 'akshat124.am12@gmail.com';
 
 export function initGlobalSettings(currentUser) {
     const curId = currentUser?.id || currentUser?.uid;
-    if (!curId) return; // Safely prevent the 'indexOf' undefined crash
+    if (!curId) return;
 
     // 1. Profile Dropdown Click Toggle
     const profilePic = document.getElementById('nav-profile-pic');
@@ -14,7 +14,9 @@ export function initGlobalSettings(currentUser) {
     if (profilePic && !window.profileMenuAttached) {
         profilePic.addEventListener('click', (e) => {
             e.stopPropagation();
-            profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
+            if (profileDropdown) {
+                profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
+            }
         });
         window.profileMenuAttached = true;
     }
@@ -27,14 +29,14 @@ export function initGlobalSettings(currentUser) {
 
     if (settingsToggle) {
         settingsToggle.onclick = () => {
-            if(chatsPanel) chatsPanel.style.display = 'none';
-            if(settingsPanel) settingsPanel.style.display = 'flex';
+            if (chatsPanel) chatsPanel.style.display = 'none';
+            if (settingsPanel) settingsPanel.style.display = 'flex';
         };
     }
     if (settingsBack) {
         settingsBack.onclick = () => {
-            if(settingsPanel) settingsPanel.style.display = 'none';
-            if(chatsPanel) chatsPanel.style.display = 'flex';
+            if (settingsPanel) settingsPanel.style.display = 'none';
+            if (chatsPanel) chatsPanel.style.display = 'flex';
         };
     }
 
@@ -52,8 +54,11 @@ export function initGlobalSettings(currentUser) {
         btnOpenCustom.onclick = async () => {
             const userDoc = await getDoc(doc(db, "users", curId));
             const data = userDoc.data() || {};
-            document.getElementById('custom-nickname').value = data.nickname || currentUser.name || '';
-            document.getElementById('custom-wallpaper').value = data.wallpaper || '';
+            const nickInput = document.getElementById('custom-nickname');
+            const wallInput = document.getElementById('custom-wallpaper');
+            
+            if (nickInput) nickInput.value = data.nickname || currentUser.name || '';
+            if (wallInput) wallInput.value = data.wallpaper || '';
             if (customModal) customModal.style.display = 'flex';
         };
     }
@@ -61,8 +66,8 @@ export function initGlobalSettings(currentUser) {
     const btnSaveCustom = document.getElementById('btn-save-custom');
     if (btnSaveCustom) {
         btnSaveCustom.onclick = async () => {
-            const newNick = document.getElementById('custom-nickname').value.trim();
-            const newWall = document.getElementById('custom-wallpaper').value.trim();
+            const newNick = document.getElementById('custom-nickname')?.value.trim() || '';
+            const newWall = document.getElementById('custom-wallpaper')?.value.trim() || '';
             
             await updateDoc(doc(db, "users", curId), {
                 nickname: newNick,
@@ -70,7 +75,7 @@ export function initGlobalSettings(currentUser) {
             });
             
             const chatMain = document.querySelector('.chat-main');
-            if(newWall && chatMain) {
+            if (newWall && chatMain) {
                 chatMain.style.backgroundImage = `url(${newWall})`;
                 chatMain.style.backgroundSize = "cover";
             } else if (chatMain) {
@@ -82,7 +87,7 @@ export function initGlobalSettings(currentUser) {
     }
     
     const btnCloseCustom = document.getElementById('btn-close-custom');
-    if (btnCloseCustom) btnCloseCustom.onclick = () => { if(customModal) customModal.style.display = 'none'; };
+    if (btnCloseCustom) btnCloseCustom.onclick = () => { if (customModal) customModal.style.display = 'none'; };
 
     // 5. Unblock Users Modal
     const unblockModal = document.getElementById('unblockModal');
@@ -91,23 +96,23 @@ export function initGlobalSettings(currentUser) {
     if (btnOpenUnblock) {
         btnOpenUnblock.onclick = async () => {
             const listDiv = document.getElementById('blocked-users-list');
-            if(!listDiv) return;
+            if (!listDiv) return;
             
-            listDiv.innerHTML = '<p style="color:var(--text-muted);">Loading...</p>';
-            if(unblockModal) unblockModal.style.display = 'flex';
+            listDiv.innerHTML = '<p style="color:var(--text-muted); padding:10px;">Loading...</p>';
+            if (unblockModal) unblockModal.style.display = 'flex';
 
             const userDoc = await getDoc(doc(db, "users", curId));
             const blocked = userDoc.data()?.blockedUsers || [];
 
             if (blocked.length === 0) {
-                listDiv.innerHTML = '<p style="color:var(--text-muted);">No blocked users.</p>';
+                listDiv.innerHTML = '<p style="color:var(--text-muted); padding:10px;">No blocked users.</p>';
                 return;
             }
 
             listDiv.innerHTML = '';
             for (const uid of blocked) {
                 const uDoc = await getDoc(doc(db, "users", uid));
-                const uName = uDoc.exists() ? uDoc.data().name : 'Unknown User';
+                const uName = uDoc.exists() ? (uDoc.data().fullName || uDoc.data().name || 'User') : 'Unknown User';
                 
                 const item = document.createElement('div');
                 item.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid var(--border);";
@@ -118,7 +123,7 @@ export function initGlobalSettings(currentUser) {
                 item.querySelector('.unblock-btn').onclick = async () => {
                     await updateDoc(doc(db, "users", curId), { blockedUsers: arrayRemove(uid) });
                     item.remove();
-                    if(listDiv.children.length === 0) listDiv.innerHTML = '<p style="color:var(--text-muted);">No blocked users.</p>';
+                    if (listDiv.children.length === 0) listDiv.innerHTML = '<p style="color:var(--text-muted); padding:10px;">No blocked users.</p>';
                 };
                 listDiv.appendChild(item);
             }
@@ -126,7 +131,7 @@ export function initGlobalSettings(currentUser) {
     }
     
     const btnCloseUnblock = document.getElementById('btn-close-unblock');
-    if (btnCloseUnblock) btnCloseUnblock.onclick = () => { if(unblockModal) unblockModal.style.display = 'none'; };
+    if (btnCloseUnblock) btnCloseUnblock.onclick = () => { if (unblockModal) unblockModal.style.display = 'none'; };
 }
 
 export function initChatOptions(currentUser, activeChatId, activeChatData) {
@@ -136,7 +141,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const optionsBtn = document.getElementById('btn-chat-options');
     const optionsMenu = document.getElementById('chat-options-menu');
     const isGroup = activeChatData.type === 'group';
-    const isOwner = String(currentUser.email).toLowerCase().trim() === ownerEmail;
+    const isCurrentOwner = String(currentUser.email).toLowerCase().trim() === ownerEmail;
     
     let targetUid = null;
     let targetName = 'Unknown User';
@@ -146,12 +151,16 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         const safeParticipants = Array.isArray(activeChatData.participants) ? activeChatData.participants : [];
         targetUid = safeParticipants.find(id => id !== curId);
         
-        const safeParticipantsData = Array.isArray(activeChatData.participantsData) ? activeChatData.participantsData : [];
-        const targetData = safeParticipantsData.find(p => p.uid === targetUid);
-        
-        if (targetData) {
-            targetName = targetData.name || 'User';
-            if (targetData.email === ownerEmail) isTargetOwner = true;
+        if (targetUid) {
+            if (activeChatData.names && activeChatData.names[targetUid]) {
+                targetName = activeChatData.names[targetUid];
+            }
+            const safeParticipantsData = Array.isArray(activeChatData.participantsData) ? activeChatData.participantsData : [];
+            const targetData = safeParticipantsData.find(p => p.uid === targetUid);
+            if (targetData) {
+                targetName = targetData.name || targetName;
+                if (String(targetData.email).toLowerCase().trim() === ownerEmail) isTargetOwner = true;
+            }
         }
     }
 
@@ -159,25 +168,27 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         optionsBtn.style.display = isGroup ? 'none' : 'block';
         optionsBtn.onclick = (e) => {
             e.stopPropagation();
-            if(optionsMenu) optionsMenu.style.display = optionsMenu.style.display === 'block' ? 'none' : 'block';
+            if (optionsMenu) {
+                optionsMenu.style.display = optionsMenu.style.display === 'block' ? 'none' : 'block';
+            }
         };
     }
     
-    const hideHarshOptions = isGroup || isTargetOwner || activeChatId === 'global_channel' || isOwner;
+    const hideHarshOptions = isGroup || isTargetOwner || activeChatId === 'global_channel' || isCurrentOwner;
     const reportBtn = document.getElementById('btn-opt-report');
     const blockBtn = document.getElementById('btn-opt-block');
     
-    if(reportBtn) reportBtn.style.display = hideHarshOptions ? 'none' : 'block';
-    if(blockBtn) blockBtn.style.display = hideHarshOptions ? 'none' : 'block';
+    if (reportBtn) reportBtn.style.display = hideHarshOptions ? 'none' : 'block';
+    if (blockBtn) blockBtn.style.display = hideHarshOptions ? 'none' : 'block';
 
-    // Export Chat
+    // 1. Export Chat
     const exportBtn = document.getElementById('btn-opt-export');
     if (exportBtn) {
         exportBtn.onclick = async () => {
             try {
                 const q = query(collection(db, `chats/${activeChatId}/messages`), orderBy("timestamp", "asc"));
                 const snapshot = await getDocs(q);
-                let logOutput = `=== Chat Export Logs [Room: ${activeChatData.name}] ===\n\n`;
+                let logOutput = `=== Chat Export Logs [Room: ${activeChatData.name || 'Chat'}] ===\n\n`;
                 snapshot.forEach(docObj => {
                     const m = docObj.data();
                     const stamp = new Date(m.localTimestamp || m.timestamp || Date.now()).toLocaleString();
@@ -188,17 +199,19 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                 const fileUrl = URL.createObjectURL(fileBlob);
                 const anchor = document.createElement('a');
                 anchor.href = fileUrl;
-                anchor.download = `Aksh-Chat_${activeChatData.name.replace(/\s+/g, '_')}.txt`;
+                anchor.download = `Aksh-Chat_${String(activeChatData.name || 'Chat').replace(/\s+/g, '_')}.txt`;
                 document.body.appendChild(anchor);
                 anchor.click();
                 document.body.removeChild(anchor);
                 URL.revokeObjectURL(fileUrl);
-                if(optionsMenu) optionsMenu.style.display = 'none';
-            } catch(err) { alert("Export processing failure."); }
+                if (optionsMenu) optionsMenu.style.display = 'none';
+            } catch (err) {
+                alert("Export processing failed.");
+            }
         };
     }
 
-    // Report User
+    // 2. Report User (Submits history natively to help_complaints)
     if (reportBtn) {
         reportBtn.onclick = async () => {
             if (!targetUid) return;
@@ -209,7 +222,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                 let historyStr = "";
                 snap.forEach(d => {
                     const msg = d.data();
-                    const time = new Date(msg.timestamp).toLocaleString();
+                    const time = new Date(msg.timestamp || Date.now()).toLocaleString();
                     const sender = msg.senderId === curId ? currentUser.name : targetName;
                     const decText = msg.text ? decryptMessage(msg.text) : "";
                     historyStr = `[${time}] ${sender}: ${decText}\n` + historyStr; 
@@ -219,21 +232,23 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                     name: currentUser.name,
                     email: currentUser.email,
                     subject: `🚨 REPORT: ${currentUser.name} reported ${targetName}`,
-                    details: `Target UID: ${targetUid}\n\n--- EVIDENCE ---\n${historyStr || 'No messages found.'}`,
+                    details: `Target UID: ${targetUid}\n\n--- EVIDENCE ---\n${historyStr || 'No recent messages recorded.'}`,
                     date: Date.now(),
                     status: 'Unresolved'
                 });
-                alert("Report sent securely.");
-                if(optionsMenu) optionsMenu.style.display = 'none';
-            } catch (err) { alert("Failed to send report."); }
+                alert("Report submitted successfully.");
+                if (optionsMenu) optionsMenu.style.display = 'none';
+            } catch (err) {
+                alert("Failed to send report.");
+            }
         };
     }
 
-    // Block User
+    // 3. Block User (WhatsApp Style)
     if (blockBtn) {
         blockBtn.onclick = async () => {
             if (!targetUid) return;
-            if (!confirm(`Block ${targetName}? They will not be able to message you.`)) return;
+            if (!confirm(`Block ${targetName}? You will no longer be able to message each other.`)) return;
             await updateDoc(doc(db, "users", curId), {
                 blockedUsers: arrayUnion(targetUid)
             });
@@ -242,11 +257,11 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // Clear Chat
+    // 4. Clear Chat (Updates clearedAt metadata)
     const clearBtn = document.getElementById('btn-opt-clear');
     if (clearBtn) {
         clearBtn.onclick = async () => {
-            if (!confirm("Clear chat history for you?")) return;
+            if (!confirm("Clear your chat history?")) return;
             await updateDoc(doc(db, "chats", activeChatId), {
                 [`clearedAt_${curId}`]: Date.now()
             });
@@ -255,18 +270,18 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // Delete Chat
+    // 5. Delete Chat ("Delete for me" vs "Delete for both")
     const delModal = document.getElementById('deleteChatModal');
     const deleteBtn = document.getElementById('btn-opt-delete');
     if (deleteBtn) {
         deleteBtn.onclick = () => {
-            if(delModal) delModal.style.display = 'flex';
-            if(optionsMenu) optionsMenu.style.display = 'none';
+            if (delModal) delModal.style.display = 'flex';
+            if (optionsMenu) optionsMenu.style.display = 'none';
         };
     }
     
     const closeDelChat = document.getElementById('btn-close-del-chat');
-    if (closeDelChat) closeDelChat.onclick = () => { if(delModal) delModal.style.display = 'none'; };
+    if (closeDelChat) closeDelChat.onclick = () => { if (delModal) delModal.style.display = 'none'; };
 
     const delMe = document.getElementById('btn-del-chat-me');
     if (delMe) {
@@ -281,11 +296,11 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const delBoth = document.getElementById('btn-del-chat-both');
     if (delBoth) {
         delBoth.onclick = async () => {
-            if (!isOwner && !activeChatData.admins?.includes(curId)) {
-                alert("Only admins can delete chats for everyone.");
+            if (!isCurrentOwner && !activeChatData.admins?.includes(curId) && activeChatData.type === 'group') {
+                alert("Only admins can delete group chats for everyone.");
                 return;
             }
-            if (!confirm("Permanently delete the chat for everyone?")) return;
+            if (!confirm("Permanently delete this chat and all messages for everyone?")) return;
             delBoth.textContent = "Deleting...";
             try {
                 const snap = await getDocs(collection(db, `chats/${activeChatId}/messages`));
@@ -294,32 +309,10 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                 await batch.commit();
                 await deleteDoc(doc(db, "chats", activeChatId));
                 window.location.reload();
-            } catch(e) { alert("Failed. Check permissions."); delBoth.textContent = "Delete for Both"; }
+            } catch (e) {
+                alert("Failed to delete chat: Check database permissions.");
+                delBoth.textContent = "Delete for Both";
+            }
         };
     }
 }
-
-// Group Removal Fix
-window.removeGroupMember = async (uidToRemove) => {
-    const activeChatId = window.appState?.activeChatId;
-    const activeChatData = window.currentRoomData;
-    const curId = window.currentUserAuth?.id || window.currentUserAuth?.uid;
-    const isOwner = window.currentUserAuth?.email === ownerEmail;
-    
-    if(!activeChatId || !activeChatData || !curId) return;
-
-    const isAdmin = activeChatData.admins?.includes(curId);
-
-    if (!isAdmin && !isOwner) {
-        alert("Only group admins or the Owner can remove members.");
-        return;
-    }
-    
-    if (confirm("Remove user from group?")) {
-        await updateDoc(doc(db, "chats", activeChatId), {
-            participants: arrayRemove(uidToRemove),
-            admins: arrayRemove(uidToRemove)
-        });
-        alert("User removed successfully.");
-    }
-};
