@@ -1,4 +1,4 @@
-import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, Timestamp } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, Timestamp, writeBatch } from './firebase.js';
 import { currentUser } from './auth.js';
 import { encryptMessage, decryptMessage } from './siteCipher.js';
 import { initChatOptions } from './advancedEngine.js';
@@ -36,7 +36,7 @@ export const updateReadReceipt = async (roomId, uid) => {
     }
 };
 
-export const leaveChatRoom = () => {
+window.leaveChatRoom = () => {
     currentRoomId = null;
     if (unsubscribeListener) unsubscribeListener();
     if (roomStateListener) roomStateListener();
@@ -124,7 +124,6 @@ const renderMessagesUI = () => {
             timeString = "Sent";
         }
 
-        // FIX: Blue Tick Latency Smoothing
         if (isMe) {
             let allRead = false;
             if (otherParticipants.length > 0) {
@@ -136,7 +135,6 @@ const renderMessagesUI = () => {
                         else if (recObj.seconds) rTime = recObj.seconds * 1000;
                         else if (typeof recObj === 'number') rTime = recObj;
                     }
-                    // Apply a generous 30s buffer for clock skew / local processing delay
                     return rTime > 0 && rTime >= (msgTime - 30000);
                 });
             }
@@ -165,7 +163,6 @@ const renderMessagesUI = () => {
             const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
             canPin = isCurrentOwner || isAdmin;
         }
-        
         const pinBtnHTML = canPin ? `<button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>` : '';
 
         const actionMenuHTML = `
@@ -388,7 +385,7 @@ const listenToRoomState = async (roomId) => {
         }
         
         if (currentMessagesSnapshot.length > 0) renderMessagesUI();
-    }, (error) => { console.warn("Room listener suppressed:", error.message); });
+    }, (error) => { /* Suppress Error Logs Safely */ });
 };
 
 export const listenToMessages = (roomId) => {
@@ -418,7 +415,7 @@ export const listenToMessages = (roomId) => {
         }
         
         renderMessagesUI();
-    }, (error) => { console.warn("Message listener suppressed:", error.message); });
+    }, (error) => { /* Suppress Error Logs Safely */ });
 };
 
 export const sendMessage = async () => {
@@ -429,6 +426,7 @@ export const sendMessage = async () => {
 
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     
+    // OWNER PRIVACY: Ignore messages attempting to reach Owner if they are not the Owner
     if (window.isTargetOwner && !isCurrentOwner) {
         const ownerHasMessaged = currentMessagesSnapshot.some(docObj => {
             return docObj.data().isOwner === true || String(docObj.data().senderName).includes('Owner');
@@ -484,20 +482,21 @@ export const sendMessage = async () => {
     }
 };
 
-// --- SELECTION & MESSAGE ACTIONS ---
+// --- FIX: DIRECT SINGLE-MESSAGE ACTIONS ---
 window.startForwardSingleMessage = (msgId) => {
-    window.enableSelectionMode(true);
+    document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
     const box = document.querySelector(`.msg-checkbox[value="${msgId}"]`);
     if (box) box.checked = true;
-    updateSelectionCount();
+    window.toggleActionMenu(msgId);
+    window.forwardSelectedMessages(); // Triggers direct forward modal without showing selection header
 };
 
 window.startDeleteSingleMessage = (msgId) => {
-    window.enableSelectionMode(true);
+    document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
     const box = document.querySelector(`.msg-checkbox[value="${msgId}"]`);
     if (box) box.checked = true;
-    updateSelectionCount();
-    window.openDeleteMessagesModal();
+    window.toggleActionMenu(msgId);
+    window.openDeleteMessagesModal(); // Triggers direct delete modal without showing selection header
 };
 
 const updateSelectionCount = () => {
@@ -534,7 +533,7 @@ window.openDeleteMessagesModal = () => {
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
 
-    // FIX: Senders can always delete their OWN messages for everyone, even in DMs
+    // Senders can always delete their OWN messages for everyone. Admins/Owner can delete ALL messages for everyone.
     const allMine = selectedBoxes.every(b => b.getAttribute('data-sender') === curId);
     const canDeleteEveryone = allMine || isCurrentOwner || isAdmin;
 
@@ -578,9 +577,11 @@ document.getElementById('btn-delete-me')?.addEventListener('click', () => {
 
 document.getElementById('btn-delete-everyone')?.addEventListener('click', async () => {
     const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
+    const batch = writeBatch(db);
     for (const b of selectedBoxes) {
-        try { await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, b.value)); } catch(e) {}
+        batch.delete(doc(db, `chats/${currentRoomId}/messages`, b.value));
     }
+    try { await batch.commit(); } catch(e) {}
     document.getElementById('delete-modal').style.display = 'none';
     window.enableSelectionMode(false);
 });
