@@ -1,8 +1,10 @@
 import { db, collection, getDocs, onSnapshot, query, setDoc, doc, getDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
-import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
+import { switchChatRoom, leaveChatRoom, sendMessage } from './chatEngine.js';
 import { initHelpEngine } from './help/helpEngine.js';
 import { initGlobalSettings } from './advancedEngine.js';
+import { initGroupEngine } from './groupEngine.js';
+import { initMediaEngine } from './mediaEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 window.appState = appState;
@@ -21,11 +23,9 @@ style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { d
 document.head.appendChild(style);
 
 const listenToCloudRooms = () => {
-    // FIX 1: Safely retrieve the valid user ID
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
-    // Update user profile in database safely
     setDoc(doc(db, "users", curId), {
         email: currentUser.email || '',
         fullName: currentUser.name || 'User',
@@ -61,7 +61,6 @@ const listenToCloudRooms = () => {
                 roomsInfo[roomId].lastMessageTime = roomLastMsgTime;
             } 
             else if (data.type === 'dm' && Array.isArray(data.participants) && data.participants.includes(curId)) {
-                // FIX 2: Safely access array and find
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
                 
@@ -283,9 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser) {
             listenToCloudRooms(); 
             initHelpEngine(currentUser);
-            
-            // Activate the slide menus and customisation logic
             initGlobalSettings(currentUser);
+            initGroupEngine();
+            initMediaEngine();
             
             const curId = currentUser.id || currentUser.uid;
             if (curId) {
@@ -301,6 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initThemeAndListeners();
         renderSidebarList();
         
+        document.getElementById('btn-send-msg')?.addEventListener('click', sendMessage);
+        document.getElementById('chat-input')?.addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } 
+        });
+
         setTimeout(() => {
             const defaultBtn = document.getElementById(`btn-room-global_channel`);
             if(defaultBtn && window.innerWidth > 900) {
