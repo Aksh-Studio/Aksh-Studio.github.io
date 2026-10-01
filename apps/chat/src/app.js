@@ -1,4 +1,4 @@
-import { db, collection, getDocs, onSnapshot, query, setDoc, doc, deleteDoc, getDoc } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, query, setDoc, doc, getDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
 import { initHelpEngine } from './help/helpEngine.js';
@@ -21,12 +21,14 @@ style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { d
 document.head.appendChild(style);
 
 const listenToCloudRooms = () => {
+    // FIX 1: Safely retrieve the valid user ID
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
+    // Update user profile in database safely
     setDoc(doc(db, "users", curId), {
-        email: currentUser.email,
-        fullName: currentUser.name,
+        email: currentUser.email || '',
+        fullName: currentUser.name || 'User',
         photoURL: currentUser.photoURL || ''
     }, { merge: true }).catch(()=>{});
 
@@ -58,7 +60,8 @@ const listenToCloudRooms = () => {
                 roomsInfo[roomId].unread = isUnread;
                 roomsInfo[roomId].lastMessageTime = roomLastMsgTime;
             } 
-            else if (data.type === 'dm' && data.participants?.includes(curId)) {
+            else if (data.type === 'dm' && Array.isArray(data.participants) && data.participants.includes(curId)) {
+                // FIX 2: Safely access array and find
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
                 
@@ -73,7 +76,7 @@ const listenToCloudRooms = () => {
                     clearedAt: data[`clearedAt_${curId}`] || 0
                 };
             }
-            else if (data.type === 'group' && data.participants?.includes(curId)) {
+            else if (data.type === 'group' && Array.isArray(data.participants) && data.participants.includes(curId)) {
                 dynamicRooms[roomId] = {
                     name: data.name || 'Custom Group',
                     icon: data.icon || 'groups',
@@ -148,6 +151,8 @@ const initThemeAndListeners = () => {
         const groupName = prompt("Enter new Group Name:");
         if (!groupName) return;
         const curId = currentUser?.id || currentUser?.uid;
+        if(!curId) return;
+
         const newGroupId = `group_${Date.now()}`;
         
         try {
@@ -162,7 +167,9 @@ const initThemeAndListeners = () => {
             appState.activeChatId = newGroupId;
             switchChatRoom(newGroupId, groupName, 'groups', 'group');
             alert("Group created! Click the Gear icon to upload a logo and add members.");
-        } catch(e) {}
+        } catch(e) {
+            console.error("Group creation failed:", e);
+        }
     });
 };
 
@@ -174,7 +181,7 @@ const fetchNetworkUsers = async () => {
     try {
         const querySnapshot = await getDocs(collection(db, "users"));
         listContainer.innerHTML = '';
-        const myUid = String(currentUser?.id || "").trim();
+        const myUid = String(currentUser?.id || currentUser?.uid || "").trim();
         const allNetworkUsers = new Map(); 
 
         querySnapshot.forEach((docObj) => {
@@ -238,7 +245,7 @@ export const renderSidebarList = () => {
 
         if (room.type === 'dm') {
             const roomNameLower = String(room.name).toLowerCase().trim();
-            if (roomNameLower === myName || room.name === currentUser.email.split('@')[0]) return;
+            if (roomNameLower === myName || room.name === currentUser.email?.split('@')[0]) return;
         }
 
         if (appState.activeTab === 'all') displayQualifies = true;
@@ -276,14 +283,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser) {
             listenToCloudRooms(); 
             initHelpEngine(currentUser);
+            
+            // Activate the slide menus and customisation logic
             initGlobalSettings(currentUser);
             
-            getDoc(doc(db, "users", currentUser.uid)).then(uDoc => {
-                if(uDoc.exists() && uDoc.data().wallpaper) {
-                    document.querySelector('.chat-main').style.backgroundImage = `url(${uDoc.data().wallpaper})`;
-                    document.querySelector('.chat-main').style.backgroundSize = "cover";
-                }
-            }).catch(()=>{});
+            const curId = currentUser.id || currentUser.uid;
+            if (curId) {
+                getDoc(doc(db, "users", curId)).then(uDoc => {
+                    if(uDoc.exists() && uDoc.data().wallpaper) {
+                        document.querySelector('.chat-main').style.backgroundImage = `url(${uDoc.data().wallpaper})`;
+                        document.querySelector('.chat-main').style.backgroundSize = "cover";
+                    }
+                }).catch(()=>{});
+            }
         }
         
         initThemeAndListeners();
