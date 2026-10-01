@@ -72,7 +72,6 @@ html, body {
 .profile-menu { position: relative; display: inline-block; cursor: pointer; }
 .user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); transition: 0.2s; }
 .dropdown-content { display: none; position: absolute; right: 0; top: 45px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 250px; padding: 16px; z-index: 1000; }
-.profile-menu:hover .dropdown-content { display: block; }
 
 /* ==========================================================================
    4. PHASE 2: MASTER GRID & NAVIGATION ENGINE
