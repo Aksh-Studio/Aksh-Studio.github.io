@@ -26,6 +26,7 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
+    // Ensure user identity exists in Firestore safely
     setDoc(doc(db, "users", curId), {
         email: currentUser.email || '',
         fullName: currentUser.name || 'User',
@@ -52,8 +53,8 @@ const listenToCloudRooms = () => {
             }
 
             if (roomId === 'global_channel' || roomId === 'aksh_help') {
-                if(data.name) roomsInfo[roomId].name = data.name;
-                if(data.icon) {
+                if (data.name) roomsInfo[roomId].name = data.name;
+                if (data.icon) {
                     roomsInfo[roomId].icon = data.icon;
                     roomsInfo[roomId].isImage = data.icon.startsWith('http') || data.icon.startsWith('data:image');
                 }
@@ -150,7 +151,7 @@ const initThemeAndListeners = () => {
         const groupName = prompt("Enter new Group Name:");
         if (!groupName) return;
         const curId = currentUser?.id || currentUser?.uid;
-        if(!curId) return;
+        if (!curId) return;
 
         const newGroupId = `group_${Date.now()}`;
         
@@ -165,7 +166,7 @@ const initThemeAndListeners = () => {
             
             appState.activeChatId = newGroupId;
             switchChatRoom(newGroupId, groupName, 'groups', 'group');
-            alert("Group created! Click the Gear icon to upload a logo and add members.");
+            alert("Group created! Click the Settings gear in the header to manage members.");
         } catch(e) {
             console.error("Group creation failed:", e);
         }
@@ -289,9 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const curId = currentUser.id || currentUser.uid;
             if (curId) {
                 getDoc(doc(db, "users", curId)).then(uDoc => {
-                    if(uDoc.exists() && uDoc.data().wallpaper) {
-                        document.querySelector('.chat-main').style.backgroundImage = `url(${uDoc.data().wallpaper})`;
-                        document.querySelector('.chat-main').style.backgroundSize = "cover";
+                    if (uDoc.exists() && uDoc.data().wallpaper) {
+                        const mainPanel = document.querySelector('.chat-main');
+                        if (mainPanel) {
+                            mainPanel.style.backgroundImage = `url(${uDoc.data().wallpaper})`;
+                            mainPanel.style.backgroundSize = "cover";
+                        }
                     }
                 }).catch(()=>{});
             }
@@ -307,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setTimeout(() => {
             const defaultBtn = document.getElementById(`btn-room-global_channel`);
-            if(defaultBtn && window.innerWidth > 900) {
+            if (defaultBtn && window.innerWidth > 900) {
                 defaultBtn.click();
             }
         }, 300);
