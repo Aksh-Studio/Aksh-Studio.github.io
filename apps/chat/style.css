@@ -263,29 +263,28 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     .chat-sidebar { order: 1; height: calc(100% - 65px); width: 100%; }
     .chat-main { order: 2; height: calc(100% - 65px); width: 100%; }
     
-    /* Reverse the dropdown menus so they pop UP */
-    #profile-menu-wrapper { margin-bottom: 0 !important; }
+    /* FIX: Force Profile and Settings Dropdowns to stay visible in Mobile */
     #settings-dropdown-menu, #profile-dropdown-menu {
-        bottom: 60px !important;
+        position: fixed !important;
+        bottom: 75px !important;
         left: 10px !important;
-        width: 250px !important;
+        right: 10px !important;
+        width: auto !important; /* Stretch to fit screen */
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        z-index: 9999 !important;
     }
 
     /* 2. CHAT TOGGLING */
     .app-layout.mobile-chat-active .chat-sidebar { display: none !important; }
     .app-layout.mobile-chat-active .chat-main { display: flex !important; }
     
-    /* Group Info Panel Full Screen overlay */
     .info-sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 100% !important; border-left: none; z-index: 100; }
-    
     .mobile-back-btn { display: flex; align-items: center; justify-content: center; }
 
-    /* Top Nav Compression */
+    /* Top Nav & Header Compression */
     .top-nav { padding: 10px 15px; }
     .nav-right { gap: 8px; }
     .btn-outline { padding: 6px 10px; font-size: 12px; }
-    
-    /* Chat Header Compression */
     .chat-header { padding: 8px 15px; gap: 10px; }
     #header-room-info { overflow: hidden; }
     #active-room-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px !important; }
@@ -293,8 +292,6 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     
     /* Touch Device Fixes */
     .msg-bubble { max-width: 85%; } 
-    
-    /* Touch devices lack hover, force trigger visibility */
     .msg-action-trigger { 
         display: flex !important; 
         opacity: 0.6; 
@@ -308,13 +305,21 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     .msg-action-trigger:active { opacity: 1; background: var(--app-bg); }
     .msg-action-trigger span { font-size: 18px !important; }
     
-    /* Input Area */
     .chat-input-area { padding: 8px 12px; gap: 6px; }
     .chat-input-area input[type="text"] { padding: 10px 15px; font-size: 14px; }
     .btn-send { width: 38px; height: 38px; }
     
-    /* Dropdown */
-    #chat-options-menu { right: 10px; top: 50px; }
+    /* FIX: Force 3-Dot Options Dropdown to fit Mobile */
+    #chat-options-menu { 
+        position: fixed !important;
+        top: auto !important;
+        bottom: 80px !important;
+        right: 15px !important;
+        left: 15px !important;
+        width: auto !important;
+        box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        z-index: 9999 !important;
+    }
 }
 
 @media screen and (max-width: 400px) {
