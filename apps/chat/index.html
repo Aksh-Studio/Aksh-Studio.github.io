@@ -34,39 +34,42 @@
 
     <!-- THIS IS THE WRAPPER THAT WAS ACCIDENTALLY DELETED -->
     <div class="aksh-chat-app" id="app-root">
-        <nav class="top-nav">
-            <div class="nav-left">
-                <a href="../../dashboard.html" class="back-link">← Dashboard</a>
-                <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
-            </div>
-            
-            <div class="nav-right" style="display: flex; align-items: center; gap: 12px;">
-                <!-- Owner Dashboard Button -->
-                <button id="ownerPanelBtn" class="btn-outline" style="display: none; background: #ea0038; color: white; border: none; padding: 6px 14px; font-weight: bold; border-radius: 8px;" title="Owner Dashboard">?</button>
-                
-                <!-- User Help Button -->
-                <button id="navHelpBtn" class="btn-outline" style="display: none;">Help</button> 
-                
-                <button id="theme-btn" class="btn-outline">Dark Mode</button>
-                <div class="profile-menu">
-                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar" id="nav-profile-pic">
-                    <div class="dropdown-content">
-                        <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600;">Personal Profile</p>
-                        <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);" id="nav-profile-name">Name: Loading...</p>
-                        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" id="nav-profile-email">Email: Loading...</p>
-                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
-                        <a href="../../index.html" style="display: block; width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; text-align: center; text-decoration: none;">Sign Out</a>
-                    </div>
-                </div>
-            </div>
-        </nav>
+       <nav class="top-nav">
+    <div class="nav-left">
+        <a href="../../dashboard.html" class="back-link">← Dashboard</a>
+        <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
+    </div>
+    
+    <div class="nav-right" style="display: flex; align-items: center; gap: 12px;">
+        <button id="ownerPanelBtn" class="btn-outline" style="display: none; background: #ea0038; color: white; border: none; padding: 6px 14px; font-weight: bold; border-radius: 8px;" title="Owner Dashboard">?</button>
+        <button id="navHelpBtn" class="btn-outline" style="display: none;">Help</button> 
+        <button id="theme-btn" class="btn-outline">Dark Mode</button>
+    </div>
+</nav>
 
-        <div id="main-layout" class="app-layout">
-            <nav class="side-rail">
-                <button class="rail-item active" id="rail-chats" title="Chats"><span class="material-symbols-rounded">chat</span></button>
-                <div style="flex: 1;"></div>
-                <button class="rail-item" id="btn-settings" title="Set Wallpaper"><span class="material-symbols-rounded">wallpaper</span></button>
-            </nav>
+<div id="main-layout" class="app-layout">
+    <nav class="side-rail">
+        <button class="rail-item active" id="rail-chats" title="Chats"><span class="material-symbols-rounded">chat</span></button>
+        <!-- Spacer pushes profile to the bottom -->
+        <div style="flex: 1;"></div>
+        
+        <!-- Profile Menu Moved to Bottom Left -->
+        <div class="profile-menu" style="margin-bottom: 20px;">
+            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar" id="nav-profile-pic" style="width: 42px; height: 42px;">
+            <!-- Dropdown opens to the right and up -->
+            <div class="dropdown-content" style="top: auto; bottom: 0; left: 65px; width: 220px;">
+                <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600;">Personal Profile</p>
+                <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);" id="nav-profile-name">Name: Loading...</p>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px; word-break: break-all;" id="nav-profile-email">Email: Loading...</p>
+                
+                <button id="btn-open-customisation" style="width: 100%; padding: 8px; margin-bottom: 8px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 6px; cursor:pointer; color: var(--text-main); font-weight: 600;">Customisation</button>
+                <button id="btn-open-unblock" style="width: 100%; padding: 8px; margin-bottom: 10px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 6px; cursor:pointer; color: var(--text-main); font-weight: 600;">Unblock Users</button>
+                
+                <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
+                <a href="../../index.html" style="display: block; width: 100%; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; text-align: center; text-decoration: none;">Sign Out</a>
+            </div>
+        </div>
+    </nav>
 
             <aside class="chat-sidebar" id="sidebar-chats">
                 <div class="sidebar-header">
