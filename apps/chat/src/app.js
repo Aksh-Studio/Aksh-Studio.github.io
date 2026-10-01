@@ -1,9 +1,7 @@
-import { db, collection, getDocs, onSnapshot, query, setDoc, doc, getDoc } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, query, setDoc, doc, getDoc, updateDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
-// Correctly imports switchChatRoom and leaveChatRoom from chatEngine
 import { switchChatRoom, leaveChatRoom, sendMessage } from './chatEngine.js';
 import { initHelpEngine } from './help/helpEngine.js';
-// Only imports global settings from advancedEngine
 import { initGlobalSettings } from './advancedEngine.js';
 import { initGroupEngine } from './groupEngine.js';
 import { initMediaEngine } from './mediaEngine.js';
@@ -96,7 +94,7 @@ const listenToCloudRooms = () => {
             }
         });
         renderSidebarList(); 
-    }, (error) => { /* Suppress logs to keep console clean */ });
+    }, (error) => { /* Suppressed intentionally */ });
 };
 
 const initThemeAndListeners = () => {
@@ -175,9 +173,7 @@ const initThemeAndListeners = () => {
             appState.activeChatId = newGroupId;
             switchChatRoom(newGroupId, groupName, 'groups', 'group');
             alert("Group created! Click the Settings gear in the header to manage members.");
-        } catch(e) {
-            console.error("Group creation failed:", e);
-        }
+        } catch(e) {}
     });
 };
 
@@ -206,7 +202,6 @@ const fetchNetworkUsers = async () => {
             });
         });
 
-        // Ensure DMs are synced into network list even if not in users collection
         Object.keys(dynamicRooms).forEach(roomId => {
             const room = dynamicRooms[roomId];
             if (room.type === 'dm') {
@@ -248,28 +243,33 @@ const fetchNetworkUsers = async () => {
                 const deterministicId = myUid < user.uid ? `dm_${myUid}_${user.uid}` : `dm_${user.uid}_${myUid}`;
                 const myPic = currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
 
-                // CRITICAL FIX: Owner Privacy Interception
-                // If a normal user clicks on the Owner, check if the chat already exists.
-                // If the chat does NOT exist, block the creation so the Owner's screen isn't spammed.
                 if (!isCurrentOwner && isTargetOwner) {
                     try {
                         const checkDoc = await getDoc(doc(db, "chats", deterministicId));
                         if (!checkDoc.exists()) {
                             alert("You cannot initiate a chat with the App Owner.");
-                            return; // Halts execution. Does not open chat.
+                            return; 
                         }
                     } catch(e) {}
                 }
 
-                // If safe to proceed, ensure the document exists
                 try {
-                    await setDoc(doc(db, "chats", deterministicId), {
-                        type: 'dm', participants: [myUid, user.uid],
-                        [`deletedFor_${myUid}`]: false, // Re-enable if previously deleted locally
-                        names: { [myUid]: currentUser.name, [user.uid]: user.name },
-                        emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, 
-                        avatars: { [myUid]: myPic, [user.uid]: user.pic }
-                    }, { merge: true });
+                    const chatRef = doc(db, "chats", deterministicId);
+                    const chatDoc = await getDoc(chatRef);
+                    if (!chatDoc.exists()) {
+                        // FIX: Hide the chat for the recipient until a message is actually sent!
+                        await setDoc(chatRef, {
+                            type: 'dm', participants: [myUid, user.uid],
+                            [`deletedFor_${myUid}`]: false,
+                            [`deletedFor_${user.uid}`]: true, 
+                            names: { [myUid]: currentUser.name, [user.uid]: user.name },
+                            emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, 
+                            avatars: { [myUid]: myPic, [user.uid]: user.pic },
+                            lastMessageTime: 0
+                        });
+                    } else {
+                        await updateDoc(chatRef, { [`deletedFor_${myUid}`]: false });
+                    }
                 } catch(e) {}
 
                 appState.activeChatId = deterministicId;
@@ -312,6 +312,8 @@ export const renderSidebarList = () => {
         if (room.type === 'dm') {
             const roomNameLower = String(room.name).toLowerCase().trim();
             if (roomNameLower === myName || room.name === currentUser.email?.split('@')[0]) return;
+            // Also hide if empty (0 messages) and you didn't initiate it
+            if (room.lastMessageTime === 0 && room.deletedForMe !== false) return; 
         }
 
         if (appState.activeTab === 'all') displayQualifies = true;
