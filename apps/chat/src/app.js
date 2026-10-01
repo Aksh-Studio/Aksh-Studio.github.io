@@ -66,12 +66,16 @@ const listenToCloudRooms = () => {
                 if (!otherId || otherId === curId) return; 
                 
                 const otherNameRaw = data.names?.[otherId] || 'User';
+                // Identify if the target in the DM is the Owner
+                const isTargetOwner = data.emails && data.emails[otherId] === 'akshat124.am12@gmail.com';
+
                 dynamicRooms[roomId] = {
                     name: otherNameRaw,
                     icon: data.avatars?.[otherId] || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherNameRaw)}&background=00a884&color=fff`,
                     type: 'dm',
                     isImage: true,
                     unread: isUnread,
+                    isTargetOwner: isTargetOwner,
                     lastMessageTime: roomLastMsgTime,
                     clearedAt: data[`clearedAt_${curId}`] || 0
                 };
@@ -190,21 +194,64 @@ const fetchNetworkUsers = async () => {
             const safeEmail = String(u.email || '').toLowerCase().trim();
             const rawName = (u.fullName || u.name || u.firstName || (safeEmail ? safeEmail.split('@')[0] : 'Network User')).trim();
             
-            // Allow the Owner to be visible in the Search Network for everyone
             if (targetUid === myUid || !rawName) return; 
             
             allNetworkUsers.set(targetUid, {
-                uid: targetUid, name: rawName,
+                uid: targetUid, 
+                name: rawName,
+                email: safeEmail,
                 pic: u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`
             });
         });
 
-        const sortedUsers = Array.from(allNetworkUsers.values()).sort((a, b) => a.name.localeCompare(b.name));
+        // Ensure DMs are synced into network list
+        Object.keys(dynamicRooms).forEach(roomId => {
+            const room = dynamicRooms[roomId];
+            if (room.type === 'dm') {
+                const targetUid = roomId.replace('dm_', '').replace(myUid, '').replace('_', '');
+                if (targetUid && targetUid !== myUid && !allNetworkUsers.has(targetUid)) {
+                    allNetworkUsers.set(targetUid, {
+                        uid: targetUid,
+                        name: room.name,
+                        email: '', // fallback
+                        pic: room.icon
+                    });
+                }
+            }
+        });
+
+        // Extract owner to force to the top
+        const regularUsers = [];
+        let ownerUser = null;
+
+        Array.from(allNetworkUsers.values()).forEach(user => {
+            if (user.email === 'akshat124.am12@gmail.com') {
+                ownerUser = user;
+            } else {
+                regularUsers.push(user);
+            }
+        });
+
+        // Sort alphabetically
+        regularUsers.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Push Owner to the top
+        const sortedUsers = ownerUser ? [ownerUser, ...regularUsers] : regularUsers;
 
         sortedUsers.forEach(user => {
             const item = document.createElement('div');
             item.className = 'user-item';
-            item.innerHTML = `<img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;"><div class="user-info"><h4>${user.name}</h4><p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p></div>`;
+            
+            // Render the (Owner) tag dynamically
+            const isOwnerTag = user.email === 'akshat124.am12@gmail.com' ? ' <span style="color:var(--primary); font-size:11px; font-weight:700; margin-left: 5px;">(Owner)</span>' : '';
+
+            item.innerHTML = `
+                <img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=00a884&color=fff'">
+                <div class="user-info">
+                    <h4 style="display: flex; align-items: center;">${user.name}${isOwnerTag}</h4>
+                    <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
+                </div>
+            `;
 
             item.addEventListener('click', async () => {
                 const deterministicId = myUid < user.uid ? `dm_${myUid}_${user.uid}` : `dm_${user.uid}_${myUid}`;
@@ -214,6 +261,7 @@ const fetchNetworkUsers = async () => {
                     await setDoc(doc(db, "chats", deterministicId), {
                         type: 'dm', participants: [myUid, user.uid],
                         names: { [myUid]: currentUser.name, [user.uid]: user.name },
+                        emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, // Safe Email saving
                         avatars: { [myUid]: myPic, [user.uid]: user.pic }
                     }, { merge: true });
                 } catch(e) {}
@@ -229,6 +277,10 @@ const fetchNetworkUsers = async () => {
             });
             listContainer.appendChild(item);
         });
+        
+        if (sortedUsers.length === 0) {
+            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
+        }
     } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
@@ -268,11 +320,14 @@ export const renderSidebarList = () => {
             
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
+            
+            // Add Owner Tag for side-bar chats
+            const ownerBadge = room.isTargetOwner ? ' <span style="color:var(--primary); font-size:10px; font-weight:700; margin-left:5px;">(Owner)</span>' : '';
 
             if (room.isImage) {
-                item.innerHTML = `<img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'"><div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>${badgeHTML}`;
+                item.innerHTML = `<img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'"><div class="user-info"><h4 style="${nameStyle}; display:flex; align-items:center;">${room.name}${ownerBadge}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>${badgeHTML}`;
             } else {
-                item.innerHTML = `<div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div><div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>Tap to view messages</p></div>${badgeHTML}`;
+                item.innerHTML = `<div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div><div class="user-info"><h4 style="${nameStyle}; display:flex; align-items:center;">${room.name}${ownerBadge}</h4><p>Tap to view messages</p></div>${badgeHTML}`;
             }
 
             item.addEventListener('click', () => {
