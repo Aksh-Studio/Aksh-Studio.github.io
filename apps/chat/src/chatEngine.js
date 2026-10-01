@@ -98,7 +98,6 @@ const renderMessagesUI = () => {
         participantList = currentRoomId.replace('dm_', '').split('_');
     }
     const otherParticipants = participantList.filter(id => id !== curId);
-
     const clearTimestamp = currentRoomData ? (currentRoomData[`clearedAt_${curId}`] || 0) : 0;
     const isSystemGroup = currentRoomId === 'global_channel' || currentRoomId === 'aksh_help';
 
@@ -125,6 +124,7 @@ const renderMessagesUI = () => {
             timeString = "Sent";
         }
 
+        // FIX: Blue Tick Latency Smoothing
         if (isMe) {
             let allRead = false;
             if (otherParticipants.length > 0) {
@@ -136,7 +136,8 @@ const renderMessagesUI = () => {
                         else if (recObj.seconds) rTime = recObj.seconds * 1000;
                         else if (typeof recObj === 'number') rTime = recObj;
                     }
-                    return rTime > 0 && rTime >= (msgTime - 5000);
+                    // Apply a generous 30s buffer for clock skew / local processing delay
+                    return rTime > 0 && rTime >= (msgTime - 30000);
                 });
             }
             const tickColor = allRead ? "#53bdeb" : "#8696a0"; 
@@ -156,8 +157,15 @@ const renderMessagesUI = () => {
         const decryptedReplyText = msg.replyToText ? decryptMessage(msg.replyToText) : "";
         const replyHTML = msg.replyToText ? `<div class="quoted-reply"><div class="quoted-name">${msg.replyToName}</div><div class="quoted-text">${parseWhatsAppFormatting(decryptedReplyText)}</div></div>` : '';
 
-        // FIX: Only Owner can pin in global groups
-        const canPin = !(isSystemGroup && !isCurrentOwner);
+        // FIX: Pin Message Privileges (Only Owner in Global, Admins elsewhere)
+        let canPin = false;
+        if (isSystemGroup) {
+            canPin = isCurrentOwner;
+        } else {
+            const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
+            canPin = isCurrentOwner || isAdmin;
+        }
+        
         const pinBtnHTML = canPin ? `<button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>` : '';
 
         const actionMenuHTML = `
@@ -201,6 +209,15 @@ const renderMessagesUI = () => {
                         </a>
                     </div>`;
             }
+        } else if (msg.imageUrl) {
+            const rawImageUrl = decryptMessage(msg.imageUrl);
+            mediaAttachmentHTML = `
+                <div style="position:relative; margin-bottom: 5px;">
+                    <img src="${rawImageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
+                    <a href="${rawImageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;">
+                        <span class="material-symbols-rounded" style="font-size:16px;">download</span>
+                    </a>
+                </div>`;
         }
 
         messagesHTML += `
@@ -412,8 +429,6 @@ export const sendMessage = async () => {
 
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     
-    // --- FIX: OWNER PRIVACY RULE ---
-    // Cannot message the owner UNLESS the owner has initiated the conversation
     if (window.isTargetOwner && !isCurrentOwner) {
         const ownerHasMessaged = currentMessagesSnapshot.some(docObj => {
             return docObj.data().isOwner === true || String(docObj.data().senderName).includes('Owner');
@@ -448,7 +463,6 @@ export const sendMessage = async () => {
         await addDoc(collection(db, `chats/${currentRoomId}/messages`), payload); 
         myLastReceiptUpdate = Date.now();
         
-        // If DM, automatically un-delete it for the other person so they can see this new message
         const targetUpdate = {};
         if (currentRoomData?.type === 'dm') {
             const otherParticipant = currentRoomData.participants.find(id => id !== curId);
@@ -457,13 +471,17 @@ export const sendMessage = async () => {
             }
         }
         
-        await setDoc(doc(db, "chats", currentRoomId), { 
+        await updateDoc(doc(db, "chats", currentRoomId), { 
             [`readReceipts.${curId}`]: Date.now(), 
             lastMessageTime: Date.now(), 
             lastMessageSenderId: curId,
             ...targetUpdate
-        }, { merge: true });
-    } catch (error) {}
+        });
+    } catch (error) {
+        try {
+            await setDoc(doc(db, "chats", currentRoomId), { lastMessageTime: Date.now(), lastMessageSenderId: curId }, { merge: true });
+        } catch(e) {}
+    }
 };
 
 // --- SELECTION & MESSAGE ACTIONS ---
@@ -516,7 +534,7 @@ window.openDeleteMessagesModal = () => {
     const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
 
-    // --- FIX: SENDER CAN ALWAYS DELETE FOR EVERYONE ---
+    // FIX: Senders can always delete their OWN messages for everyone, even in DMs
     const allMine = selectedBoxes.every(b => b.getAttribute('data-sender') === curId);
     const canDeleteEveryone = allMine || isCurrentOwner || isAdmin;
 
@@ -624,7 +642,7 @@ window.forwardSelectedMessages = async () => {
                     }
                 } catch(e) {}
             }
-            await updateDoc(doc(db, "chats", roomId), { lastMessageTime: Date.now(), lastMessageSenderId: curId });
+            try { await updateDoc(doc(db, "chats", roomId), { lastMessageTime: Date.now(), lastMessageSenderId: curId }); } catch(e){}
             window.enableSelectionMode(false);
             alert("Messages forwarded successfully.");
         };
