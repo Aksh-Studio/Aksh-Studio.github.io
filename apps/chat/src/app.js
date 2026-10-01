@@ -43,7 +43,6 @@ const listenToCloudRooms = () => {
             
             let isUnread = false;
             let roomLastMsgTime = data.lastMessageTime || 0;
-            const isDeletedForMe = data[`deletedFor_${curId}`] === true;
 
             if (data.lastMessageTime && data.readReceipts && data.lastMessageSenderId !== curId) {
                 const myReceipt = data.readReceipts[curId];
@@ -61,7 +60,6 @@ const listenToCloudRooms = () => {
                 }
                 roomsInfo[roomId].unread = isUnread;
                 roomsInfo[roomId].lastMessageTime = roomLastMsgTime;
-                roomsInfo[roomId].deletedForMe = isDeletedForMe;
             } 
             else if (data.type === 'dm' && Array.isArray(data.participants) && data.participants.includes(curId)) {
                 const otherId = data.participants.find(id => id !== curId);
@@ -79,7 +77,7 @@ const listenToCloudRooms = () => {
                     isTargetOwner: isTargetOwner,
                     lastMessageTime: roomLastMsgTime,
                     clearedAt: data[`clearedAt_${curId}`] || 0,
-                    deletedForMe: isDeletedForMe
+                    deletedForMe: data[`deletedFor_${curId}`] === true
                 };
             }
             else if (data.type === 'group' && Array.isArray(data.participants) && data.participants.includes(curId)) {
@@ -91,12 +89,12 @@ const listenToCloudRooms = () => {
                     unread: isUnread,
                     lastMessageTime: roomLastMsgTime,
                     clearedAt: data[`clearedAt_${curId}`] || 0,
-                    deletedForMe: isDeletedForMe
+                    deletedForMe: data[`deletedFor_${curId}`] === true
                 };
             }
         });
         renderSidebarList(); 
-    });
+    }, (error) => { /* Suppress Error Logs Safely */ });
 };
 
 const initThemeAndListeners = () => {
@@ -206,6 +204,7 @@ const fetchNetworkUsers = async () => {
             });
         });
 
+        // Ensure DMs are synced into network list even if not in users collection
         Object.keys(dynamicRooms).forEach(roomId => {
             const room = dynamicRooms[roomId];
             if (room.type === 'dm') {
@@ -245,15 +244,22 @@ const fetchNetworkUsers = async () => {
                 const deterministicId = myUid < user.uid ? `dm_${myUid}_${user.uid}` : `dm_${user.uid}_${myUid}`;
                 const myPic = currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=00a884&color=fff`;
                 
-                try {
-                    await setDoc(doc(db, "chats", deterministicId), {
-                        type: 'dm', participants: [myUid, user.uid],
-                        [`deletedFor_${myUid}`]: false, // Fix: Un-delete it if they search for it again
-                        names: { [myUid]: currentUser.name, [user.uid]: user.name },
-                        emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, 
-                        avatars: { [myUid]: myPic, [user.uid]: user.pic }
-                    }, { merge: true });
-                } catch(e) {}
+                const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+                const isTargetOwner = user.email === 'akshat124.am12@gmail.com';
+
+                // FIX: Only write the initial DB room if Current is Owner, or Target is NOT Owner
+                // This prevents users from initiating chat with Owner and making it visible on the Owner's screen
+                if (isCurrentOwner || !isTargetOwner) {
+                    try {
+                        await setDoc(doc(db, "chats", deterministicId), {
+                            type: 'dm', participants: [myUid, user.uid],
+                            [`deletedFor_${myUid}`]: false,
+                            names: { [myUid]: currentUser.name, [user.uid]: user.name },
+                            emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, 
+                            avatars: { [myUid]: myPic, [user.uid]: user.pic }
+                        }, { merge: true });
+                    } catch(e) {}
+                }
 
                 appState.activeChatId = deterministicId;
                 appState.isMobileChatOpen = true;
