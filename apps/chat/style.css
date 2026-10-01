@@ -165,22 +165,18 @@ body.dark-theme .chat-main::before { opacity: 0.05; filter: invert(1); }
 .btn-send { background: var(--primary); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
 .btn-send:hover { background: var(--primary-hover); }
 
-/* Disclaimers */
 .chat-disclaimer-wrapper { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; width: 100%; gap: 10px; flex-shrink: 0; }
 .chat-disclaimer { background: var(--sys-msg-bg); color: var(--sys-msg-text); font-size: 12.5px; text-align: center; padding: 8px 14px; border-radius: 8px; max-width: 90%; box-shadow: var(--shadow-sm); line-height: 1.4; }
 
-/* Message Bubbles */
 .msg-container { display: flex; flex-direction: column; margin-bottom: 2px; width: 100%; position: relative; flex-shrink: 0; }
 .msg-container.first-in-group { margin-top: 10px; }
 .msg-bubble { padding: 6px 10px 8px 10px; max-width: 65%; font-size: 14.5px; line-height: 1.4; box-shadow: var(--shadow-sm); position: relative; word-wrap: break-word; }
 
-/* Sent by Me */
 .msg-container.me { align-items: flex-end; }
 .msg-me { background: #d9fdd3; color: #111b21; border-radius: 8px 0 8px 8px; }
 body.dark-theme .msg-me { background: #005c4b; color: #e9edef; }
 .msg-me.grouped { border-radius: 8px; }
 
-/* Sent by Others */
 .msg-container.other { align-items: flex-start; }
 .msg-other { background: #ffffff; color: #111b21; border-radius: 0 8px 8px 8px; }
 body.dark-theme .msg-other { background: #202c33; color: #e9edef; }
@@ -257,20 +253,18 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
         z-index: 50;
     }
     
-    /* Hide the empty flex spacer on mobile */
     .side-rail > div[style*="flex: 1"] { display: none; }
     
     .chat-sidebar { order: 1; height: calc(100% - 65px); width: 100%; }
     .chat-main { order: 2; height: calc(100% - 65px); width: 100%; }
     
-    /* FIX: Force Profile and Settings Dropdowns to stay visible in Mobile */
+    /* FIX: Pop Dropdowns UPWARDS within screen securely */
     #settings-dropdown-menu, #profile-dropdown-menu {
-        position: fixed !important;
-        bottom: 75px !important;
+        position: absolute !important;
+        bottom: 60px !important;
         left: 10px !important;
-        right: 10px !important;
-        width: auto !important; /* Stretch to fit screen */
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        width: 250px !important;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15) !important;
         z-index: 9999 !important;
     }
 
@@ -281,10 +275,12 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     .info-sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 100% !important; border-left: none; z-index: 100; }
     .mobile-back-btn { display: flex; align-items: center; justify-content: center; }
 
-    /* Top Nav & Header Compression */
+    /* Top Nav Compression */
     .top-nav { padding: 10px 15px; }
     .nav-right { gap: 8px; }
     .btn-outline { padding: 6px 10px; font-size: 12px; }
+    
+    /* Chat Header Compression */
     .chat-header { padding: 8px 15px; gap: 10px; }
     #header-room-info { overflow: hidden; }
     #active-room-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px !important; }
@@ -292,6 +288,8 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     
     /* Touch Device Fixes */
     .msg-bubble { max-width: 85%; } 
+    
+    /* Touch devices lack hover, force trigger visibility */
     .msg-action-trigger { 
         display: flex !important; 
         opacity: 0.6; 
@@ -311,13 +309,12 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     
     /* FIX: Force 3-Dot Options Dropdown to fit Mobile */
     #chat-options-menu { 
-        position: fixed !important;
-        top: auto !important;
-        bottom: 80px !important;
+        position: absolute !important;
+        top: 50px !important;
         right: 15px !important;
-        left: 15px !important;
-        width: auto !important;
-        box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        left: auto !important;
+        width: 180px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
         z-index: 9999 !important;
     }
 }
