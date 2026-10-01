@@ -9,6 +9,7 @@ import { initMediaEngine } from './mediaEngine.js';
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 window.appState = appState;
 window.currentUserAuth = currentUser;
+window.isTargetOwner = false; // Global flag to track if the current DM is with the Owner
 
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group', isImage: false },
@@ -26,7 +27,6 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
-    // Ensure user identity exists in Firestore safely
     setDoc(doc(db, "users", curId), {
         email: currentUser.email || '',
         fullName: currentUser.name || 'User',
@@ -182,6 +182,7 @@ const fetchNetworkUsers = async () => {
         const querySnapshot = await getDocs(collection(db, "users"));
         listContainer.innerHTML = '';
         const myUid = String(currentUser?.id || currentUser?.uid || "").trim();
+        const isCurrentOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
         const allNetworkUsers = new Map(); 
 
         querySnapshot.forEach((docObj) => {
@@ -190,6 +191,9 @@ const fetchNetworkUsers = async () => {
             const safeEmail = String(u.email || '').toLowerCase().trim();
             const rawName = (u.fullName || u.name || u.firstName || (safeEmail ? safeEmail.split('@')[0] : 'Network User')).trim();
             
+            // HIDE OWNER FROM NORMAL USERS: They cannot search or initiate chat with the Owner.
+            if (!isCurrentOwner && safeEmail === 'akshat124.am12@gmail.com') return;
+
             if (targetUid === myUid || !rawName) return; 
             
             allNetworkUsers.set(targetUid, {
@@ -220,6 +224,10 @@ const fetchNetworkUsers = async () => {
                 appState.activeChatId = deterministicId;
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
+                
+                const searchInput = document.getElementById('chat-search');
+                if (searchInput) { searchInput.value = ''; searchInput.placeholder = "Search"; }
+                
                 switchChatRoom(deterministicId, user.name, user.pic, 'dm');
             });
             listContainer.appendChild(item);
@@ -256,11 +264,14 @@ export const renderSidebarList = () => {
             const isActive = appState.activeChatId === id ? 'active' : '';
             const item = document.createElement('div');
             item.className = `user-item ${isActive}`;
+            item.id = `btn-room-${id}`;
+            item.style.position = 'relative'; 
+            
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
             if (room.isImage) {
-                item.innerHTML = `<img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>${badgeHTML}`;
+                item.innerHTML = `<img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'"><div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>${badgeHTML}`;
             } else {
                 item.innerHTML = `<div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div><div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>Tap to view messages</p></div>${badgeHTML}`;
             }
