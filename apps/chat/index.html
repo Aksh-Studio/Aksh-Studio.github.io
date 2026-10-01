@@ -54,19 +54,25 @@
                 <button class="rail-item active" id="rail-chats" title="Chats"><span class="material-symbols-rounded">chat</span></button>
                 <div style="flex: 1;"></div>
                 
-                <!-- MOVED: Profile Menu to Bottom Left -->
+                <!-- SETTINGS MENU (Above Profile) -->
+                <div class="profile-menu" style="position: relative; margin-bottom: 10px;">
+                    <button class="rail-item" id="btn-settings-toggle" title="Settings"><span class="material-symbols-rounded">settings</span></button>
+                    <!-- Settings Dropdown -->
+                    <div id="settings-dropdown-menu" style="display: none; position: absolute; bottom: 10px; left: 60px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 220px; padding: 10px; z-index: 1000;">
+                        <button id="btn-open-customisation" style="width: 100%; padding: 10px; margin-bottom: 8px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text-main); font-weight: 600; text-align: left;"><span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 5px;">palette</span> Customisation</button>
+                        <button id="btn-open-unblock" style="width: 100%; padding: 10px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text-main); font-weight: 600; text-align: left;"><span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 5px;">person_off</span> Unblock Users</button>
+                    </div>
+                </div>
+
+                <!-- PROFILE MENU (Bottom Left) -->
                 <div class="profile-menu" id="profile-menu-wrapper" style="position: relative; margin-bottom: 20px;">
                     <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar" id="nav-profile-pic" style="width: 42px; height: 42px; cursor: pointer;">
                     
-                    <!-- Clickable Dropdown (No longer uses CSS hover) -->
+                    <!-- Clickable Dropdown -->
                     <div id="profile-dropdown-menu" style="display: none; position: absolute; bottom: 10px; left: 60px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 250px; padding: 16px; z-index: 1000;">
                         <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600;">Personal Profile</p>
                         <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);" id="nav-profile-name">Name: Loading...</p>
                         <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px; word-break: break-all;" id="nav-profile-email">Email: Loading...</p>
-                        
-                        <button id="btn-customisation" style="width: 100%; padding: 10px; margin-bottom: 8px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text-main); font-weight: 600; text-align: left;"><span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 5px;">palette</span> Customisation</button>
-                        <button id="btn-unblock-users" style="width: 100%; padding: 10px; margin-bottom: 10px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text-main); font-weight: 600; text-align: left;"><span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 5px;">person_off</span> Unblock Users</button>
-                        
                         <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
                         <a href="../../index.html" style="display: block; width: 100%; background: #ea0038; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; text-align: center; text-decoration: none;">Sign Out</a>
                     </div>
