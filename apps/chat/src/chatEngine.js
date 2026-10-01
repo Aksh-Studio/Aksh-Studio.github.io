@@ -1,4 +1,4 @@
-import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, Timestamp } from './firebase.js';
+import { db, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, getDoc, getDocs, deleteDoc, Timestamp } from './firebase.js';
 import { currentUser } from './auth.js';
 import { encryptMessage, decryptMessage } from './siteCipher.js';
 import { initChatOptions } from './advancedEngine.js';
@@ -159,8 +159,8 @@ const renderMessagesUI = () => {
             </div>
             <div class="msg-action-menu" id="menu-${msgId}">
                 <button class="msg-action-btn" onclick="window.replyToMessage('${msgId}')">Reply</button>
-                <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Forward</button>
-                <button class="msg-action-btn" onclick="window.enableSelectionMode(true)">Delete</button>
+                <button class="msg-action-btn" onclick="window.startForwardSingleMessage('${msgId}')">Forward</button>
+                <button class="msg-action-btn" onclick="window.startDeleteSingleMessage('${msgId}')">Delete</button>
                 <button class="msg-action-btn" onclick="window.triggerPinModal('${msgId}')">Pin Message</button>
             </div>
         `;
@@ -194,15 +194,6 @@ const renderMessagesUI = () => {
                         </a>
                     </div>`;
             }
-        } else if (msg.imageUrl) {
-            const rawImageUrl = decryptMessage(msg.imageUrl);
-            mediaAttachmentHTML = `
-                <div style="position:relative; margin-bottom: 5px;">
-                    <img src="${rawImageUrl}" style="width: 100%; max-height: 250px; border-radius: 8px; object-fit: cover; display: block;">
-                    <a href="${rawImageUrl}" download="image.jpg" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:white; padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-decoration:none;">
-                        <span class="material-symbols-rounded" style="font-size:16px;">download</span>
-                    </a>
-                </div>`;
         }
 
         messagesHTML += `
@@ -227,21 +218,29 @@ const listenToRoomState = async (roomId) => {
     if (roomStateListener) roomStateListener();
 
     const curId = currentUser?.id || currentUser?.uid;
-    const uDoc = await getDoc(doc(db, "users", curId));
-    const myBlockedList = uDoc.data()?.blockedUsers || [];
+    let myBlockedList = [];
+
+    // Safe lookup to prevent ResourcePath.fromString indexOf crash
+    if (curId) {
+        try {
+            const uDoc = await getDoc(doc(db, "users", curId));
+            if (uDoc.exists()) {
+                myBlockedList = uDoc.data()?.blockedUsers || [];
+            }
+        } catch(e) {}
+    }
 
     roomStateListener = onSnapshot(doc(db, "chats", roomId), (documentObj) => {
-        currentRoomData = documentObj.data() || { type: 'group', participants: [] }; 
+        currentRoomData = documentObj.data() || { type: (roomId === 'global_channel' || roomId === 'aksh_help' ? 'group' : 'dm'), participants: [] }; 
         window.currentRoomData = currentRoomData;
         
         if (roomId.startsWith('dm_') && (!Array.isArray(currentRoomData.participants) || currentRoomData.participants.length === 0)) {
-            const splitIds = roomId.replace('dm_', '').split('_');
-            currentRoomData.participants = splitIds;
+            currentRoomData.participants = roomId.replace('dm_', '').split('_');
         }
 
-        const isGroup = currentRoomData.type === 'group';
+        const isGroup = currentRoomData.type === 'group' || roomId === 'global_channel' || roomId === 'aksh_help';
         let isBlocked = false;
-        if (!isGroup) {
+        if (!isGroup && curId) {
             const safeParticipants = Array.isArray(currentRoomData.participants) ? currentRoomData.participants : [];
             const targetUid = safeParticipants.find(id => id !== curId);
             if (targetUid && myBlockedList.includes(targetUid)) isBlocked = true;
@@ -250,36 +249,71 @@ const listenToRoomState = async (roomId) => {
         const inputWrapper = document.getElementById('chat-input-wrapper');
         const blockedWrapper = document.getElementById('blocked-state-wrapper');
         if (isBlocked) {
-            if(inputWrapper) inputWrapper.style.display = 'none';
-            if(blockedWrapper) blockedWrapper.style.display = 'block';
+            if (inputWrapper) inputWrapper.style.display = 'none';
+            if (blockedWrapper) blockedWrapper.style.display = 'block';
         } else {
-            if(inputWrapper) inputWrapper.style.display = 'flex';
-            if(blockedWrapper) blockedWrapper.style.display = 'none';
+            if (inputWrapper) inputWrapper.style.display = 'flex';
+            if (blockedWrapper) blockedWrapper.style.display = 'none';
         }
 
+        // Initialize 3-Dot Options
         initChatOptions(currentUser, roomId, currentRoomData);
         
+        // Pinned Message logic
         const banner = document.getElementById('pinned-message-banner');
-        if (banner && currentRoomData.pinnedMessage && Date.now() < currentRoomData.pinExpiry) {
+        if (banner && currentRoomData.pinnedMessage && Date.now() < (currentRoomData.pinExpiry || 0)) {
             const decPin = decryptMessage(currentRoomData.pinnedMessage);
             document.getElementById('pinned-message-text').innerHTML = parseWhatsAppFormatting(decPin);
-            const titleEl = banner.querySelector('p');
-            if (titleEl) titleEl.innerText = "Pinned Message";
             banner.style.display = 'flex';
         } else if (banner) {
             banner.style.display = 'none';
         }
 
-        const isOwner = String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+        // Group Settings Button for Groups & System Groups (Owner/Admin)
+        const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
         const isAdmin = Array.isArray(currentRoomData.admins) && currentRoomData.admins.includes(curId);
-        
         const isSystemGroup = roomId === 'global_channel' || roomId === 'aksh_help';
-        const canEditSystem = isSystemGroup ? isOwner : false; 
-        const canEditCustom = isOwner || isAdmin;
-        const canEdit = isSystemGroup ? canEditSystem : canEditCustom;
-        
-        const existingGear = document.getElementById('group-settings-btn');
-        if (existingGear) existingGear.remove();
+        const canEdit = isSystemGroup ? isOwner : (isOwner || isAdmin);
+
+        const groupSettingsBtn = document.getElementById('group-settings-btn');
+        if (groupSettingsBtn) {
+            if (isGroup && canEdit) {
+                groupSettingsBtn.style.display = 'inline-flex';
+                groupSettingsBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    injectGroupAdminModal();
+                    
+                    const groupEditSec = document.getElementById('group-edit-section');
+                    const transferSec = document.getElementById('transfer-admin-section');
+                    const btnSaveGroup = document.getElementById('btn-save-group');
+                    const btnDeleteGroup = document.getElementById('btn-delete-group');
+                    const addMemberSec = document.getElementById('add-member-section');
+                    const manageMemberSec = document.getElementById('manage-members-section');
+
+                    if (groupEditSec) groupEditSec.style.display = canEdit ? 'block' : 'none';
+                    if (transferSec) transferSec.style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    if (btnSaveGroup) btnSaveGroup.style.display = canEdit ? 'block' : 'none';
+                    if (btnDeleteGroup) btnDeleteGroup.style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
+                    if (addMemberSec) addMemberSec.style.display = isSystemGroup ? 'none' : 'block';
+                    if (manageMemberSec) manageMemberSec.style.display = isSystemGroup ? 'none' : 'block';
+
+                    if (canEdit) {
+                        const nameInp = document.getElementById('edit-group-name');
+                        const iconInp = document.getElementById('edit-group-icon');
+                        const iconPrev = document.getElementById('group-icon-preview');
+                        if (nameInp) nameInp.value = currentRoomData.name || '';
+                        if (iconInp) iconInp.value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
+                        if (iconPrev) iconPrev.src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                    }
+                    
+                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
+                    const gModal = document.getElementById('group-admin-modal');
+                    if (gModal) gModal.style.display = 'flex';
+                };
+            } else {
+                groupSettingsBtn.style.display = 'none';
+            }
+        }
 
         const titleEl = document.getElementById('active-room-name');
         if (titleEl) {
@@ -290,34 +324,7 @@ const listenToRoomState = async (roomId) => {
                     displayRoomName = currentRoomData.names[otherId];
                 }
             }
-            if(displayRoomName !== 'Chat') titleEl.innerText = displayRoomName;
-            
-            if (currentRoomData.type === 'group' || (isSystemGroup && canEditSystem)) {
-                const gearHTML = `<span id="group-settings-btn" title="Group Settings" class="material-symbols-rounded" style="font-size: 20px; color: var(--primary); margin-left: 10px; cursor: pointer;">settings</span>`;
-                if (!titleEl.innerHTML.includes('group-settings-btn')) titleEl.insertAdjacentHTML('beforeend', gearHTML);
-                
-                const gBtn = document.getElementById('group-settings-btn');
-                if(gBtn) gBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    injectGroupAdminModal(); 
-                    
-                    document.getElementById('group-edit-section').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('transfer-admin-section').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    document.getElementById('btn-save-group').style.display = canEdit ? 'block' : 'none';
-                    document.getElementById('btn-delete-group').style.display = (canEdit && !isSystemGroup) ? 'block' : 'none';
-                    document.getElementById('add-member-section').style.display = isSystemGroup ? 'none' : 'block';
-                    document.getElementById('manage-members-section').style.display = isSystemGroup ? 'none' : 'block';
-
-                    if (canEdit) {
-                        document.getElementById('edit-group-name').value = currentRoomData.name || '';
-                        document.getElementById('edit-group-icon').value = currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : '';
-                        document.getElementById('group-icon-preview').src = currentRoomData.icon?.startsWith('data:image') || currentRoomData.icon?.startsWith('http') ? currentRoomData.icon : 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-                    }
-                    
-                    populateGroupManagement(currentRoomData.participants || [], currentRoomData.admins || []);
-                    document.getElementById('group-admin-modal').style.display = 'flex';
-                });
-            }
+            if (displayRoomName !== 'Chat') titleEl.innerText = displayRoomName;
         }
         
         if (currentMessagesSnapshot.length > 0) renderMessagesUI();
@@ -340,7 +347,7 @@ export const listenToMessages = (roomId) => {
         });
         
         const curId = currentUser?.id || currentUser?.uid;
-        if (snapshot.docs.length > 0) {
+        if (snapshot.docs.length > 0 && curId) {
             const lastMsg = snapshot.docs[snapshot.docs.length - 1].data();
             if (lastMsg.senderId !== curId && document.visibilityState === 'visible') {
                 if (Date.now() - myLastReceiptUpdate > 2000) {
@@ -362,7 +369,7 @@ export const sendMessage = async () => {
 
     inputField.value = ''; 
     const curId = currentUser?.id || currentUser?.uid;
-    const isOwner = String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+    const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
     
     const scrambledText = encryptMessage(text);
     
@@ -389,20 +396,90 @@ export const sendMessage = async () => {
     } catch (error) {}
 };
 
+// --- SELECTION & MESSAGE FORWARD/DELETE ACTIONS ---
+
+window.startForwardSingleMessage = (msgId) => {
+    window.enableSelectionMode(true);
+    const box = document.querySelector(`.msg-checkbox[value="${msgId}"]`);
+    if (box) box.checked = true;
+    updateSelectionCount();
+};
+
+window.startDeleteSingleMessage = (msgId) => {
+    window.enableSelectionMode(true);
+    const box = document.querySelector(`.msg-checkbox[value="${msgId}"]`);
+    if (box) box.checked = true;
+    updateSelectionCount();
+};
+
+const updateSelectionCount = () => {
+    const selectedBoxes = document.querySelectorAll('.msg-checkbox:checked');
+    const countTxt = document.getElementById('selection-count');
+    if (countTxt) countTxt.innerText = `${selectedBoxes.length} Selected`;
+};
+
+window.enableSelectionMode = (enable = true) => {
+    const container = document.getElementById('chat-messages-container');
+    const selectionHeader = document.getElementById('selection-chat-header');
+    const stdHeader = document.getElementById('standard-chat-header');
+    
+    if (enable) {
+        if (container) container.classList.add('selection-mode');
+        if (stdHeader) stdHeader.style.display = 'none';
+        if (selectionHeader) selectionHeader.style.display = 'flex';
+        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
+    } else {
+        if (container) container.classList.remove('selection-mode');
+        if (stdHeader) stdHeader.style.display = 'flex';
+        if (selectionHeader) selectionHeader.style.display = 'none';
+        document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
+        const countTxt = document.getElementById('selection-count');
+        if (countTxt) countTxt.innerText = `0 Selected`;
+    }
+};
+
+window.openDeleteMessagesModal = () => {
+    const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
+    if (selectedBoxes.length === 0) return alert("Select at least one message to delete.");
+
+    const curId = currentUser?.id || currentUser?.uid;
+    const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+    const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
+
+    // Can delete for everyone if I sent all selected messages, or if I am group Admin/Owner
+    const allMine = selectedBoxes.every(b => b.getAttribute('data-sender') === curId);
+    const canDeleteEveryone = allMine || isOwner || isAdmin;
+
+    const btnEveryone = document.getElementById('btn-delete-everyone');
+    if (btnEveryone) btnEveryone.style.display = canDeleteEveryone ? 'block' : 'none';
+
+    const delModal = document.getElementById('delete-modal');
+    if (delModal) delModal.style.display = 'flex';
+};
+
 window.forwardSelectedMessages = async () => {
     const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
-    if (selectedBoxes.length === 0) return alert("Select a message to forward first.");
+    if (selectedBoxes.length === 0) return alert("Select at least one message to forward.");
 
     if (!document.getElementById('forward-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `<div id="forward-modal" class="guest-overlay" style="display: none; z-index: 10003;"><div class="guest-modal" style="padding: 20px; width: 90%; max-width: 350px;"><h3 style="margin-bottom: 15px; color: var(--primary);">Forward To:</h3><div id="forward-rooms-list" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;"></div><button onclick="document.getElementById('forward-modal').style.display='none'" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button></div></div>`);
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="forward-modal" class="guest-overlay" style="display: none; z-index: 10003;">
+                <div class="guest-modal" style="padding: 20px; width: 90%; max-width: 350px;">
+                    <h3 style="margin-bottom: 15px; color: var(--primary);">Forward To:</h3>
+                    <div id="forward-rooms-list" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;"></div>
+                    <button id="btn-cancel-forward" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
+                </div>
+            </div>
+        `);
+        document.getElementById('btn-cancel-forward')?.addEventListener('click', () => {
+            document.getElementById('forward-modal').style.display = 'none';
+        });
     }
 
     const listEl = document.getElementById('forward-rooms-list');
     listEl.innerHTML = '';
     
     const availableRooms = window.getAvailableRooms ? window.getAvailableRooms() : {};
-    if (Object.keys(availableRooms).length === 0) listEl.innerHTML = '<p style="padding: 10px; text-align:center; color: var(--text-muted);">No chats available.</p>';
-
     Object.keys(availableRooms).forEach(roomId => {
         const room = availableRooms[roomId];
         const item = document.createElement('div');
@@ -411,7 +488,7 @@ window.forwardSelectedMessages = async () => {
         item.onclick = async () => {
             document.getElementById('forward-modal').style.display = 'none';
             const curId = currentUser?.id || currentUser?.uid;
-            const isOwner = String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
+            const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === 'akshat124.am12@gmail.com';
             
             for (const box of selectedBoxes) {
                 try {
@@ -423,7 +500,6 @@ window.forwardSelectedMessages = async () => {
 
                         const fwdPayload = {
                             text: encryptMessage(finalizedText),
-                            imageUrl: originalData.imageUrl || null,
                             fileUrl: originalData.fileUrl || null,
                             fileType: originalData.fileType || null,
                             fileName: originalData.fileName || null,
@@ -447,24 +523,108 @@ window.forwardSelectedMessages = async () => {
     document.getElementById('forward-modal').style.display = 'flex';
 };
 
+// --- WIRE ACTIONS RELIABLY (Direct Module Scope) ---
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.msg-bubble')) {
+        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
+    }
+});
+
+document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('msg-checkbox')) {
+        updateSelectionCount();
+    }
+});
+
+// Selection Header Button Bindings
+document.getElementById('btn-cancel-selection')?.addEventListener('click', () => {
+    window.enableSelectionMode(false);
+});
+
+document.getElementById('btn-action-delete')?.addEventListener('click', () => {
+    window.openDeleteMessagesModal();
+});
+
+document.getElementById('btn-action-forward')?.addEventListener('click', () => {
+    window.forwardSelectedMessages();
+});
+
+// Delete Modal Bindings
+document.getElementById('btn-cancel-delete')?.addEventListener('click', () => {
+    const delModal = document.getElementById('delete-modal');
+    if (delModal) delModal.style.display = 'none';
+});
+
+document.getElementById('btn-delete-me')?.addEventListener('click', () => {
+    const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
+    const hiddenMsgs = JSON.parse(localStorage.getItem('hidden_msgs')) || [];
+    selectedBoxes.forEach(b => hiddenMsgs.push(b.value));
+    localStorage.setItem('hidden_msgs', JSON.stringify(hiddenMsgs));
+    
+    document.getElementById('delete-modal').style.display = 'none';
+    window.enableSelectionMode(false);
+    renderMessagesUI();
+});
+
+document.getElementById('btn-delete-everyone')?.addEventListener('click', async () => {
+    const selectedBoxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
+    for (const b of selectedBoxes) {
+        try {
+            await deleteDoc(doc(db, `chats/${currentRoomId}/messages`, b.value));
+        } catch(e) {}
+    }
+    document.getElementById('delete-modal').style.display = 'none';
+    window.enableSelectionMode(false);
+});
+
+// Pin and Reply Handlers
+window.toggleActionMenu = (msgId) => { 
+    document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); 
+    const menu = document.getElementById(`menu-${msgId}`); 
+    if (menu) menu.classList.add('active'); 
+};
+
 window.triggerPinModal = (msgId) => { 
     messageToPin = msgId; 
     window.toggleActionMenu(msgId); 
     const pinModal = document.getElementById('pin-modal');
-    if(pinModal) pinModal.style.display = 'flex'; 
+    if (pinModal) pinModal.style.display = 'flex'; 
 };
 
-window.toggleActionMenu = (msgId) => { 
-    document.querySelectorAll('.msg-action-menu').forEach(menu => menu.classList.remove('active')); 
-    const menu = document.getElementById(`menu-${msgId}`); 
-    if(menu) menu.classList.add('active'); 
-};
+document.getElementById('btn-cancel-pin')?.addEventListener('click', () => {
+    const pinModal = document.getElementById('pin-modal');
+    if (pinModal) pinModal.style.display = 'none';
+});
 
-document.addEventListener('click', (e) => { if (!e.target.closest('.msg-bubble')) { document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active')); } });
+document.querySelectorAll('.pin-duration-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        if (!messageToPin || !currentRoomId) return;
+        const textEl = document.getElementById(`text-${messageToPin}`);
+        if (!textEl) return;
+        const hours = parseInt(e.target.getAttribute('data-hours'));
+        try { 
+            await setDoc(doc(db, "chats", currentRoomId), { 
+                pinnedMessage: encryptMessage(textEl.innerText), 
+                pinExpiry: Date.now() + (hours * 60 * 60 * 1000) 
+            }, { merge: true }); 
+        } catch (err) {}
+        const pinModal = document.getElementById('pin-modal');
+        if (pinModal) pinModal.style.display = 'none';
+        messageToPin = null;
+    });
+});
+
+document.getElementById('btn-unpin')?.addEventListener('click', async () => {
+    if (!currentRoomId) return;
+    try { 
+        await setDoc(doc(db, "chats", currentRoomId), { pinnedMessage: "", pinExpiry: 0 }, { merge: true }); 
+    } catch (err) {}
+});
 
 window.replyToMessage = (msgId) => {
     const textEl = document.getElementById(`text-${msgId}`);
-    const senderNameEl = document.getElementById(`container-${msgId}`).querySelector('.msg-sender-name');
+    const senderNameEl = document.getElementById(`container-${msgId}`)?.querySelector('.msg-sender-name');
     replyContext = { msgId, text: textEl ? textEl.innerText : '', senderName: senderNameEl ? senderNameEl.innerText : 'User' };
     
     const prevName = document.getElementById('reply-preview-name');
@@ -476,48 +636,13 @@ window.replyToMessage = (msgId) => {
     if (prevBanner) prevBanner.style.display = 'block';
     
     window.toggleActionMenu(msgId);
+    document.getElementById('chat-input')?.focus();
 };
+
 window.cancelReply = () => { 
     replyContext = null; 
     const banner = document.getElementById('reply-preview-banner');
-    if(banner) banner.style.display = 'none'; 
+    if (banner) banner.style.display = 'none'; 
 };
 
-window.enableSelectionMode = (enable = true) => {
-    const container = document.getElementById('chat-messages-container');
-    const selectionHeader = document.getElementById('selection-chat-header');
-    const stdHeader = document.getElementById('standard-chat-header');
-    
-    if (enable) {
-        if(container) container.classList.add('selection-mode');
-        if(stdHeader) stdHeader.style.display = 'none';
-        document.querySelectorAll('#injected-close-btn').forEach(b => b.remove());
-        if (selectionHeader) selectionHeader.style.display = 'flex';
-        document.querySelectorAll('.msg-action-menu').forEach(m => m.classList.remove('active'));
-    } else {
-        if(container) container.classList.remove('selection-mode');
-        if(stdHeader) stdHeader.style.display = 'flex';
-        if (selectionHeader) selectionHeader.style.display = 'none';
-        document.querySelectorAll('.msg-checkbox').forEach(box => box.checked = false);
-        const countTxt = document.getElementById('selection-count');
-        if (countTxt) countTxt.innerText = `0 Selected`;
-    }
-};
-
-document.addEventListener('change', (e) => {
-    if (e.target.classList.contains('msg-checkbox')) {
-        const count = document.querySelectorAll('.msg-checkbox:checked').length;
-        const countTxt = document.getElementById('selection-count');
-        if (countTxt) countTxt.innerText = `${count} Selected`;
-    }
-});
-
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && currentRoomId) {
-        const curId = currentUser?.id || currentUser?.uid;
-        if (curId && (Date.now() - myLastReceiptUpdate > 2000)) {
-            myLastReceiptUpdate = Date.now();
-            try { setDoc(doc(db, "chats", currentRoomId), { [`readReceipts.${curId}`]: Date.now() }, { merge: true }); } catch(e){}
-        }
-    }
-});
+document.getElementById('btn-cancel-reply')?.addEventListener('click', window.cancelReply);
