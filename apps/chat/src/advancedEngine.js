@@ -3,9 +3,6 @@ import { decryptMessage } from "./siteCipher.js";
 
 const ownerEmail = 'akshat124.am12@gmail.com';
 
-// ==========================================
-// 1. GLOBAL LAYOUT & SETTINGS LOGIC
-// ==========================================
 export function initGlobalSettings(currentUser) {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
@@ -62,10 +59,12 @@ export function initGlobalSettings(currentUser) {
             const newNick = document.getElementById('custom-nickname')?.value.trim() || '';
             const newWall = document.getElementById('custom-wallpaper')?.value.trim() || '';
             
-            await updateDoc(doc(db, "users", curId), {
-                nickname: newNick,
-                wallpaper: newWall
-            });
+            try {
+                await updateDoc(doc(db, "users", curId), {
+                    nickname: newNick,
+                    wallpaper: newWall
+                });
+            } catch(e) {}
             
             const chatMain = document.querySelector('.chat-main');
             if (newWall && chatMain) {
@@ -94,8 +93,11 @@ export function initGlobalSettings(currentUser) {
             listDiv.innerHTML = '<p style="color:var(--text-muted); padding:10px;">Loading...</p>';
             if (unblockModal) unblockModal.style.display = 'flex';
 
-            const userDoc = await getDoc(doc(db, "users", curId));
-            const blocked = userDoc.data()?.blockedUsers || [];
+            let blocked = [];
+            try {
+                const userDoc = await getDoc(doc(db, "users", curId));
+                blocked = userDoc.data()?.blockedUsers || [];
+            } catch(e) {}
 
             if (blocked.length === 0) {
                 listDiv.innerHTML = '<p style="color:var(--text-muted); padding:10px;">No blocked users.</p>';
@@ -104,21 +106,23 @@ export function initGlobalSettings(currentUser) {
 
             listDiv.innerHTML = '';
             for (const uid of blocked) {
-                const uDoc = await getDoc(doc(db, "users", uid));
-                const uName = uDoc.exists() ? (uDoc.data().fullName || uDoc.data().name || 'User') : 'Unknown User';
-                
-                const item = document.createElement('div');
-                item.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid var(--border);";
-                item.innerHTML = `
-                    <span style="color:var(--text-main); font-weight:500;">${uName}</span>
-                    <button class="unblock-btn" style="padding:6px 12px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer;">Unblock</button>
-                `;
-                item.querySelector('.unblock-btn').onclick = async () => {
-                    await updateDoc(doc(db, "users", curId), { blockedUsers: arrayRemove(uid) });
-                    item.remove();
-                    if (listDiv.children.length === 0) listDiv.innerHTML = '<p style="color:var(--text-muted); padding:10px;">No blocked users.</p>';
-                };
-                listDiv.appendChild(item);
+                try {
+                    const uDoc = await getDoc(doc(db, "users", uid));
+                    const uName = uDoc.exists() ? (uDoc.data().fullName || uDoc.data().name || 'User') : 'Unknown User';
+                    
+                    const item = document.createElement('div');
+                    item.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid var(--border);";
+                    item.innerHTML = `
+                        <span style="color:var(--text-main); font-weight:500;">${uName}</span>
+                        <button class="unblock-btn" style="padding:6px 12px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer;">Unblock</button>
+                    `;
+                    item.querySelector('.unblock-btn').onclick = async () => {
+                        try { await updateDoc(doc(db, "users", curId), { blockedUsers: arrayRemove(uid) }); } catch(e) {}
+                        item.remove();
+                        if (listDiv.children.length === 0) listDiv.innerHTML = '<p style="color:var(--text-muted); padding:10px;">No blocked users.</p>';
+                    };
+                    listDiv.appendChild(item);
+                } catch(e) {}
             }
         };
     }
@@ -127,10 +131,6 @@ export function initGlobalSettings(currentUser) {
     if (btnCloseUnblock) btnCloseUnblock.onclick = () => { if (unblockModal) unblockModal.style.display = 'none'; };
 }
 
-
-// ==========================================
-// 2. ACTIVE CHAT LOGIC (3-Dot Menu)
-// ==========================================
 export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const curId = currentUser?.id || currentUser?.uid;
     if (!activeChatId || !activeChatData || !curId) return;
@@ -209,9 +209,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                 document.body.removeChild(anchor);
                 URL.revokeObjectURL(fileUrl);
                 if (optionsMenu) optionsMenu.style.display = 'none';
-            } catch (err) {
-                alert("Export processing failed.");
-            }
+            } catch (err) { }
         };
     }
 
@@ -241,9 +239,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                 });
                 alert("Report submitted successfully.");
                 if (optionsMenu) optionsMenu.style.display = 'none';
-            } catch (err) {
-                alert("Failed to send report.");
-            }
+            } catch (err) { }
         };
     }
 
@@ -251,11 +247,13 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         blockBtn.onclick = async () => {
             if (!targetUid) return;
             if (!confirm(`Block ${targetName}? They will no longer be able to message you.`)) return;
-            await updateDoc(doc(db, "users", curId), {
-                blockedUsers: arrayUnion(targetUid)
-            });
-            alert("User blocked.");
-            window.location.reload();
+            try {
+                await updateDoc(doc(db, "users", curId), {
+                    blockedUsers: arrayUnion(targetUid)
+                });
+                alert("User blocked.");
+                window.location.reload();
+            } catch(e) {}
         };
     }
 
@@ -263,20 +261,20 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     if (clearBtn) {
         clearBtn.onclick = async () => {
             if (!confirm("Clear your chat history? The chat will remain in your list.")) return;
-            await updateDoc(doc(db, "chats", activeChatId), {
-                [`clearedAt_${curId}`]: Date.now()
-            });
-            alert("Chat cleared.");
-            window.location.reload(); 
+            try {
+                await updateDoc(doc(db, "chats", activeChatId), {
+                    [`clearedAt_${curId}`]: Date.now()
+                });
+                alert("Chat cleared.");
+                window.location.reload(); 
+            } catch(e) {}
         };
     }
 
-    // 5. Delete Chat Options
+    // FIX: Show Delete Chat for everyone. Hide the "Delete for Everyone" INSIDE the modal for non-admins.
     const deleteBtn = document.getElementById('btn-opt-delete');
     if (deleteBtn) {
-        // FIX: Re-enable the button for everyone so they can "Delete for Me"
         deleteBtn.style.display = 'block';
-        
         deleteBtn.onclick = () => {
             const delModal = document.getElementById('deleteChatModal');
             if (delModal) delModal.style.display = 'flex';
@@ -303,19 +301,21 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const delMe = document.getElementById('btn-del-chat-me');
     if (delMe) {
         delMe.onclick = async () => {
-            if (isGroup) {
-                if (window.leaveChatRoom) window.leaveChatRoom();
-                await updateDoc(doc(db, "chats", activeChatId), {
-                    participants: arrayRemove(curId),
-                    admins: arrayRemove(curId)
-                });
-            } else {
-                await updateDoc(doc(db, "chats", activeChatId), {
-                    [`deletedFor_${curId}`]: true,
-                    [`clearedAt_${curId}`]: Date.now() 
-                });
-            }
-            window.location.reload();
+            try {
+                if (isGroup) {
+                    if (window.leaveChatRoom) window.leaveChatRoom();
+                    await updateDoc(doc(db, "chats", activeChatId), {
+                        participants: arrayRemove(curId),
+                        admins: arrayRemove(curId)
+                    });
+                } else {
+                    await updateDoc(doc(db, "chats", activeChatId), {
+                        [`deletedFor_${curId}`]: true,
+                        [`clearedAt_${curId}`]: Date.now() 
+                    });
+                }
+                window.location.reload();
+            } catch(e) {}
         };
     }
 
