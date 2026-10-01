@@ -87,7 +87,6 @@
                     <div style="flex: 1; cursor: pointer;" id="header-room-info">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <h3 id="active-room-name" style="font-size:16px;">Select a chat</h3>
-                            <!-- Dedicated Settings Button for Groups -->
                             <button id="group-settings-btn" title="Group Settings" style="display: none; background: none; border: none; color: var(--primary); cursor: pointer; padding: 2px;">
                                 <span class="material-symbols-rounded" style="font-size: 20px;">settings</span>
                             </button>
@@ -101,6 +100,7 @@
                             <button id="btn-chat-options" style="background:none; border:none; color:inherit; cursor:pointer; padding: 5px; display: none;"><span class="material-symbols-rounded">more_vert</span></button>
                             
                             <div id="chat-options-menu" style="display: none; position: absolute; top: 40px; right: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 180px; padding: 8px; z-index: 1000;">
+                                <button id="btn-opt-select" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border);">Select Messages</button>
                                 <button id="btn-opt-export" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border);">Export Chat</button>
                                 <button id="btn-opt-report" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Report User</button>
                                 <button id="btn-opt-block" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Block User</button>
@@ -171,7 +171,6 @@
     </div>
 
     <!-- MODALS -->
-
     <!-- 1. DELETE MESSAGE MODAL -->
     <div id="delete-modal" class="guest-overlay" style="display: none; z-index: 10001;">
         <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px;">
@@ -187,10 +186,10 @@
         <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px;">
             <h3 style="margin-bottom: 10px; color: var(--text-main);">Pin Message</h3>
             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Choose duration to pin this message.</p>
-            <button class="pin-duration-btn" data-hours="24" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">24 Hours</button>
-            <button class="pin-duration-btn" data-hours="168" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">7 Days</button>
-            <button class="pin-duration-btn" data-hours="720" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">30 Days</button>
-            <button id="btn-cancel-pin" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
+            <button class="pin-duration-btn" data-hours="24" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">24 Hours</button>
+            <button class="pin-duration-btn" data-hours="168" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">7 Days</button>
+            <button class="pin-duration-btn" data-hours="720" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">30 Days</button>
+            <button id="btn-cancel-pin" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
         </div>
     </div>
 
