@@ -10,48 +10,40 @@ export function initGlobalSettings(currentUser) {
     // 1. Profile Dropdown Click Toggle
     const profilePic = document.getElementById('nav-profile-pic');
     const profileDropdown = document.getElementById('profile-dropdown-menu');
-    
+    const settingsToggle = document.getElementById('btn-settings-toggle');
+    const settingsDropdown = document.getElementById('settings-dropdown-menu');
+
     if (profilePic && !window.profileMenuAttached) {
         profilePic.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (profileDropdown) {
-                profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
-            }
+            if (settingsDropdown) settingsDropdown.style.display = 'none';
+            if (profileDropdown) profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
         });
         window.profileMenuAttached = true;
     }
 
-    // 2. Settings Slide Panel Logic
-    const settingsToggle = document.getElementById('btn-settings-slide');
-    const settingsBack = document.getElementById('btn-settings-back');
-    const chatsPanel = document.getElementById('chats-sidebar-panel');
-    const settingsPanel = document.getElementById('settings-sidebar-panel');
-
-    if (settingsToggle) {
-        settingsToggle.onclick = () => {
-            if (chatsPanel) chatsPanel.style.display = 'none';
-            if (settingsPanel) settingsPanel.style.display = 'flex';
-        };
-    }
-    if (settingsBack) {
-        settingsBack.onclick = () => {
-            if (settingsPanel) settingsPanel.style.display = 'none';
-            if (chatsPanel) chatsPanel.style.display = 'flex';
-        };
+    if (settingsToggle && !window.settingsMenuAttached) {
+        settingsToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (profileDropdown) profileDropdown.style.display = 'none';
+            if (settingsDropdown) settingsDropdown.style.display = settingsDropdown.style.display === 'block' ? 'none' : 'block';
+        });
+        window.settingsMenuAttached = true;
     }
 
-    // 3. Global Click Listener
     window.addEventListener('click', () => {
         if (profileDropdown) profileDropdown.style.display = 'none';
+        if (settingsDropdown) settingsDropdown.style.display = 'none';
         const chatMenu = document.getElementById('chat-options-menu');
         if (chatMenu) chatMenu.style.display = 'none';
     });
 
-    // 4. Customisation Modal
+    // 2. Customisation Modal
     const customModal = document.getElementById('customModal');
     const btnOpenCustom = document.getElementById('btn-open-customisation');
     if (btnOpenCustom) {
         btnOpenCustom.onclick = async () => {
+            if (settingsDropdown) settingsDropdown.style.display = 'none';
             const userDoc = await getDoc(doc(db, "users", curId));
             const data = userDoc.data() || {};
             const nickInput = document.getElementById('custom-nickname');
@@ -89,12 +81,13 @@ export function initGlobalSettings(currentUser) {
     const btnCloseCustom = document.getElementById('btn-close-custom');
     if (btnCloseCustom) btnCloseCustom.onclick = () => { if (customModal) customModal.style.display = 'none'; };
 
-    // 5. Unblock Users Modal
+    // 3. Unblock Users Modal
     const unblockModal = document.getElementById('unblockModal');
     const btnOpenUnblock = document.getElementById('btn-open-unblock');
     
     if (btnOpenUnblock) {
         btnOpenUnblock.onclick = async () => {
+            if (settingsDropdown) settingsDropdown.style.display = 'none';
             const listDiv = document.getElementById('blocked-users-list');
             if (!listDiv) return;
             
@@ -140,8 +133,8 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
 
     const optionsBtn = document.getElementById('btn-chat-options');
     const optionsMenu = document.getElementById('chat-options-menu');
-    const isGroup = activeChatData.type === 'group';
-    const isCurrentOwner = String(currentUser.email).toLowerCase().trim() === ownerEmail;
+    const isGroup = activeChatData.type === 'group' || activeChatId === 'global_channel' || activeChatId === 'aksh_help';
+    const isCurrentOwner = currentUser?.isOwner || String(currentUser.email).toLowerCase().trim() === ownerEmail;
     
     let targetUid = null;
     let targetName = 'Unknown User';
@@ -155,17 +148,15 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
             if (activeChatData.names && activeChatData.names[targetUid]) {
                 targetName = activeChatData.names[targetUid];
             }
-            const safeParticipantsData = Array.isArray(activeChatData.participantsData) ? activeChatData.participantsData : [];
-            const targetData = safeParticipantsData.find(p => p.uid === targetUid);
-            if (targetData) {
-                targetName = targetData.name || targetName;
-                if (String(targetData.email).toLowerCase().trim() === ownerEmail) isTargetOwner = true;
+            if (activeChatData.emails && String(activeChatData.emails[targetUid]).toLowerCase().trim() === ownerEmail) {
+                isTargetOwner = true;
             }
         }
     }
 
     if (optionsBtn) {
-        optionsBtn.style.display = isGroup ? 'none' : 'block';
+        // Show 3 dots for any active chat
+        optionsBtn.style.display = 'block';
         optionsBtn.onclick = (e) => {
             e.stopPropagation();
             if (optionsMenu) {
@@ -174,7 +165,8 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
     
-    const hideHarshOptions = isGroup || isTargetOwner || activeChatId === 'global_channel' || isCurrentOwner;
+    // Hide Report & Block if target is the Owner or if inside a Group
+    const hideHarshOptions = isGroup || isTargetOwner || isCurrentOwner;
     const reportBtn = document.getElementById('btn-opt-report');
     const blockBtn = document.getElementById('btn-opt-block');
     
@@ -211,7 +203,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 2. Report User (Submits history natively to help_complaints)
+    // 2. Report User (Submits 10-message evidence to help_complaints)
     if (reportBtn) {
         reportBtn.onclick = async () => {
             if (!targetUid) return;
@@ -232,7 +224,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
                     name: currentUser.name,
                     email: currentUser.email,
                     subject: `🚨 REPORT: ${currentUser.name} reported ${targetName}`,
-                    details: `Target UID: ${targetUid}\n\n--- EVIDENCE ---\n${historyStr || 'No recent messages recorded.'}`,
+                    details: `Target UID: ${targetUid}\n\n--- EVIDENCE (LAST 10 MESSAGES) ---\n${historyStr || 'No recent messages recorded.'}`,
                     date: Date.now(),
                     status: 'Unresolved'
                 });
@@ -248,7 +240,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     if (blockBtn) {
         blockBtn.onclick = async () => {
             if (!targetUid) return;
-            if (!confirm(`Block ${targetName}? You will no longer be able to message each other.`)) return;
+            if (!confirm(`Block ${targetName}? They will no longer be able to message you.`)) return;
             await updateDoc(doc(db, "users", curId), {
                 blockedUsers: arrayUnion(targetUid)
             });
@@ -261,7 +253,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const clearBtn = document.getElementById('btn-opt-clear');
     if (clearBtn) {
         clearBtn.onclick = async () => {
-            if (!confirm("Clear your chat history?")) return;
+            if (!confirm("Clear your chat history? The chat will remain in your list.")) return;
             await updateDoc(doc(db, "chats", activeChatId), {
                 [`clearedAt_${curId}`]: Date.now()
             });
@@ -270,7 +262,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 5. Delete Chat ("Delete for me" vs "Delete for both")
+    // 5. Delete Chat (Delete for Me vs. Delete for Both)
     const delModal = document.getElementById('deleteChatModal');
     const deleteBtn = document.getElementById('btn-opt-delete');
     if (deleteBtn) {
@@ -297,7 +289,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     if (delBoth) {
         delBoth.onclick = async () => {
             if (!isCurrentOwner && !activeChatData.admins?.includes(curId) && activeChatData.type === 'group') {
-                alert("Only admins can delete group chats for everyone.");
+                alert("Only group admins can delete chats for everyone.");
                 return;
             }
             if (!confirm("Permanently delete this chat and all messages for everyone?")) return;
