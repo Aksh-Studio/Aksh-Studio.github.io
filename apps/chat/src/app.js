@@ -1,11 +1,12 @@
-import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc, deleteDoc } from './firebase.js';
+import { db, collection, getDocs, onSnapshot, query, setDoc, doc, deleteDoc, getDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
 import { initHelpEngine } from './help/helpEngine.js';
-// NEW: Import the Advanced Engine
-import { initGlobalSettings, initChatOptions } from './advancedEngine.js';
+import { initGlobalSettings } from './advancedEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
+window.appState = appState;
+window.currentUserAuth = currentUser;
 
 export const roomsInfo = {
     'global_channel': { name: 'Global Channel', icon: 'public', type: 'group', isImage: false },
@@ -15,7 +16,6 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
-// Block call UI via CSS injection
 const style = document.createElement('style');
 style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
 document.head.appendChild(style);
@@ -24,7 +24,6 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
-    // Ensure user identity exists in Firestore
     setDoc(doc(db, "users", curId), {
         email: currentUser.email,
         fullName: currentUser.name,
@@ -47,7 +46,6 @@ const listenToCloudRooms = () => {
                 let rTime = 0;
                 if (myReceipt && typeof myReceipt.toMillis === 'function') rTime = myReceipt.toMillis();
                 else if (typeof myReceipt === 'number') rTime = myReceipt;
-                
                 if (data.lastMessageTime > rTime) isUnread = true;
             }
 
@@ -72,7 +70,7 @@ const listenToCloudRooms = () => {
                     isImage: true,
                     unread: isUnread,
                     lastMessageTime: roomLastMsgTime,
-                    clearedAt: data[`clearedAt_${curId}`] || 0 // NEW: Track clear status
+                    clearedAt: data[`clearedAt_${curId}`] || 0
                 };
             }
             else if (data.type === 'group' && data.participants?.includes(curId)) {
@@ -83,7 +81,7 @@ const listenToCloudRooms = () => {
                     isImage: !!(data.icon && (data.icon.startsWith('data:image') || data.icon.startsWith('http'))),
                     unread: isUnread,
                     lastMessageTime: roomLastMsgTime,
-                    clearedAt: data[`clearedAt_${curId}`] || 0 // NEW: Track clear status
+                    clearedAt: data[`clearedAt_${curId}`] || 0
                 };
             }
         });
@@ -164,9 +162,7 @@ const initThemeAndListeners = () => {
             appState.activeChatId = newGroupId;
             switchChatRoom(newGroupId, groupName, 'groups', 'group');
             alert("Group created! Click the Gear icon to upload a logo and add members.");
-        } catch(e) {
-            console.error("Group creation failed:", e);
-        }
+        } catch(e) {}
     });
 };
 
@@ -178,7 +174,6 @@ const fetchNetworkUsers = async () => {
     try {
         const querySnapshot = await getDocs(collection(db, "users"));
         listContainer.innerHTML = '';
-        
         const myUid = String(currentUser?.id || "").trim();
         const allNetworkUsers = new Map(); 
 
@@ -191,8 +186,7 @@ const fetchNetworkUsers = async () => {
             if (targetUid === myUid || !rawName) return; 
             
             allNetworkUsers.set(targetUid, {
-                uid: targetUid,
-                name: rawName,
+                uid: targetUid, name: rawName,
                 pic: u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`
             });
         });
@@ -202,13 +196,7 @@ const fetchNetworkUsers = async () => {
         sortedUsers.forEach(user => {
             const item = document.createElement('div');
             item.className = 'user-item';
-            item.innerHTML = `
-                <img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=00a884&color=fff'">
-                <div class="user-info">
-                    <h4>${user.name}</h4>
-                    <p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p>
-                </div>
-            `;
+            item.innerHTML = `<img src="${user.pic}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;"><div class="user-info"><h4>${user.name}</h4><p style="font-size:12px; color: var(--text-muted);">Tap to start private chat</p></div>`;
 
             item.addEventListener('click', async () => {
                 const deterministicId = myUid < user.uid ? `dm_${myUid}_${user.uid}` : `dm_${user.uid}_${myUid}`;
@@ -225,18 +213,10 @@ const fetchNetworkUsers = async () => {
                 appState.activeChatId = deterministicId;
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
-                
-                const searchInput = document.getElementById('chat-search');
-                if (searchInput) { searchInput.value = ''; searchInput.placeholder = "Search"; }
-                
                 switchChatRoom(deterministicId, user.name, user.pic, 'dm');
             });
             listContainer.appendChild(item);
         });
-        
-        if (sortedUsers.length === 0) {
-            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
-        }
     } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
@@ -249,9 +229,7 @@ export const renderSidebarList = () => {
     const myName = String(currentUser.name || "").toLowerCase().trim();
 
     const sortedRoomIds = Object.keys(combinedRooms).sort((a, b) => {
-        const timeA = combinedRooms[a].lastMessageTime || 0;
-        const timeB = combinedRooms[b].lastMessageTime || 0;
-        return timeB - timeA;
+        return (combinedRooms[b].lastMessageTime || 0) - (combinedRooms[a].lastMessageTime || 0);
     });
 
     sortedRoomIds.forEach(id => {
@@ -271,24 +249,13 @@ export const renderSidebarList = () => {
             const isActive = appState.activeChatId === id ? 'active' : '';
             const item = document.createElement('div');
             item.className = `user-item ${isActive}`;
-            item.id = `btn-room-${id}`;
-            item.style.position = 'relative'; 
-            
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
             if (room.isImage) {
-                item.innerHTML = `
-                    <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
-                    <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
-                    ${badgeHTML}
-                `;
+                item.innerHTML = `<img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"><div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>${badgeHTML}`;
             } else {
-                item.innerHTML = `
-                    <div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div>
-                    <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>Tap to view messages</p></div>
-                    ${badgeHTML}
-                `;
+                item.innerHTML = `<div class="global-icon-box"><span class="material-symbols-rounded">${room.icon}</span></div><div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>Tap to view messages</p></div>${badgeHTML}`;
             }
 
             item.addEventListener('click', () => {
@@ -297,9 +264,6 @@ export const renderSidebarList = () => {
                 appState.activeChatId = id;
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
-                
-                // Initialize the 3-Dot menu options for the newly opened chat
-                initChatOptions(currentUser, id, room);
                 switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
@@ -312,27 +276,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser) {
             listenToCloudRooms(); 
             initHelpEngine(currentUser);
-            
-            // NEW: Initialize Advanced Features Engine (Profile/Settings Modals)
             initGlobalSettings(currentUser);
             
-            // Fetch Custom Wallpaper if exists
             getDoc(doc(db, "users", currentUser.uid)).then(uDoc => {
                 if(uDoc.exists() && uDoc.data().wallpaper) {
                     document.querySelector('.chat-main').style.backgroundImage = `url(${uDoc.data().wallpaper})`;
                     document.querySelector('.chat-main').style.backgroundSize = "cover";
                 }
             }).catch(()=>{});
-        }
-        
-        initThemeAndListeners();
-        renderSidebarList();
-        
-        setTimeout(() => {
-            const defaultBtn = document.getElementById(`btn-room-global_channel`);
-            if(defaultBtn && window.innerWidth > 900) {
-                defaultBtn.click();
-            }
-        }, 300);
-    });
-});
+        }The reason your messages aren't loading and nothing is working is due to a **fatal ES6 module error**. 
+
+When the browser encounters a `SyntaxError: The requested module ... does not provide an export` in *any* of your module files (in this case, `advancedEngine.js`), it halts the execution of your entire JavaScript bundle. Because `advancedEngine.js` fails to load, `chatEngine.js` never gets the chance to execute, leaving your chat UI blank.
+
+To fix this, you need to update your **`firebase.js`** file to properly export `arrayRemove` (which is a Firebase Firestore function likely being used by `advancedEngine.js` for removing members from groups).
+
+### The Fix: Update `firebase.js`
+
+Open your `firebase.js` file. You need to make sure `arrayRemove` is imported from Firebase and then exported for your other scripts to use.
+
+**1. Find your Firestore import line and add `arrayRemove`:**
+```javascript
+// In your firebase.js file
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    // ... your other imports ...
+    arrayRemove // <-- ADD THIS HERE
+} from "firebase/firestore";
