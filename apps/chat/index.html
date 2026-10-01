@@ -11,64 +11,33 @@
     <link rel="stylesheet" href="/global-mobile.css">
 </head>
 <body>
-    
-    <div id="delete-modal" class="guest-overlay" style="display: none; z-index: 10001;">
-        <div class="guest-modal" style="padding: 25px;">
-            <h3 style="margin-bottom: 15px;">Delete Message?</h3>
-            <button id="btn-delete-me" style="width: 100%; padding: 12px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Delete for Me</button>
-            <button id="btn-delete-everyone" style="width: 100%; padding: 12px; background: #ea0038; color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600; display: none;">Delete for Everyone</button>
-            <button id="btn-cancel-delete" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
-        </div>
-    </div>
 
-    <div id="pin-modal" class="guest-overlay" style="display: none; z-index: 10001;">
-        <div class="guest-modal" style="padding: 25px;">
-            <h3 style="margin-bottom: 10px;">Pin Message to Chat</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">This will pin the message for everyone in this chat.</p>
-            <button class="pin-duration-btn" data-hours="24" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">24 Hours</button>
-            <button class="pin-duration-btn" data-hours="168" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">7 Days</button>
-            <button class="pin-duration-btn" data-hours="720" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">30 Days</button>
-            <button id="btn-cancel-pin" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
-        </div>
-    </div>
-
-    <!-- THIS IS THE WRAPPER THAT WAS ACCIDENTALLY DELETED -->
     <div class="aksh-chat-app" id="app-root">
-    <nav class="top-nav">
+        <!-- TOP NAVIGATION -->
+        <nav class="top-nav">
             <div class="nav-left">
                 <a href="../../dashboard.html" class="back-link">← Dashboard</a>
                 <div class="brand-title"><img src="/chat-logo.png" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px;"> Aksh Chat</div>
             </div>
-            
             <div class="nav-right" style="display: flex; align-items: center; gap: 12px;">
-                <!-- Owner Dashboard Button -->
                 <button id="ownerPanelBtn" class="btn-outline" style="display: none; background: #ea0038; color: white; border: none; padding: 6px 14px; font-weight: bold; border-radius: 8px;" title="Owner Dashboard">?</button>
-                <!-- User Help Button -->
                 <button id="navHelpBtn" class="btn-outline" style="display: none;">Help</button> 
                 <button id="theme-btn" class="btn-outline">Dark Mode</button>
             </div>
         </nav>
 
         <div id="main-layout" class="app-layout">
+            <!-- SIDE RAIL -->
             <nav class="side-rail">
                 <button class="rail-item active" id="rail-chats" title="Chats"><span class="material-symbols-rounded">chat</span></button>
                 <div style="flex: 1;"></div>
                 
-                <!-- SETTINGS MENU (Above Profile) -->
-                <div class="profile-menu" style="position: relative; margin-bottom: 10px;">
-                    <button class="rail-item" id="btn-settings-toggle" title="Settings"><span class="material-symbols-rounded">settings</span></button>
-                    <!-- Settings Dropdown -->
-                    <div id="settings-dropdown-menu" style="display: none; position: absolute; bottom: 10px; left: 60px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 220px; padding: 10px; z-index: 1000;">
-                        <button id="btn-open-customisation" style="width: 100%; padding: 10px; margin-bottom: 8px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text-main); font-weight: 600; text-align: left;"><span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 5px;">palette</span> Customisation</button>
-                        <button id="btn-open-unblock" style="width: 100%; padding: 10px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text-main); font-weight: 600; text-align: left;"><span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 5px;">person_off</span> Unblock Users</button>
-                    </div>
-                </div>
+                <!-- Settings Button (Above Profile) -->
+                <button class="rail-item" id="btn-settings-slide" title="Settings" style="margin-bottom: 10px;"><span class="material-symbols-rounded">settings</span></button>
 
-                <!-- PROFILE MENU (Bottom Left) -->
+                <!-- Profile Menu (Bottom Left) -->
                 <div class="profile-menu" id="profile-menu-wrapper" style="position: relative; margin-bottom: 20px;">
                     <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile" class="user-avatar" id="nav-profile-pic" style="width: 42px; height: 42px; cursor: pointer;">
-                    
-                    <!-- Clickable Dropdown -->
                     <div id="profile-dropdown-menu" style="display: none; position: absolute; bottom: 10px; left: 60px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 250px; padding: 16px; z-index: 1000;">
                         <p style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; font-weight: 600;">Personal Profile</p>
                         <p style="font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-main);" id="nav-profile-name">Name: Loading...</p>
@@ -79,23 +48,48 @@
                 </div>
             </nav>
 
-            <aside class="chat-sidebar" id="sidebar-chats">
-                <div class="sidebar-header">
-                    <h2>Chats</h2>
-                    <button id="btn-create-group" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer;"><span class="material-symbols-rounded">group_add</span></button>
+            <!-- LEFT SIDEBAR -->
+            <aside class="chat-sidebar" id="main-sidebar">
+                
+                <!-- CHAT LIST PANEL -->
+                <div id="chats-sidebar-panel" style="display: flex; flex-direction: column; height: 100%;">
+                    <div class="sidebar-header">
+                        <h2>Chats</h2>
+                        <button id="btn-create-group" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer;"><span class="material-symbols-rounded">group_add</span></button>
+                    </div>
+                    <div class="search-bar"><input type="text" id="chat-search" placeholder="Search"></div>
+                    <div class="chat-tabs">
+                        <button class="tab-pill active" data-tab="all">All</button>
+                        <button class="tab-pill" data-tab="network">Search Network</button>
+                        <button class="tab-pill" data-tab="unread">Unread</button>
+                        <button class="tab-pill" data-tab="groups">Groups</button>
+                    </div>
+                    <div class="user-list" id="dynamic-user-list"></div>
                 </div>
-                <div class="search-bar"><input type="text" id="chat-search" placeholder="Search"></div>
-                <div class="chat-tabs">
-                    <button class="tab-pill active" data-tab="all">All</button>
-                    <button class="tab-pill" data-tab="network">Search Network</button>
-                    <button class="tab-pill" data-tab="unread">Unread</button>
-                    <button class="tab-pill" data-tab="groups">Groups</button>
+
+                <!-- SETTINGS SLIDE PANEL -->
+                <div id="settings-sidebar-panel" style="display: none; flex-direction: column; height: 100%; background: var(--app-bg);">
+                    <div class="sidebar-header" style="background: var(--card-bg); display: flex; align-items: center; gap: 15px; padding: 20px;">
+                        <button id="btn-settings-back" style="background:transparent; border:none; color:var(--text-main); cursor:pointer; display: flex; align-items: center;"><span class="material-symbols-rounded">arrow_back</span></button>
+                        <h2 style="margin: 0; font-size: 20px;">Settings</h2>
+                    </div>
+                    <div style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+                        <div class="user-item" id="btn-open-customisation" style="background: var(--card-bg); border-radius: 12px; padding: 15px; border: 1px solid var(--border); display: flex; align-items: center; gap: 15px; cursor: pointer;">
+                            <div class="global-icon-box" style="width: 42px; height: 42px; background: var(--primary);"><span class="material-symbols-rounded">palette</span></div>
+                            <div class="user-info"><h4 style="margin:0; font-size: 15px; color: var(--text-main);">Customisation</h4><p style="margin:0; font-size: 12px; color: var(--text-muted);">Wallpaper & Nickname</p></div>
+                        </div>
+                        <div class="user-item" id="btn-open-unblock" style="background: var(--card-bg); border-radius: 12px; padding: 15px; border: 1px solid var(--border); display: flex; align-items: center; gap: 15px; cursor: pointer;">
+                            <div class="global-icon-box" style="width: 42px; height: 42px; background: #ea0038;"><span class="material-symbols-rounded">person_off</span></div>
+                            <div class="user-info"><h4 style="margin:0; font-size: 15px; color: var(--text-main);">Unblock Users</h4><p style="margin:0; font-size: 12px; color: var(--text-muted);">Manage blocked contacts</p></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="user-list" id="dynamic-user-list"></div>
+
             </aside>
 
+            <!-- MAIN CHAT WINDOW -->
             <main class="chat-main" id="chat-main-panel">
-            <div class="chat-header" id="standard-chat-header">
+                <div class="chat-header" id="standard-chat-header">
                     <button id="btn-mobile-back" class="mobile-back-btn"><span class="material-symbols-rounded">arrow_back</span></button>
                     <div class="global-icon-box" id="active-room-icon-box" style="width:40px; height:40px; cursor: pointer;">
                         <span id="active-room-icon" class="material-symbols-rounded">public</span>
@@ -105,19 +99,16 @@
                         <p style="font-size:12px; color:var(--primary);" id="active-room-status">...</p>
                     </div>
                     
-                    <!-- Export & 3-Dot Menu -->
+                    <!-- 3-Dot Menu & Export -->
                     <div style="display: flex; gap: 5px; color: var(--text-muted); align-items: center;">
-                        
-                        <div style="position: relative;">
-                            <button id="btn-chat-options" style="background:none; border:none; color:inherit; cursor:pointer; padding: 5px;"><span class="material-symbols-rounded">more_vert</span></button>
-                            
-                            <!-- 3-Dot Dropdown Menu -->
+                        <div style="position: relative;" id="chat-options-container">
+                            <button id="btn-chat-options" style="background:none; border:none; color:inherit; cursor:pointer; padding: 5px; display: none;"><span class="material-symbols-rounded">more_vert</span></button>
                             <div id="chat-options-menu" style="display: none; position: absolute; top: 40px; right: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 180px; padding: 8px; z-index: 1000;">
-                                <button id="btn-opt-export" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border);">Export Chat</button>
-                                <button id="btn-opt-report" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Report User</button>
-                                <button id="btn-opt-block" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Block User</button>
-                                <button id="btn-opt-clear" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: var(--text-main); cursor: pointer; border-top: 1px solid var(--border); margin-top: 4px;">Clear Chat</button>
-                                <button id="btn-opt-delete" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Delete Chat</button>
+                                <button id="btn-opt-export" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border);">Export Chat</button>
+                                <button id="btn-opt-report" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Report User</button>
+                                <button id="btn-opt-block" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Block User</button>
+                                <button id="btn-opt-clear" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: var(--text-main); cursor: pointer; border-top: 1px solid var(--border); margin-top: 4px;">Clear Chat</button>
+                                <button id="btn-opt-delete" class="msg-action-btn" style="width: 100%; text-align: left; padding: 10px; background: transparent; border: none; color: #ea0038; cursor: pointer; font-weight: 600;">Delete Chat</button>
                             </div>
                         </div>
                     </div>
@@ -149,11 +140,16 @@
                     <button id="btn-cancel-reply" style="position: absolute; right: 20px; top: 15px; background: none; border: none; color: var(--text-muted); cursor: pointer;"><span class="material-symbols-rounded" style="font-size: 18px;">close</span></button>
                 </div>
 
-                <div class="chat-input-area">
+                <div class="chat-input-area" id="chat-input-wrapper">
                     <button id="btn-media-upload" title="Attach Media" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><span class="material-symbols-rounded" style="font-size: 26px;">attach_file</span></button>
                     <input type="file" id="hidden-file-input" style="display: none;" accept="image/*, .pdf, .txt, .doc">
                     <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
                     <button id="btn-send-msg" class="btn-send"><span class="material-symbols-rounded">send</span></button>
+                </div>
+
+                <!-- Blocked Contact Overlay -->
+                <div id="blocked-state-wrapper" style="display: none; padding: 20px; text-align: center; background: var(--card-bg); border-top: 1px solid var(--border); color: var(--text-muted); font-size: 14px; flex-shrink: 0; margin-top: auto;">
+                    You have blocked this contact. Unblock them to send a message.
                 </div>
             </main>
             
@@ -166,69 +162,80 @@
                     <div class="global-icon-box" style="width: 100px; height: 100px; margin: 0 auto 15px auto; font-size: 48px;"><span id="info-avatar-icon" class="material-symbols-rounded">public</span></div>
                     <h2 id="info-room-name" style="font-size: 20px; margin-bottom: 5px;">Room Name</h2>
                 </div>
+                <div id="group-members-list" style="flex: 1; overflow-y: auto; padding: 10px;"></div>
             </aside>
         </div>
-    </div> <!-- /aksh-chat-app END -->
+    </div>
 
-    <script type="module" src="src/app.js"></script>
+    <!-- OVERLAYS AND MODALS -->
+    <div id="delete-modal" class="guest-overlay" style="display: none; z-index: 10001;">
+        <div class="guest-modal" style="padding: 25px;">
+            <h3 style="margin-bottom: 15px;">Delete Message?</h3>
+            <button id="btn-delete-me" style="width: 100%; padding: 12px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Delete for Me</button>
+            <button id="btn-delete-everyone" style="width: 100%; padding: 12px; background: #ea0038; color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600; display: none;">Delete for Everyone</button>
+            <button id="btn-cancel-delete" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
+        </div>
+    </div>
 
-    <!-- ================= HELP & OWNER SYSTEM ================= -->
-    <!-- Help Form Modal for Users -->
+    <div id="pin-modal" class="guest-overlay" style="display: none; z-index: 10001;">
+        <div class="guest-modal" style="padding: 25px;">
+            <h3 style="margin-bottom: 10px;">Pin Message to Chat</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">This will pin the message for everyone in this chat.</p>
+            <button class="pin-duration-btn" data-hours="24" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">24 Hours</button>
+            <button class="pin-duration-btn" data-hours="168" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">7 Days</button>
+            <button class="pin-duration-btn" data-hours="720" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">30 Days</button>
+            <button id="btn-cancel-pin" style="width: 100%; padding: 10px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
+        </div>
+    </div>
+
     <div id="helpModal" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 99999; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
         <div style="background: var(--card-bg, #ffffff); color: var(--text-main, #111827); width: 100%; max-width: 550px; padding: 35px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); border: 1px solid var(--border, #e5e7eb); position: relative; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h3 style="margin: 0; font-size: 22px; font-weight: 700; color: var(--text-main, #111827);">Contact Support</h3>
-                <span id="closeHelpBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted, #6b7280); font-size: 26px;">close</span>
+                <h3 style="margin: 0; font-size: 22px; font-weight: 700;">Contact Support</h3>
+                <span id="closeHelpBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted); font-size: 26px;">close</span>
             </div>
             <form id="helpForm" style="display: flex; flex-direction: column; gap: 15px; margin: 0;">
                 <div>
-                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-muted, #6b7280); margin-bottom: 6px;">Subject</label>
-                    <input type="text" id="helpSubject" required placeholder="What is your issue?" style="width: 100%; padding: 14px; background: var(--app-bg, #f9fafb); color: var(--text-main, #111827); border: 1px solid var(--border, #d1d5db); border-radius: 8px; font-family: inherit; font-size: 15px; box-sizing: border-box; outline: none;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Subject</label>
+                    <input type="text" id="helpSubject" required placeholder="What is your issue?" style="width: 100%; padding: 14px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; outline: none;">
                 </div>
                 <div>
-                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-muted, #6b7280); margin-bottom: 6px;">Details</label>
-                    <textarea id="helpDetails" required placeholder="Describe your problem in detail..." style="width: 100%; padding: 14px; background: var(--app-bg, #f9fafb); color: var(--text-main, #111827); border: 1px solid var(--border, #d1d5db); border-radius: 8px; font-family: inherit; font-size: 15px; min-height: 150px; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Details</label>
+                    <textarea id="helpDetails" required placeholder="Describe your problem in detail..." style="width: 100%; padding: 14px; background: var(--app-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px; min-height: 150px; resize: vertical; outline: none;"></textarea>
                 </div>
                 <div style="display: flex; gap: 12px; margin-top: 10px;">
-                    <button type="button" id="cancelHelpBtn" style="flex: 1; padding: 14px; background: transparent; color: var(--text-muted, #6b7280); border: 1px solid var(--border, #d1d5db); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px;">Cancel</button>
-                    <button type="submit" id="submitHelpBtn" style="flex: 2; padding: 14px; background: var(--primary, #00a884); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px;">Submit Ticket</button>
+                    <button type="button" id="cancelHelpBtn" style="flex: 1; padding: 14px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px;">Cancel</button>
+                    <button type="submit" id="submitHelpBtn" style="flex: 2; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px;">Submit Ticket</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Owner Dashboard Modal -->
     <div id="ownerModal" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 99999; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
         <div style="background: var(--card-bg, #ffffff); color: var(--text-main, #111827); width: 100%; max-width: 900px; height: 85vh; padding: 35px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); border: 1px solid var(--border, #e5e7eb); display: flex; flex-direction: column; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border, #e5e7eb);">
                 <div>
-                    <h3 style="margin: 0; font-size: 22px; font-weight: 700; color: var(--text-main, #111827);">Complaints & Requests</h3>
-                    <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-muted, #6b7280);">Owner View (akshat124.am12@gmail.com)</p>
+                    <h3 style="margin: 0; font-size: 22px; font-weight: 700;">Complaints & Requests</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-muted);">Owner View (akshat124.am12@gmail.com)</p>
                 </div>
-                <span id="closeOwnerBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted, #6b7280); font-size: 28px;">close</span>
+                <span id="closeOwnerBtn" class="material-symbols-rounded" style="cursor: pointer; color: var(--text-muted); font-size: 28px;">close</span>
             </div>
-            <div id="complaintsList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; padding-right: 10px;">
-                <!-- Complaints will be rendered here -->
-            </div>
+            <div id="complaintsList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; padding-right: 10px;"></div>
         </div>
     </div>
 
- <!-- Customisation Modal -->
     <div id="customModal" class="guest-overlay" style="display: none; z-index: 10001;">
         <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px; text-align: left;">
             <h3 style="margin-bottom: 15px; color: var(--text-main);">Customisation</h3>
             <label style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Aksh Chat Nickname</label>
             <input type="text" id="custom-nickname" placeholder="Enter nickname..." style="width: 100%; padding: 12px; margin-bottom: 15px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); outline: none;">
-            
             <label style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Chat Wallpaper URL</label>
             <input type="url" id="custom-wallpaper" placeholder="https://image-url.png" style="width: 100%; padding: 12px; margin-bottom: 20px; background: var(--app-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); outline: none;">
-            
             <button id="btn-save-custom" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; margin-bottom: 10px; cursor: pointer; font-weight: 600;">Save Changes</button>
             <button id="btn-close-custom" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">Cancel</button>
         </div>
     </div>
 
-    <!-- Unblock Modal -->
     <div id="unblockModal" class="guest-overlay" style="display: none; z-index: 10001;">
         <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px; max-height: 70vh; display: flex; flex-direction: column;">
             <h3 style="margin-bottom: 15px; color: var(--text-main);">Blocked Users</h3>
@@ -237,7 +244,6 @@
         </div>
     </div>
 
-    <!-- Delete Chat Modal -->
     <div id="deleteChatModal" class="guest-overlay" style="display: none; z-index: 10001;">
         <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px;">
             <h3 style="margin-bottom: 15px; color: var(--text-main);">Delete Chat</h3>
@@ -246,6 +252,7 @@
             <button id="btn-close-del-chat" style="width: 100%; padding: 12px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">Cancel</button>
         </div>
     </div>
-    
+
+    <script type="module" src="src/app.js"></script>
 </body>
 </html>
