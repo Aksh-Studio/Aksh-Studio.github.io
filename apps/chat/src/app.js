@@ -43,6 +43,7 @@ const listenToCloudRooms = () => {
             
             let isUnread = false;
             let roomLastMsgTime = data.lastMessageTime || 0;
+            const isDeletedForMe = data[`deletedFor_${curId}`] === true;
 
             if (data.lastMessageTime && data.readReceipts && data.lastMessageSenderId !== curId) {
                 const myReceipt = data.readReceipts[curId];
@@ -60,13 +61,13 @@ const listenToCloudRooms = () => {
                 }
                 roomsInfo[roomId].unread = isUnread;
                 roomsInfo[roomId].lastMessageTime = roomLastMsgTime;
+                roomsInfo[roomId].deletedForMe = isDeletedForMe;
             } 
             else if (data.type === 'dm' && Array.isArray(data.participants) && data.participants.includes(curId)) {
                 const otherId = data.participants.find(id => id !== curId);
                 if (!otherId || otherId === curId) return; 
                 
                 const otherNameRaw = data.names?.[otherId] || 'User';
-                // Identify if the target in the DM is the Owner
                 const isTargetOwner = data.emails && data.emails[otherId] === 'akshat124.am12@gmail.com';
 
                 dynamicRooms[roomId] = {
@@ -77,7 +78,8 @@ const listenToCloudRooms = () => {
                     unread: isUnread,
                     isTargetOwner: isTargetOwner,
                     lastMessageTime: roomLastMsgTime,
-                    clearedAt: data[`clearedAt_${curId}`] || 0
+                    clearedAt: data[`clearedAt_${curId}`] || 0,
+                    deletedForMe: isDeletedForMe
                 };
             }
             else if (data.type === 'group' && Array.isArray(data.participants) && data.participants.includes(curId)) {
@@ -88,7 +90,8 @@ const listenToCloudRooms = () => {
                     isImage: !!(data.icon && (data.icon.startsWith('data:image') || data.icon.startsWith('http'))),
                     unread: isUnread,
                     lastMessageTime: roomLastMsgTime,
-                    clearedAt: data[`clearedAt_${curId}`] || 0
+                    clearedAt: data[`clearedAt_${curId}`] || 0,
+                    deletedForMe: isDeletedForMe
                 };
             }
         });
@@ -165,7 +168,8 @@ const initThemeAndListeners = () => {
                 participants: [curId], admins: [curId], 
                 createdBy: curId, createdAt: Date.now(),
                 lastMessageTime: Date.now(),
-                lastMessageSenderId: curId
+                lastMessageSenderId: curId,
+                [`deletedFor_${curId}`]: false
             });
             
             appState.activeChatId = newGroupId;
@@ -197,52 +201,36 @@ const fetchNetworkUsers = async () => {
             if (targetUid === myUid || !rawName) return; 
             
             allNetworkUsers.set(targetUid, {
-                uid: targetUid, 
-                name: rawName,
-                email: safeEmail,
+                uid: targetUid, name: rawName, email: safeEmail,
                 pic: u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`
             });
         });
 
-        // Ensure DMs are synced into network list
         Object.keys(dynamicRooms).forEach(roomId => {
             const room = dynamicRooms[roomId];
             if (room.type === 'dm') {
                 const targetUid = roomId.replace('dm_', '').replace(myUid, '').replace('_', '');
                 if (targetUid && targetUid !== myUid && !allNetworkUsers.has(targetUid)) {
                     allNetworkUsers.set(targetUid, {
-                        uid: targetUid,
-                        name: room.name,
-                        email: '', // fallback
-                        pic: room.icon
+                        uid: targetUid, name: room.name, email: '', pic: room.icon
                     });
                 }
             }
         });
 
-        // Extract owner to force to the top
         const regularUsers = [];
         let ownerUser = null;
-
         Array.from(allNetworkUsers.values()).forEach(user => {
-            if (user.email === 'akshat124.am12@gmail.com') {
-                ownerUser = user;
-            } else {
-                regularUsers.push(user);
-            }
+            if (user.email === 'akshat124.am12@gmail.com') ownerUser = user;
+            else regularUsers.push(user);
         });
 
-        // Sort alphabetically
         regularUsers.sort((a, b) => a.name.localeCompare(b.name));
-        
-        // Push Owner to the top
         const sortedUsers = ownerUser ? [ownerUser, ...regularUsers] : regularUsers;
 
         sortedUsers.forEach(user => {
             const item = document.createElement('div');
             item.className = 'user-item';
-            
-            // Render the (Owner) tag dynamically
             const isOwnerTag = user.email === 'akshat124.am12@gmail.com' ? ' <span style="color:var(--primary); font-size:11px; font-weight:700; margin-left: 5px;">(Owner)</span>' : '';
 
             item.innerHTML = `
@@ -260,8 +248,9 @@ const fetchNetworkUsers = async () => {
                 try {
                     await setDoc(doc(db, "chats", deterministicId), {
                         type: 'dm', participants: [myUid, user.uid],
+                        [`deletedFor_${myUid}`]: false, // Fix: Un-delete it if they search for it again
                         names: { [myUid]: currentUser.name, [user.uid]: user.name },
-                        emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, // Safe Email saving
+                        emails: { [myUid]: String(currentUser.email).toLowerCase(), [user.uid]: user.email }, 
                         avatars: { [myUid]: myPic, [user.uid]: user.pic }
                     }, { merge: true });
                 } catch(e) {}
@@ -278,9 +267,7 @@ const fetchNetworkUsers = async () => {
             listContainer.appendChild(item);
         });
         
-        if (sortedUsers.length === 0) {
-            listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
-        }
+        if (sortedUsers.length === 0) listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No network users found.</p>';
     } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
@@ -302,6 +289,9 @@ export const renderSidebarList = () => {
         const room = combinedRooms[id];
         let displayQualifies = false;
 
+        // Hide chat if deleted for me
+        if (room.deletedForMe) return;
+
         if (room.type === 'dm') {
             const roomNameLower = String(room.name).toLowerCase().trim();
             if (roomNameLower === myName || room.name === currentUser.email?.split('@')[0]) return;
@@ -320,8 +310,6 @@ export const renderSidebarList = () => {
             
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
-            
-            // Add Owner Tag for side-bar chats
             const ownerBadge = room.isTargetOwner ? ' <span style="color:var(--primary); font-size:10px; font-weight:700; margin-left:5px;">(Owner)</span>' : '';
 
             if (room.isImage) {
@@ -349,8 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
             listenToCloudRooms(); 
             initHelpEngine(currentUser);
             initGlobalSettings(currentUser);
-            initGroupEngine();
-            initMediaEngine();
             
             const curId = currentUser.id || currentUser.uid;
             if (curId) {
