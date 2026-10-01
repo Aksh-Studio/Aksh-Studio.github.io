@@ -1,7 +1,33 @@
 // src/firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp, doc, updateDoc, deleteDoc, getDoc, getDocs, setDoc, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    query, 
+    orderBy, 
+    limit, 
+    serverTimestamp, 
+    Timestamp, 
+    doc, 
+    updateDoc, 
+    deleteDoc, 
+    getDoc, 
+    getDocs, 
+    setDoc, 
+    where,
+    arrayUnion,
+    arrayRemove,
+    writeBatch
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { 
+    getAuth, 
+    GoogleAuthProvider, 
+    signInWithPopup, 
+    signOut, 
+    onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
@@ -12,8 +38,35 @@ const firebaseConfig = {
     appId: "1:349325785973:web:86d5a15bcb700bfc15b13c"
 };
 
-export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-export { auth, provider, db, collection, getDocs, addDoc, onSnapshot, query, orderBy, limit, where, setDoc, doc, getDoc, updateDoc, deleteDoc, signInWithPopup, signOut, onAuthStateChanged, Timestamp, arrayUnion, arrayRemove, writeBatch };
+export { 
+    app,
+    db, 
+    auth, 
+    provider, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    query, 
+    orderBy, 
+    limit, 
+    where, 
+    setDoc, 
+    doc, 
+    getDoc, 
+    getDocs, 
+    updateDoc, 
+    deleteDoc, 
+    signInWithPopup, 
+    signOut, 
+    onAuthStateChanged, 
+    serverTimestamp,
+    Timestamp, 
+    arrayUnion, 
+    arrayRemove, 
+    writeBatch 
+};
