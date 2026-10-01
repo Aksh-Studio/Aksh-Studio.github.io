@@ -1,8 +1,9 @@
-// src/app.js
 import { db, collection, getDocs, onSnapshot, query, where, setDoc, doc, deleteDoc } from './firebase.js';
 import { initAuth, currentUser } from './auth.js';
 import { switchChatRoom, leaveChatRoom } from './chatEngine.js';
 import { initHelpEngine } from './help/helpEngine.js';
+// NEW: Import the Advanced Engine
+import { initGlobalSettings, initChatOptions } from './advancedEngine.js';
 
 export const appState = { activeChatId: null, activeTab: 'all', isMobileChatOpen: false };
 
@@ -14,6 +15,7 @@ export const roomsInfo = {
 export let dynamicRooms = {}; 
 window.getAvailableRooms = () => { return { ...roomsInfo, ...dynamicRooms }; }; 
 
+// Block call UI via CSS injection
 const style = document.createElement('style');
 style.innerHTML = `#rail-calls, #btn-start-audio-call, #btn-start-video-call { display: none !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; }`;
 document.head.appendChild(style);
@@ -22,6 +24,7 @@ const listenToCloudRooms = () => {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
+    // Ensure user identity exists in Firestore
     setDoc(doc(db, "users", curId), {
         email: currentUser.email,
         fullName: currentUser.name,
@@ -68,7 +71,8 @@ const listenToCloudRooms = () => {
                     type: 'dm',
                     isImage: true,
                     unread: isUnread,
-                    lastMessageTime: roomLastMsgTime
+                    lastMessageTime: roomLastMsgTime,
+                    clearedAt: data[`clearedAt_${curId}`] || 0 // NEW: Track clear status
                 };
             }
             else if (data.type === 'group' && data.participants?.includes(curId)) {
@@ -78,7 +82,8 @@ const listenToCloudRooms = () => {
                     type: 'group',
                     isImage: !!(data.icon && (data.icon.startsWith('data:image') || data.icon.startsWith('http'))),
                     unread: isUnread,
-                    lastMessageTime: roomLastMsgTime
+                    lastMessageTime: roomLastMsgTime,
+                    clearedAt: data[`clearedAt_${curId}`] || 0 // NEW: Track clear status
                 };
             }
         });
@@ -86,7 +91,7 @@ const listenToCloudRooms = () => {
     });
 };
 
-const initSettingsAndTheme = () => {
+const initThemeAndListeners = () => {
     const themeBtn = document.getElementById('theme-btn');
     if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-theme');
     if (themeBtn) {
@@ -98,37 +103,7 @@ const initSettingsAndTheme = () => {
         });
     }
 
-    const savedWallpaper = localStorage.getItem('chat_wallpaper');
-    if (savedWallpaper) {
-        const bgStyle = document.createElement('style');
-        bgStyle.innerHTML = `
-            .chat-main::before { display: none !important; }
-            #chat-main-panel { background-image: url("${savedWallpaper}") !important; background-size: cover !important; background-position: center !important; }
-        `;
-        document.head.appendChild(bgStyle);
-    }
-
-    document.getElementById('btn-settings')?.addEventListener('click', () => {
-        const hasWallpaper = !!localStorage.getItem('chat_wallpaper');
-        let optionsMsg = "Settings Menu:\n\nEnter a direct image URL to set a new chat background.";
-        if (hasWallpaper) optionsMsg += "\n\nType the word 'REMOVE' in the box below to wipe out your custom wallpaper.";
-        
-        const userInput = prompt(optionsMsg);
-        if (userInput === null) return; 
-        
-        if (userInput.trim().toUpperCase() === 'REMOVE') {
-            localStorage.removeItem('chat_wallpaper');
-            window.location.reload();
-        } else if (userInput.trim() !== '') {
-            localStorage.setItem('chat_wallpaper', userInput.trim());
-            window.location.reload();
-        }
-    });
-};
-
-const initNavigation = () => {
     const searchInput = document.getElementById('chat-search');
-    
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase().trim();
@@ -189,7 +164,9 @@ const initNavigation = () => {
             appState.activeChatId = newGroupId;
             switchChatRoom(newGroupId, groupName, 'groups', 'group');
             alert("Group created! Click the Gear icon to upload a logo and add members.");
-        } catch(e) {}
+        } catch(e) {
+            console.error("Group creation failed:", e);
+        }
     });
 };
 
@@ -218,20 +195,6 @@ const fetchNetworkUsers = async () => {
                 name: rawName,
                 pic: u.customProfilePic || u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=00a884&color=fff`
             });
-        });
-
-        Object.keys(dynamicRooms).forEach(roomId => {
-            const room = dynamicRooms[roomId];
-            if (room.type === 'dm') {
-                const targetUid = roomId.replace('dm_', '').replace(myUid, '').replace('_', '');
-                if (targetUid && targetUid !== myUid && !allNetworkUsers.has(targetUid)) {
-                    allNetworkUsers.set(targetUid, {
-                        uid: targetUid,
-                        name: room.name,
-                        pic: room.icon
-                    });
-                }
-            }
         });
 
         const sortedUsers = Array.from(allNetworkUsers.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -277,34 +240,6 @@ const fetchNetworkUsers = async () => {
     } catch (e) { listContainer.innerHTML = '<p style="text-align: center; color: red;">Network Directory Error.</p>'; }
 };
 
-window.deleteSidebarChat = async (roomId) => {
-    if (confirm("Permanently delete this chat history for everyone?")) {
-        try {
-            // --- THE DEEP DELETE FIX ---
-            // Destroys all orphaned messages in the sub-folder first
-            const msgsSnap = await getDocs(collection(db, `chats/${roomId}/messages`));
-            const deletePromises = [];
-            msgsSnap.forEach(d => deletePromises.push(deleteDoc(doc(db, `chats/${roomId}/messages`, d.id))));
-            await Promise.all(deletePromises);
-
-            // Now safely delete the parent group
-            await deleteDoc(doc(db, "chats", roomId));
-            
-            if (appState.activeChatId === roomId) {
-                appState.activeChatId = null;
-                document.getElementById('chat-messages-container').innerHTML = '';
-                document.getElementById('active-room-name').innerText = 'Select a chat';
-                const iconBox = document.getElementById('active-room-icon-box');
-                if (iconBox) {
-                    iconBox.style.background = '#dfe5e7';
-                    iconBox.innerHTML = `<span class="material-symbols-rounded">chat</span>`;
-                }
-                leaveChatRoom();
-            }
-        } catch(e) { alert("Delete failed. Check permissions."); }
-    }
-};
-
 export const renderSidebarList = () => {
     const listContainer = document.getElementById('dynamic-user-list');
     if (!listContainer) return;
@@ -339,12 +274,6 @@ export const renderSidebarList = () => {
             item.id = `btn-room-${id}`;
             item.style.position = 'relative'; 
             
-            const deleteActionHTML = room.type === 'dm' ? `
-                <div class="chat-menu-trigger" onclick="event.stopPropagation(); window.deleteSidebarChat('${id}')" style="position: absolute; right: 15px; top: 15px; color: var(--text-muted); display: none; z-index: 10;" title="Delete Chat">
-                    <span class="material-symbols-rounded">keyboard_arrow_down</span>
-                </div>
-            ` : '';
-
             const nameStyle = room.unread ? 'font-weight: 700; color: var(--primary);' : 'color: var(--text-main);';
             const badgeHTML = room.unread ? `<div style="width: 10px; height: 10px; background: var(--primary); border-radius: 50%; position: absolute; right: 15px; top: 50%; transform: translateY(-50%);"></div>` : '';
 
@@ -353,7 +282,6 @@ export const renderSidebarList = () => {
                     <img src="${room.icon}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=00a884&color=fff'">
                     <div class="user-info"><h4 style="${nameStyle}">${room.name}</h4><p>${room.type === 'dm' ? 'Direct Message' : 'Group Chat'}</p></div>
                     ${badgeHTML}
-                    ${deleteActionHTML}
                 `;
             } else {
                 item.innerHTML = `
@@ -363,9 +291,6 @@ export const renderSidebarList = () => {
                 `;
             }
 
-            item.addEventListener('mouseenter', () => { const trigger = item.querySelector('.chat-menu-trigger'); if(trigger) trigger.style.display = 'block'; });
-            item.addEventListener('mouseleave', () => { const trigger = item.querySelector('.chat-menu-trigger'); if(trigger) trigger.style.display = 'none'; });
-
             item.addEventListener('click', () => {
                 document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
@@ -373,6 +298,8 @@ export const renderSidebarList = () => {
                 appState.isMobileChatOpen = true;
                 document.getElementById('main-layout').classList.add('mobile-chat-active');
                 
+                // Initialize the 3-Dot menu options for the newly opened chat
+                initChatOptions(currentUser, id, room);
                 switchChatRoom(id, room.name, room.icon, room.type);
             });
             listContainer.appendChild(item);
@@ -384,13 +311,21 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuth(() => {
         if (currentUser) {
             listenToCloudRooms(); 
-            
-            // --- INITIALIZE HELP & OWNER ENGINE HERE ---
             initHelpEngine(currentUser);
+            
+            // NEW: Initialize Advanced Features Engine (Profile/Settings Modals)
+            initGlobalSettings(currentUser);
+            
+            // Fetch Custom Wallpaper if exists
+            getDoc(doc(db, "users", currentUser.uid)).then(uDoc => {
+                if(uDoc.exists() && uDoc.data().wallpaper) {
+                    document.querySelector('.chat-main').style.backgroundImage = `url(${uDoc.data().wallpaper})`;
+                    document.querySelector('.chat-main').style.backgroundSize = "cover";
+                }
+            }).catch(()=>{});
         }
         
-        initSettingsAndTheme();
-        initNavigation();
+        initThemeAndListeners();
         renderSidebarList();
         
         setTimeout(() => {
