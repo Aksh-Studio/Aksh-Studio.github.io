@@ -3,11 +3,14 @@ import { decryptMessage } from "./siteCipher.js";
 
 const ownerEmail = 'akshat124.am12@gmail.com';
 
+// ==========================================
+// 1. GLOBAL LAYOUT & SETTINGS LOGIC
+// ==========================================
 export function initGlobalSettings(currentUser) {
     const curId = currentUser?.id || currentUser?.uid;
     if (!curId) return;
 
-    // 1. Profile Dropdown Click Toggle
+    // 1A. Clickable Profile Dropdown
     const profilePic = document.getElementById('nav-profile-pic');
     const profileDropdown = document.getElementById('profile-dropdown-menu');
     const settingsToggle = document.getElementById('btn-settings-toggle');
@@ -38,7 +41,7 @@ export function initGlobalSettings(currentUser) {
         if (chatMenu) chatMenu.style.display = 'none';
     });
 
-    // 2. Customisation Modal
+    // 1B. Customisation Modal
     const customModal = document.getElementById('customModal');
     const btnOpenCustom = document.getElementById('btn-open-customisation');
     if (btnOpenCustom) {
@@ -81,7 +84,7 @@ export function initGlobalSettings(currentUser) {
     const btnCloseCustom = document.getElementById('btn-close-custom');
     if (btnCloseCustom) btnCloseCustom.onclick = () => { if (customModal) customModal.style.display = 'none'; };
 
-    // 3. Unblock Users Modal
+    // 1C. Unblock Users Modal
     const unblockModal = document.getElementById('unblockModal');
     const btnOpenUnblock = document.getElementById('btn-open-unblock');
     
@@ -127,6 +130,10 @@ export function initGlobalSettings(currentUser) {
     if (btnCloseUnblock) btnCloseUnblock.onclick = () => { if (unblockModal) unblockModal.style.display = 'none'; };
 }
 
+
+// ==========================================
+// 2. ACTIVE CHAT LOGIC (3-Dot Menu)
+// ==========================================
 export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const curId = currentUser?.id || currentUser?.uid;
     if (!activeChatId || !activeChatData || !curId) return;
@@ -138,24 +145,18 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     
     let targetUid = null;
     let targetName = 'Unknown User';
-    let isTargetOwner = false;
+    let isTargetOwner = window.isTargetOwner || false; 
     
     if (!isGroup) {
         const safeParticipants = Array.isArray(activeChatData.participants) ? activeChatData.participants : [];
         targetUid = safeParticipants.find(id => id !== curId);
         
-        if (targetUid) {
-            if (activeChatData.names && activeChatData.names[targetUid]) {
-                targetName = activeChatData.names[targetUid];
-            }
-            if (activeChatData.emails && String(activeChatData.emails[targetUid]).toLowerCase().trim() === ownerEmail) {
-                isTargetOwner = true;
-            }
+        if (targetUid && activeChatData.names && activeChatData.names[targetUid]) {
+            targetName = activeChatData.names[targetUid];
         }
     }
 
     if (optionsBtn) {
-        // Show 3 dots for any active chat
         optionsBtn.style.display = 'block';
         optionsBtn.onclick = (e) => {
             e.stopPropagation();
@@ -165,11 +166,15 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
     
-    // Hide Report & Block if target is the Owner or if inside a Group
-    const hideHarshOptions = isGroup || isTargetOwner || isCurrentOwner;
+    // Hide Report & Block for Groups. ALSO hide if the target is the Owner and the person looking is NOT the owner.
+    // The Owner should always see the buttons so they can enforce them.
+    let hideHarshOptions = isGroup; 
+    if (!isCurrentOwner && isTargetOwner) {
+        hideHarshOptions = true; // Normal users cannot report/block the owner
+    }
+
     const reportBtn = document.getElementById('btn-opt-report');
     const blockBtn = document.getElementById('btn-opt-block');
-    
     if (reportBtn) reportBtn.style.display = hideHarshOptions ? 'none' : 'block';
     if (blockBtn) blockBtn.style.display = hideHarshOptions ? 'none' : 'block';
 
@@ -203,7 +208,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 2. Report User (Submits 10-message evidence to help_complaints)
+    // 2. Report User (Submits 10-message evidence)
     if (reportBtn) {
         reportBtn.onclick = async () => {
             if (!targetUid) return;
@@ -236,7 +241,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 3. Block User (WhatsApp Style)
+    // 3. Block User (Mutual Enforced in App.js)
     if (blockBtn) {
         blockBtn.onclick = async () => {
             if (!targetUid) return;
@@ -249,7 +254,7 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 4. Clear Chat (Updates clearedAt metadata)
+    // 4. Clear Chat
     const clearBtn = document.getElementById('btn-opt-clear');
     if (clearBtn) {
         clearBtn.onclick = async () => {
@@ -262,13 +267,24 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
         };
     }
 
-    // 5. Delete Chat (Delete for Me vs. Delete for Both)
+    // 5. Delete Chat (Delete for Me vs. Delete for Both logic is in chatEngine.js)
     const delModal = document.getElementById('deleteChatModal');
     const deleteBtn = document.getElementById('btn-opt-delete');
     if (deleteBtn) {
         deleteBtn.onclick = () => {
             if (delModal) delModal.style.display = 'flex';
             if (optionsMenu) optionsMenu.style.display = 'none';
+            
+            // Re-enforce "Delete for Everyone" restrictions
+            const btnEveryone = document.getElementById('btn-del-chat-both');
+            let canDeleteEveryone = false;
+            if (isGroup) {
+                const isAdmin = Array.isArray(activeChatData.admins) && activeChatData.admins.includes(curId);
+                canDeleteEveryone = isCurrentOwner || isAdmin;
+            } else {
+                canDeleteEveryone = isCurrentOwner; // In DMs, only App Owner can delete the entire doc.
+            }
+            if (btnEveryone) btnEveryone.style.display = canDeleteEveryone ? 'block' : 'none';
         };
     }
     
@@ -288,10 +304,6 @@ export function initChatOptions(currentUser, activeChatId, activeChatData) {
     const delBoth = document.getElementById('btn-del-chat-both');
     if (delBoth) {
         delBoth.onclick = async () => {
-            if (!isCurrentOwner && !activeChatData.admins?.includes(curId) && activeChatData.type === 'group') {
-                alert("Only group admins can delete chats for everyone.");
-                return;
-            }
             if (!confirm("Permanently delete this chat and all messages for everyone?")) return;
             delBoth.textContent = "Deleting...";
             try {
