@@ -17,6 +17,7 @@ export const initGroupEngine = () => {
             document.getElementById('info-room-name').innerText = roomName;
             document.getElementById('info-avatar-icon').innerText = roomIcon;
             
+            populateContactInfoPanel();
             infoPanel.style.display = 'flex';
         });
     }
@@ -28,12 +29,55 @@ export const initGroupEngine = () => {
     }
 };
 
+const populateContactInfoPanel = async () => {
+    const membersListEl = document.getElementById('group-members-list');
+    if (!membersListEl) return;
+    membersListEl.innerHTML = '<p style="color:var(--text-muted); font-size:13px; text-align:center;">Loading participants...</p>';
+
+    const currentRoomData = window.currentRoomData;
+    const curId = currentUser?.id || currentUser?.uid;
+    const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === ownerEmail;
+    const isAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(curId);
+    const canKick = isOwner || isAdmin;
+
+    const safeParticipants = Array.isArray(currentRoomData?.participants) ? currentRoomData.participants : [];
+
+    if (safeParticipants.length === 0) {
+        membersListEl.innerHTML = '<p style="color:var(--text-muted); font-size:13px; text-align:center;">Direct Chat</p>';
+        return;
+    }
+
+    membersListEl.innerHTML = '';
+    for (const uid of safeParticipants) {
+        try {
+            const userDoc = await getDoc(doc(db, "users", uid));
+            const u = userDoc.exists() ? userDoc.data() : {};
+            const name = u.fullName || u.name || 'User';
+            const isMemAdmin = Array.isArray(currentRoomData?.admins) && currentRoomData.admins.includes(uid);
+            
+            const kickBtn = (uid !== curId && canKick && currentRoomData?.type === 'group') 
+                ? `<button onclick="window.removeGroupMember('${uid}')" style="background: #ea0038; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">Remove</button>` 
+                : '';
+
+            membersListEl.innerHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border);">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 14px; font-weight: 600; color: var(--text-main);">${name}</span>
+                        <span style="font-size: 11px; color: var(--primary);">${isMemAdmin ? 'Admin' : 'Member'}</span>
+                    </div>
+                    ${kickBtn}
+                </div>
+            `;
+        } catch(e) {}
+    }
+};
+
 export const injectGroupAdminModal = () => {
     if (document.getElementById('group-admin-modal')) return;
     const modalHTML = `
         <div id="group-admin-modal" class="guest-overlay" style="display: none; z-index: 10002;">
             <div class="guest-modal" style="padding: 25px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto;">
-                <h3 style="margin-bottom: 15px; color: var(--primary);">Group Information</h3>
+                <h3 style="margin-bottom: 15px; color: var(--primary);">Group Settings</h3>
                 <div id="group-edit-section">
                     <input type="text" id="edit-group-name" placeholder="Group Name" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main);">
                     <input type="text" id="edit-group-icon" placeholder="Or paste Logo URL here..." style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main);">
@@ -66,7 +110,10 @@ export const injectGroupAdminModal = () => {
     `;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-    document.getElementById('btn-cancel-group').addEventListener('click', () => { document.getElementById('group-admin-modal').style.display = 'none'; uploadedGroupIconBase64 = null; });
+    document.getElementById('btn-cancel-group').addEventListener('click', () => { 
+        document.getElementById('group-admin-modal').style.display = 'none'; 
+        uploadedGroupIconBase64 = null; 
+    });
 
     document.getElementById('btn-upload-group-icon').addEventListener('click', () => document.getElementById('hidden-group-icon-input').click());
     document.getElementById('hidden-group-icon-input').addEventListener('change', (e) => {
@@ -107,8 +154,12 @@ export const injectGroupAdminModal = () => {
         if (newAdminId) updates.admins = [newAdminId]; 
         
         if (Object.keys(updates).length > 0) {
-            try { await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true }); alert("Group settings saved."); } 
-            catch(e) { alert("Error saving settings."); }
+            try { 
+                await setDoc(doc(db, "chats", currentRoomId), updates, { merge: true }); 
+                alert("Group settings saved."); 
+            } catch(e) { 
+                alert("Error saving settings."); 
+            }
         }
         document.getElementById('group-admin-modal').style.display = 'none';
         uploadedGroupIconBase64 = null;
@@ -118,7 +169,7 @@ export const injectGroupAdminModal = () => {
         const currentRoomId = window.appState?.activeChatId;
         if (!currentRoomId) return;
 
-        if (confirm("WARNING: This will permanently destroy this group and all messages for everyone. Proceed?")) {
+        if (confirm("WARNING: This will permanently delete this group and all messages. Proceed?")) {
             try {
                 const msgsSnap = await getDocs(collection(db, `chats/${currentRoomId}/messages`));
                 const deletePromises = [];
@@ -147,7 +198,7 @@ export const populateGroupManagement = async (participants, admins) => {
     searchInput.value = '';
 
     const curId = currentUser?.id || currentUser?.uid;
-    const isOwner = String(currentUser?.email || '').toLowerCase().trim() === ownerEmail;
+    const isOwner = currentUser?.isOwner || String(currentUser?.email || '').toLowerCase().trim() === ownerEmail;
     const isAdmin = Array.isArray(admins) && admins.includes(curId);
     const canEdit = isOwner || isAdmin;
 
@@ -188,7 +239,7 @@ export const populateGroupManagement = async (participants, admins) => {
             allUsers.push({ id: d.id, name: safeName, email: safeEmail, searchStr: searchStr });
         });
         allUsers.sort((a, b) => a.name.localeCompare(b.name));
-    } catch(e) { console.error(e); }
+    } catch(e) {}
 
     const renderSearch = (term = '') => {
         searchResults.style.display = 'block';
@@ -250,9 +301,9 @@ window.removeGroupMember = async (uidToRemove) => {
     const activeChatId = window.appState?.activeChatId;
     const activeChatData = window.currentRoomData;
     const curId = window.currentUserAuth?.id || window.currentUserAuth?.uid;
-    const isOwner = window.currentUserAuth?.email === ownerEmail;
+    const isOwner = window.currentUserAuth?.isOwner || window.currentUserAuth?.email === ownerEmail;
     
-    if(!activeChatId || !activeChatData || !curId) return;
+    if (!activeChatId || !activeChatData || !curId) return;
 
     const isAdmin = activeChatData.admins?.includes(curId);
 
