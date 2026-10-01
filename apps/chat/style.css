@@ -4,7 +4,7 @@
    1. GLOBAL VARIABLES & THEMES (Authentic WhatsApp Palette)
    ========================================================================== */
 :root {
-    --primary: #00a884; /* Authentic WhatsApp Green */
+    --primary: #00a884;
     --primary-hover: #008f6f;
     --app-bg: #eae6df;
     --card-bg: #ffffff;
@@ -74,7 +74,7 @@ html, body {
 .dropdown-content { display: none; position: absolute; right: 0; top: 45px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-modal); width: 250px; padding: 16px; z-index: 1000; }
 
 /* ==========================================================================
-   4. PHASE 2: MASTER GRID & NAVIGATION ENGINE
+   4. MASTER GRID & NAVIGATION ENGINE
    ========================================================================== */
 .app-layout { display: flex; flex: 1; overflow: hidden; background: var(--app-bg); width: 100%; }
 
@@ -111,7 +111,7 @@ body.dark-theme .global-icon-box { background: #667781; }
 .user-info p { font-size: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ==========================================================================
-   5. PHASE 3: CORE MESSAGING WINDOW & STATUS TICKS (REPAIRED)
+   5. CORE MESSAGING WINDOW & STATUS TICKS
    ========================================================================== */
 .chat-main { 
     flex: 1; 
@@ -120,14 +120,12 @@ body.dark-theme .global-icon-box { background: #667781; }
     background: var(--chat-bg); 
     position: relative; 
     height: 100%; 
-    overflow: hidden; /* Prevents the whole page from scrolling */
+    overflow: hidden; 
 }
 
-/* Background Pattern */
 .chat-main::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.4; z-index: 0; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-repeat: repeat; pointer-events: none; }
 body.dark-theme .chat-main::before { opacity: 0.05; filter: invert(1); }
 
-/* Strict Header Sizing */
 .chat-header { 
     padding: 10px 20px; 
     background: var(--card-bg); 
@@ -136,22 +134,20 @@ body.dark-theme .chat-main::before { opacity: 0.05; filter: invert(1); }
     align-items: center; 
     gap: 15px; 
     z-index: 2; 
-    min-height: 65px; /* Forced height */
-    flex-shrink: 0;   /* Prevents crushing */
+    min-height: 65px; 
+    flex-shrink: 0;   
 }
 
-/* Message Scroll Area */
-.chat-messages { 
-    flex: 1;          /* Takes up all remaining middle space */
+#chat-messages-container { 
+    flex: 1; 
     padding: 20px 5%; 
-    overflow-y: auto; /* Enables scrolling for messages only */
+    overflow-y: auto; 
     display: flex; 
     flex-direction: column; 
     z-index: 1; 
     position: relative; 
 }
 
-/* Strict Input Area Sizing */
 .chat-input-area { 
     padding: 10px 20px; 
     background: var(--card-bg); 
@@ -159,9 +155,10 @@ body.dark-theme .chat-main::before { opacity: 0.05; filter: invert(1); }
     gap: 10px; 
     align-items: center; 
     z-index: 2; 
-    min-height: 65px; /* Forced height */
-    flex-shrink: 0;   /* Prevents crushing */
+    min-height: 65px; 
+    flex-shrink: 0;   
     border-top: 1px solid var(--border);
+    margin-top: auto; 
 }
 
 .chat-input-area input[type="text"] { flex: 1; padding: 12px 20px; border-radius: 8px; border: none; background: var(--app-bg); color: var(--text-main); font-size: 15px; outline: none; }
@@ -189,29 +186,21 @@ body.dark-theme .msg-me { background: #005c4b; color: #e9edef; }
 body.dark-theme .msg-other { background: #202c33; color: #e9edef; }
 .msg-other.grouped { border-radius: 8px; }
 
-/* Sender Name */
 .msg-sender-name { font-size: 13px; font-weight: 500; color: #ea0038; margin-bottom: 2px; cursor: pointer; display: block; }
-
-/* Meta Data & Ticks */
 .msg-meta { float: right; display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); margin-left: 10px; margin-top: 5px; height: 15px; }
 .tick-icon { font-size: 16px; line-height: 1; }
-.tick-sent { color: #8696a0; }
-.tick-read { color: #53bdeb; }
 
 /* ==========================================================================
-   6. PHASE 4: ADVANCED CONTROLS (Hover Menus, Selection, Forward/Delete)
+   6. ADVANCED CONTROLS
    ========================================================================== */
-/* The 'v' Dropdown Trigger */
 .msg-action-trigger { position: absolute; top: 0; right: 0; width: 30px; height: 30px; background: inherit; border-radius: 0 8px 0 8px; display: none; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; z-index: 5; background: linear-gradient(90deg, transparent, inherit 40%); }
 .msg-bubble:hover .msg-action-trigger { display: flex; }
 
-/* The Action Menu Popup */
 .msg-action-menu { position: absolute; top: 25px; right: 10px; background: var(--card-bg); border: 1px solid var(--border); box-shadow: var(--shadow-modal); border-radius: 8px; padding: 5px 0; z-index: 100; min-width: 150px; display: none; flex-direction: column; }
 .msg-action-menu.active { display: flex; }
 .msg-action-btn { background: transparent; border: none; width: 100%; text-align: left; padding: 10px 15px; font-size: 14px; color: var(--text-main); cursor: pointer; transition: 0.1s; }
 .msg-action-btn:hover { background: var(--app-bg); }
 
-/* Selection Mode (For Forwarding and Deleting) */
 .msg-checkbox { display: none; width: 20px; height: 20px; margin-right: 15px; accent-color: var(--primary); cursor: pointer; }
 .selection-mode .msg-checkbox { display: block; }
 .selection-mode .msg-container { flex-direction: row; align-items: center; }
@@ -219,42 +208,25 @@ body.dark-theme .msg-other { background: #202c33; color: #e9edef; }
 .selection-mode .msg-container.other { justify-content: flex-start; }
 .selection-mode .msg-checkbox-wrapper { display: flex; align-items: center; }
 
-/* Quoted Reply Block */
 .quoted-reply { background: rgba(0,0,0,0.05); border-left: 4px solid var(--primary); padding: 5px 10px; border-radius: 4px; margin-bottom: 5px; font-size: 13px; cursor: pointer; }
 body.dark-theme .quoted-reply { background: rgba(255,255,255,0.05); }
 .quoted-name { color: var(--primary); font-weight: 600; margin-bottom: 2px; }
 .quoted-text { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ==========================================================================
-   7. PHASE 5: GROUP ENGINE & SUPER ADMIN STYLING
+   7. GROUP ENGINE
    ========================================================================== */
 .info-sidebar { z-index: 10; box-shadow: -2px 0 5px rgba(0,0,0,0.05); transition: 0.3s transform ease; }
-.info-member-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--app-bg); cursor: pointer; }
-.info-member-item:hover { background: var(--app-bg); }
-
-/* SUPER ADMIN: Center Aligned System Messages */
 .msg-container.admin { align-items: center !important; }
 .msg-admin { background: var(--sys-msg-bg); color: var(--sys-msg-text); border-radius: 8px; text-align: center; border: 1px solid var(--primary); box-shadow: 0 0 10px rgba(0, 168, 132, 0.2); }
 body.dark-theme .msg-admin { background: #182229; color: #00a884; }
 
 /* ==========================================================================
-   8. PHASE 6: WEBRTC CALLING OVERLAY
-   ========================================================================== */
-#call-overlay { backdrop-filter: blur(10px); }
-.pulse-animation { animation: pulse 1.5s infinite; }
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(0, 168, 132, 0.4); }
-    70% { box-shadow: 0 0 0 20px rgba(0, 168, 132, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 168, 132, 0); }
-}
-
-/* ==========================================================================
-   9. GUEST LOCK & ENHANCED MOBILE RESPONSIVENESS
+   8. GUEST LOCK & ENHANCED MOBILE RESPONSIVENESS
    ========================================================================== */
 .guest-blur { filter: blur(8px); pointer-events: none; user-select: none; }
 .guest-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px); }
 
-/* Added max-height and overflow-y to prevent modals from breaking on small phones */
 .guest-modal { background: var(--card-bg); padding: 35px 30px; border-radius: 16px; text-align: center; max-width: 400px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-modal); border: 1px solid var(--border); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
 @keyframes popIn {
@@ -265,33 +237,40 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
 .mobile-back-btn { display: none; background: transparent; border: none; color: var(--text-main); cursor: pointer; padding: 5px; margin-right: 5px; border-radius: 50%; }
 .mobile-back-btn:active { background: rgba(0,0,0,0.1); }
 
-/* --- MOBILE BREAKPOINTS --- */
+/* --- THE MOBILE BREAKPOINTS --- */
 @media screen and (max-width: 900px) {
-    /* Core Layout Swapping */
+    /* Side rail totally hidden */
     .side-rail { display: none !important; }
+    
+    /* Layout toggles between sidebar and chat window */
     .chat-sidebar { width: 100%; border-right: none; }
     .chat-main { display: none; width: 100%; }
-    .info-sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 100% !important; border-left: none; z-index: 100; }
-    .mobile-back-btn { display: flex; align-items: center; justify-content: center; }
     
-    .app-layout.mobile-chat-active .chat-sidebar { display: none; }
-    .app-layout.mobile-chat-active .chat-main { display: flex; }
+    /* When a chat is opened, hide sidebar and show chat main */
+    .app-layout.mobile-chat-active .chat-sidebar { display: none !important; }
+    .app-layout.mobile-chat-active .chat-main { display: flex !important; }
+    
+    /* Group Info Panel Full Screen overlay */
+    .info-sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 100% !important; border-left: none; z-index: 100; }
+    
+    /* Reveal the back button */
+    .mobile-back-btn { display: flex; align-items: center; justify-content: center; }
 
     /* Top Nav Compression */
     .top-nav { padding: 10px 15px; }
     .nav-right { gap: 8px; }
     .btn-outline { padding: 6px 10px; font-size: 12px; }
     
-    /* Chat Header Compression (Prevents overlapping buttons) */
+    /* Chat Header Compression */
     .chat-header { padding: 8px 15px; gap: 10px; }
     #header-room-info { overflow: hidden; }
     #active-room-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px !important; }
     #active-room-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     
-    /* Touch Device Fixes for Chat Bubbles */
-    .msg-bubble { max-width: 85%; } /* Bubbles take more space on small screens */
+    /* Touch Device Fixes */
+    .msg-bubble { max-width: 85%; } 
     
-    /* Force message action menu trigger to be visible since touch devices lack hover */
+    /* Touch devices lack hover, force trigger visibility */
     .msg-action-trigger { 
         display: flex !important; 
         opacity: 0.6; 
@@ -305,37 +284,17 @@ body.dark-theme .msg-admin { background: #182229; color: #00a884; }
     .msg-action-trigger:active { opacity: 1; background: var(--app-bg); }
     .msg-action-trigger span { font-size: 18px !important; }
     
-    /* Input Area Adjustments */
+    /* Input Area */
     .chat-input-area { padding: 8px 12px; gap: 6px; }
     .chat-input-area input[type="text"] { padding: 10px 15px; font-size: 14px; }
     .btn-send { width: 38px; height: 38px; }
     
-    /* Dropdown Adjustments */
+    /* Dropdown */
     #chat-options-menu { right: 10px; top: 50px; }
 }
 
 @media screen and (max-width: 400px) {
-    /* Extra Small Screen Fixes */
     .brand-title { font-size: 16px; }
     .brand-title img { width: 24px !important; height: 24px !important; }
     .guest-modal { padding: 20px 15px; }
-}
-
-/* --- FULL SCREEN CHAT UI FIX --- */
-.chat-main {
-    display: flex;
-    flex-direction: column;
-    height: 100%; /* Fills the calc(100vh - 60px) of main-layout */
-}
-
-#chat-messages-container {
-    flex: 1; /* Forces this container to take up all available vertical space */
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.chat-input-area {
-    flex-shrink: 0; /* Prevents the input area from squishing */
-    margin-top: auto; /* Guarantees it locks to the bottom */
 }
