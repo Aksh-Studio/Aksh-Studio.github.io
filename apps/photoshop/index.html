@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aksh Photoshop Pro — Aksh Studio</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="../../photoshop-logo.png">
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+
+    <!-- Top Application Bar / Menu Bar -->
+    <header class="app-header">
+        <div class="brand-area">
+            <a href="../../dashboard.html" class="back-dashboard-btn" title="Back to Aksh Studio Dashboard">
+                <span data-icon="chevron-left" data-width="14" data-height="14"></span>
+            </a>
+            <img src="../../photoshop-logo.png" alt="Aksh Photoshop" class="app-logo" onerror="this.onerror=null; this.src='../../aksh-logo.png';">
+            <span class="app-title">Aksh Photoshop</span>
+        </div>
+
+        <!-- Top Menu Bar Dropdowns -->
+        <nav class="menu-bar" id="menu-bar">
+            <!-- File Menu -->
+            <div class="menu-item" data-menu="file">
+                <span class="menu-label">File</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-new"><span data-icon="file-plus"></span> New Project... <kbd>Ctrl+N</kbd></button>
+                    <button type="button" id="menu-open"><span data-icon="folder-open"></span> Open Image / PSD... <kbd>Ctrl+O</kbd></button>
+                    <button type="button" id="menu-open-project"><span data-icon="save"></span> Open .akshphoto Project...</button>
+                    <button type="button" id="menu-open-psd"><span data-icon="file-image"></span> Open PSD Binary...</button>
+                    <button type="button" id="menu-import-layer"><span data-icon="file-import"></span> Place as Layer...</button>
+                    <div class="menu-divider"></div>
+                    <button type="button" id="menu-save-project"><span data-icon="save"></span> Save Project (.akshphoto) <kbd>Ctrl+S</kbd></button>
+                    <button type="button" id="menu-export-png"><span data-icon="download"></span> Export as PNG <kbd>Ctrl+Shift+S</kbd></button>
+                    <button type="button" id="menu-export-jpg"><span data-icon="file-image"></span> Export as JPEG</button>
+                    <button type="button" id="menu-export-webp"><span data-icon="bolt"></span> Export as WebP</button>
+                    <button type="button" id="menu-export-psd"><span data-icon="file-image"></span> Export as PSD Binary</button>
+                    <div class="menu-divider"></div>
+                    <a href="../../dashboard.html" class="menu-link-btn"><span data-icon="house"></span> Exit to Dashboard</a>
+                </div>
+            </div>
+
+            <!-- Edit Menu -->
+            <div class="menu-item" data-menu="edit">
+                <span class="menu-label">Edit</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-undo"><span data-icon="undo"></span> Undo <kbd>Ctrl+Z</kbd></button>
+                    <button type="button" id="menu-redo"><span data-icon="redo"></span> Redo <kbd>Ctrl+Y</kbd></button>
+                    <div class="menu-divider"></div>
+                    <button type="button" id="menu-clear-layer"><span data-icon="eraser"></span> Clear Layer / Selection <kbd>Del</kbd></button>
+                    <button type="button" id="menu-fill-layer"><span data-icon="bucket"></span> Fill with Foreground</button>
+                    <button type="button" id="menu-fill-bg"><span data-icon="bucket"></span> Fill with Background</button>
+                    <div class="menu-divider"></div>
+                    <button type="button" id="menu-free-transform"><span data-icon="expand"></span> Free Transform <kbd>Ctrl+T</kbd></button>
+                    <button type="button" id="menu-flip-h"><span data-icon="flip-h"></span> Flip Layer Horizontal</button>
+                    <button type="button" id="menu-flip-v"><span data-icon="flip-v"></span> Flip Layer Vertical</button>
+                    <button type="button" id="menu-rotate-cw"><span data-icon="rotate-cw"></span> Rotate Canvas 90° CW</button>
+                    <button type="button" id="menu-rotate-ccw"><span data-icon="rotate-ccw"></span> Rotate Canvas 90° CCW</button>
+                </div>
+            </div>
+
+            <!-- Image Menu -->
+            <div class="menu-item" data-menu="image">
+                <span class="menu-label">Image</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-resize-canvas"><span data-icon="expand"></span> Canvas Size...</button>
+                    <div class="menu-divider"></div>
+                    <button type="button" id="menu-auto-contrast"><span data-icon="wand"></span> Auto Contrast</button>
+                    <button type="button" id="menu-invert-colors"><span data-icon="invert"></span> Invert Colors <kbd>Ctrl+I</kbd></button>
+                    <button type="button" id="menu-grayscale"><span data-icon="grayscale"></span> Grayscale</button>
+                    <button type="button" id="menu-sepia"><span data-icon="sun"></span> Sepia Tone</button>
+                </div>
+            </div>
+
+            <!-- Layer Menu -->
+            <div class="menu-item" data-menu="layer">
+                <span class="menu-label">Layer</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-new-layer"><span data-icon="plus"></span> New Layer <kbd>Shift+Ctrl+N</kbd></button>
+                    <button type="button" id="menu-dup-layer"><span data-icon="copy"></span> Duplicate Layer <kbd>Ctrl+J</kbd></button>
+                    <button type="button" id="menu-del-layer"><span data-icon="trash"></span> Delete Layer</button>
+                    <div class="menu-divider"></div>
+                    <button type="button" id="menu-merge-down"><span data-icon="merge"></span> Merge Down <kbd>Ctrl+E</kbd></button>
+                    <button type="button" id="menu-flatten"><span data-icon="layers"></span> Flatten Image</button>
+                    <div class="menu-divider"></div>
+                    <button type="button" id="menu-layer-up"><span data-icon="arrow-up"></span> Bring Forward</button>
+                    <button type="button" id="menu-layer-down"><span data-icon="arrow-down"></span> Send Backward</button>
+                </div>
+            </div>
+
+            <!-- Select Menu -->
+            <div class="menu-item" data-menu="select">
+                <span class="menu-label">Select</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-select-all"><span data-icon="marquee"></span> Select All <kbd>Ctrl+A</kbd></button>
+                    <button type="button" id="menu-deselect"><span data-icon="rect"></span> Deselect <kbd>Ctrl+D</kbd></button>
+                    <button type="button" id="menu-invert-selection"><span data-icon="swap"></span> Invert Selection <kbd>Ctrl+Shift+I</kbd></button>
+                </div>
+            </div>
+
+            <!-- Filter Menu -->
+            <div class="menu-item" data-menu="filter">
+                <span class="menu-label">Filter</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-filter-blur"><span data-icon="blur"></span> Gaussian Blur</button>
+                    <button type="button" id="menu-filter-sharpen"><span data-icon="sharpen"></span> Sharpen</button>
+                    <button type="button" id="menu-filter-edge"><span data-icon="edge"></span> Edge Detection</button>
+                    <button type="button" id="menu-filter-emboss"><span data-icon="emboss"></span> Emboss</button>
+                    <button type="button" id="menu-filter-pixelate"><span data-icon="pixelate"></span> Pixelate</button>
+                    <button type="button" id="menu-filter-noise"><span data-icon="noise"></span> Add Noise</button>
+                    <button type="button" id="menu-filter-vignette"><span data-icon="vignette"></span> Vignette</button>
+                </div>
+            </div>
+
+            <!-- View Menu -->
+            <div class="menu-item" data-menu="view">
+                <span class="menu-label">View</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-zoom-in"><span data-icon="zoom-in"></span> Zoom In <kbd>Ctrl++</kbd></button>
+                    <button type="button" id="menu-zoom-out"><span data-icon="zoom-out"></span> Zoom Out <kbd>Ctrl+-</kbd></button>
+                    <button type="button" id="menu-zoom-fit"><span data-icon="compress"></span> Fit on Screen <kbd>Ctrl+0</kbd></button>
+                    <button type="button" id="menu-zoom-100"><span data-icon="percent"></span> 100% Actual Size <kbd>Ctrl+1</kbd></button>
+                    <div class="menu-divider"></div>
+                    <button type="button" id="menu-toggle-grid"><span data-icon="grid"></span> Toggle Pixel Grid</button>
+                </div>
+            </div>
+
+            <!-- Help Menu -->
+            <div class="menu-item" data-menu="help">
+                <span class="menu-label">Help</span>
+                <div class="menu-dropdown">
+                    <button type="button" id="menu-shortcuts"><span data-icon="shortcuts"></span> Keyboard Shortcuts</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Right Header Actions -->
+        <div class="header-actions">
+            <div id="save-status-indicator" class="status-indicator saved" title="Local IndexedDB Persistence">
+                <span class="status-dot saved"></span> All changes saved
+            </div>
+            <button type="button" class="action-pill" id="btn-recenter" title="Recenter & Fit Canvas (Ctrl+0)">
+                <span data-icon="crosshairs" data-width="14" data-height="14"></span> <span>Recenter</span>
+            </button>
+            <button type="button" class="icon-btn" id="btn-undo-top" title="Undo (Ctrl+Z)">
+                <span data-icon="undo" data-width="14" data-height="14"></span>
+            </button>
+            <button type="button" class="icon-btn" id="btn-redo-top" title="Redo (Ctrl+Y)">
+                <span data-icon="redo" data-width="14" data-height="14"></span>
+            </button>
+            <button type="button" class="icon-btn" id="btn-theme-toggle" title="Switch Light/Dark Theme">
+                <span data-icon="moon" data-width="14" data-height="14"></span>
+            </button>
+            <button type="button" class="primary-btn" id="btn-quick-export" title="Export PNG">
+                <span data-icon="download" data-width="14" data-height="14"></span> <span>Export</span>
+            </button>
+            <img src="../../aksh-logo.png" alt="Aksh Studio" class="studio-badge-logo" title="Aksh Studio" onerror="this.style.display='none';">
+        </div>
+    </header>
+
+    <!-- Autosave Recovery Banner -->
+    <div id="recovery-banner" class="recovery-banner hidden">
+        <div class="recovery-text">
+            <strong>Previous unsaved session recovered!</strong> Autosaved at <span id="recovery-time">earlier</span>. Would you like to restore it?
+        </div>
+        <div class="recovery-actions">
+            <button type="button" class="action-btn primary sm" id="btn-recovery-restore">Restore Session</button>
+            <button type="button" class="action-btn secondary sm" id="btn-recovery-dismiss">Discard</button>
+        </div>
+    </div>
+
+    <!-- Contextual Tool Options Bar -->
+    <section class="tool-options-bar" id="tool-options-bar">
+        <div class="active-tool-indicator">
+            <span id="current-tool-icon"><span data-icon="brush"></span></span>
+            <span id="current-tool-name">Brush Tool</span>
+        </div>
+
+        <div class="options-divider"></div>
+
+        <div class="options-group" id="opt-group-size">
+            <label for="opt-size">Size:</label>
+            <input type="range" id="opt-size" min="1" max="250" value="15">
+            <span class="opt-val" id="opt-size-val">15px</span>
+        </div>
+
+        <div class="options-group" id="opt-group-opacity">
+            <label for="opt-opacity">Opacity:</label>
+            <input type="range" id="opt-opacity" min="1" max="100" value="100">
+            <span class="opt-val" id="opt-opacity-val">100%</span>
+        </div>
+
+        <div class="options-group" id="opt-group-hardness">
+            <label for="opt-hardness">Hardness:</label>
+            <input type="range" id="opt-hardness" min="0" max="100" value="85">
+            <span class="opt-val" id="opt-hardness-val">85%</span>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-marquee">
+            <label for="opt-marquee-shape">Shape:</label>
+            <select id="opt-marquee-shape">
+                <option value="rect">Rectangle</option>
+                <option value="ellipse">Ellipse</option>
+            </select>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-gradient">
+            <label for="opt-gradient-type">Gradient:</label>
+            <select id="opt-gradient-type">
+                <option value="linear">Linear</option>
+                <option value="radial">Radial</option>
+            </select>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-shape">
+            <label for="opt-shape-fill">Mode:</label>
+            <select id="opt-shape-fill">
+                <option value="fill">Fill</option>
+                <option value="stroke">Stroke</option>
+                <option value="both">Fill &amp; Stroke</option>
+            </select>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-text">
+            <label for="opt-font-family">Font:</label>
+            <select id="opt-font-family">
+                <option value="Inter, sans-serif">Inter / Sans</option>
+                <option value="Georgia, serif">Georgia / Serif</option>
+                <option value="'Courier New', monospace">Courier / Mono</option>
+                <option value="Impact, sans-serif">Impact / Bold</option>
+                <option value="'Comic Sans MS', cursive">Comic Sans</option>
+            </select>
+            <label for="opt-font-size">Size:</label>
+            <input type="number" id="opt-font-size" value="36" min="8" max="300" style="width:64px;">
+            <button type="button" class="action-pill sm" id="btn-text-bold" title="Toggle Bold" style="padding:2px 8px; font-weight:bold;">B</button>
+            <button type="button" class="action-pill sm" id="btn-text-italic" title="Toggle Italic" style="padding:2px 8px; font-style:italic;">I</button>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-transform">
+            <label for="opt-transform-scale">Scale:</label>
+            <input type="number" id="opt-transform-scale" value="100" min="1" max="1000" style="width:60px;">%
+            <label for="opt-transform-rot">Rotate:</label>
+            <input type="number" id="opt-transform-rot" value="0" min="-180" max="180" style="width:60px;">°
+            <button type="button" class="action-btn primary sm" id="btn-apply-transform"><span data-icon="check"></span> Apply</button>
+            <button type="button" class="action-btn secondary sm" id="btn-cancel-transform"><span data-icon="xmark"></span> Cancel</button>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-tolerance">
+            <label for="opt-tolerance">Tolerance:</label>
+            <input type="range" id="opt-tolerance" min="0" max="255" value="32">
+            <span class="opt-val" id="opt-tolerance-val">32</span>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-crop">
+            <button type="button" class="action-btn primary sm" id="btn-apply-crop"><span data-icon="check"></span> Apply Crop</button>
+            <button type="button" class="action-btn secondary sm" id="btn-cancel-crop"><span data-icon="xmark"></span> Cancel</button>
+        </div>
+
+        <div class="options-group hidden" id="opt-group-selection">
+            <button type="button" class="action-btn secondary sm" id="btn-deselect"><span data-icon="rect"></span> Deselect (Ctrl+D)</button>
+            <button type="button" class="action-btn secondary sm" id="btn-invert-selection"><span data-icon="swap"></span> Invert (Shift+Ctrl+I)</button>
+        </div>
+    </section>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+        <!-- Left Toolbox -->
+        <aside class="toolbox" id="toolbox" aria-label="Tools">
+            <button type="button" class="tool-btn" data-tool="move" title="Move Layer (V)"><span data-icon="move"></span></button>
+            <button type="button" class="tool-btn" data-tool="marquee" title="Rectangular Marquee (M)"><span data-icon="marquee"></span></button>
+            <button type="button" class="tool-btn" data-tool="lasso" title="Lasso Selection (L)"><span data-icon="lasso"></span></button>
+            <button type="button" class="tool-btn" data-tool="wand" title="Magic Wand (W)"><span data-icon="wand"></span></button>
+            <button type="button" class="tool-btn" data-tool="crop" title="Crop Canvas (C)"><span data-icon="crop"></span></button>
+            <button type="button" class="tool-btn" data-tool="eyedropper" title="Eyedropper (I)"><span data-icon="eyedropper"></span></button>
+            <button type="button" class="tool-btn active" data-tool="brush" title="Brush Tool (B)"><span data-icon="brush"></span></button>
+            <button type="button" class="tool-btn" data-tool="eraser" title="Eraser Tool (E)"><span data-icon="eraser"></span></button>
+            <button type="button" class="tool-btn" data-tool="stamp" title="Clone Stamp (S) — Alt+Click to set source"><span data-icon="stamp"></span></button>
+            <button type="button" class="tool-btn" data-tool="bucket" title="Paint Bucket (G)"><span data-icon="bucket"></span></button>
+            <button type="button" class="tool-btn" data-tool="gradient" title="Gradient Tool"><span data-icon="gradient"></span></button>
+            <button type="button" class="tool-btn" data-tool="line" title="Line Tool (U)"><span data-icon="line"></span></button>
+            <button type="button" class="tool-btn" data-tool="rect" title="Rectangle Tool (R)"><span data-icon="rect"></span></button>
+            <button type="button" class="tool-btn" data-tool="circle" title="Ellipse Tool (O)"><span data-icon="circle"></span></button>
+            <button type="button" class="tool-btn" data-tool="text" title="Text Tool (T)"><span data-icon="text"></span></button>
+            <button type="button" class="tool-btn" data-tool="hand" title="Hand / Pan Tool (H / Space+Drag)"><span data-icon="hand"></span></button>
+            <button type="button" class="tool-btn" data-tool="zoom" title="Zoom Tool (Z / Alt+Click Zoom Out)"><span data-icon="zoom-in"></span></button>
+
+            <div class="toolbox-spacer"></div>
+
+            <!-- Color Swatches -->
+            <div class="color-picker-wrap">
+                <div class="color-swatches">
+                    <input type="color" id="fg-color" value="#00d2ff" title="Foreground Color (D resets to default)">
+                    <input type="color" id="bg-color" value="#ffffff" title="Background Color">
+                </div>
+                <button type="button" id="btn-swap-colors" class="swap-colors-btn" title="Swap Colors (X)">
+                    <span data-icon="swap" data-width="12" data-height="12"></span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Center Canvas Viewport -->
+        <section class="viewport" id="viewport">
+            <div class="canvas-stage" id="canvas-stage">
+                <!-- Master Composite Rendering Canvas -->
+                <canvas id="main-canvas"></canvas>
+                <!-- Interaction Overlay Canvas (Selection Ants, Cursors, Crop Box, Drag Preview) -->
+                <canvas id="overlay-canvas"></canvas>
+            </div>
+
+            <!-- Floating Status Bar -->
+            <div class="status-bar">
+                <span id="status-coords"><span data-icon="crosshairs" data-width="12" data-height="12"></span> X: 0, Y: 0</span>
+                <span class="status-sep">|</span>
+                <span id="status-dimensions">800 × 600 px</span>
+                <span class="status-sep">|</span>
+                <div class="zoom-controls">
+                    <button type="button" id="btn-zoom-out" title="Zoom Out"><span data-icon="minus" data-width="10" data-height="10"></span></button>
+                    <span id="status-zoom">100%</span>
+                    <button type="button" id="btn-zoom-in" title="Zoom In"><span data-icon="plus" data-width="10" data-height="10"></span></button>
+                    <button type="button" id="btn-zoom-reset" title="Fit Canvas to Viewport">Fit</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Dock Panels -->
+        <aside class="right-sidebar">
+            <!-- Adjustments Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span><span data-icon="sliders"></span> Layer Adjustments</span>
+                    <button type="button" id="btn-reset-adjustments" class="text-btn" title="Reset All Sliders">Reset</button>
+                </div>
+                <div class="panel-body adjustments-list">
+                    <div class="adj-row">
+                        <div class="adj-label"><span>Brightness</span><span id="val-brightness">0</span></div>
+                        <input type="range" id="adj-brightness" min="-100" max="100" value="0">
+                    </div>
+                    <div class="adj-row">
+                        <div class="adj-label"><span>Contrast</span><span id="val-contrast">0</span></div>
+                        <input type="range" id="adj-contrast" min="-100" max="100" value="0">
+                    </div>
+                    <div class="adj-row">
+                        <div class="adj-label"><span>Saturation</span><span id="val-saturation">0</span></div>
+                        <input type="range" id="adj-saturation" min="-100" max="100" value="0">
+                    </div>
+                    <div class="adj-row">
+                        <div class="adj-label"><span>Hue Shift</span><span id="val-hue">0°</span></div>
+                        <input type="range" id="adj-hue" min="-180" max="180" value="0">
+                    </div>
+                    <div class="adj-row">
+                        <div class="adj-label"><span>Exposure</span><span id="val-exposure">0</span></div>
+                        <input type="range" id="adj-exposure" min="-100" max="100" value="0">
+                    </div>
+                    <div class="adj-row">
+                        <div class="adj-label"><span>Blur</span><span id="val-blur">0px</span></div>
+                        <input type="range" id="adj-blur" min="0" max="20" value="0">
+                    </div>
+                    <button type="button" id="btn-apply-adjustments" class="action-btn primary full-width mt-2">
+                        <span data-icon="check"></span> Bake into Layer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Layers Panel -->
+            <div class="panel layers-panel">
+                <div class="panel-header">
+                    <span><span data-icon="layers"></span> Layers</span>
+                    <span id="layer-count-badge" class="badge">1</span>
+                </div>
+
+                <div class="layer-global-controls">
+                    <div class="blend-row">
+                        <select id="layer-blend-mode" title="Blend Mode">
+                            <option value="source-over">Normal</option>
+                            <option value="multiply">Multiply</option>
+                            <option value="screen">Screen</option>
+                            <option value="overlay">Overlay</option>
+                            <option value="darken">Darken</option>
+                            <option value="lighten">Lighten</option>
+                            <option value="color-dodge">Color Dodge</option>
+                            <option value="color-burn">Color Burn</option>
+                            <option value="hard-light">Hard Light</option>
+                            <option value="soft-light">Soft Light</option>
+                            <option value="difference">Difference</option>
+                            <option value="exclusion">Exclusion</option>
+                            <option value="hue">Hue</option>
+                            <option value="saturation">Saturation</option>
+                            <option value="color">Color</option>
+                            <option value="luminosity">Luminosity</option>
+                        </select>
+                        <div class="layer-opacity-wrap">
+                            <label for="layer-opacity-input">Op:</label>
+                            <input type="number" id="layer-opacity-input" min="0" max="100" value="100">%
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layers-list" id="layers-list">
+                    <!-- Populated dynamically by layers.js -->
+                </div>
+
+                <div class="panel-footer layer-actions">
+                    <button type="button" id="btn-add-layer" class="icon-btn" title="New Layer (Shift+Ctrl+N)"><span data-icon="plus"></span></button>
+                    <button type="button" id="btn-dup-layer" class="icon-btn" title="Duplicate Layer (Ctrl+J)"><span data-icon="copy"></span></button>
+                    <button type="button" id="btn-merge-down" class="icon-btn" title="Merge Down (Ctrl+E)"><span data-icon="merge"></span></button>
+                    <button type="button" id="btn-move-layer-up" class="icon-btn" title="Move Layer Up"><span data-icon="arrow-up"></span></button>
+                    <button type="button" id="btn-move-layer-down" class="icon-btn" title="Move Layer Down"><span data-icon="arrow-down"></span></button>
+                    <button type="button" id="btn-del-layer" class="icon-btn danger" title="Delete Layer"><span data-icon="trash"></span></button>
+                </div>
+            </div>
+
+            <!-- History Panel -->
+            <div class="panel history-panel">
+                <div class="panel-header">
+                    <span><span data-icon="history"></span> History</span>
+                    <button type="button" id="btn-clear-history" class="text-btn">Clear</button>
+                </div>
+                <div class="history-list" id="history-list">
+                    <!-- Populated dynamically by history.js -->
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Hidden File Inputs -->
+    <input type="file" id="file-open-input" accept="image/*,.psd" class="hidden">
+    <input type="file" id="file-layer-input" accept="image/*" class="hidden">
+    <input type="file" id="file-project-input" accept=".akshphoto,.json" class="hidden">
+    <input type="file" id="file-psd-input" accept=".psd" class="hidden">
+
+    <!-- Modal: New Project / Resize Canvas -->
+    <div id="modal-dimensions" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-dim-title">New Document</h3>
+                <button type="button" id="modal-dim-close" class="icon-btn"><span data-icon="xmark"></span></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="dim-preset">Preset</label>
+                    <select id="dim-preset">
+                        <option value="800x600">Standard (800 × 600)</option>
+                        <option value="1280x720">YouTube Thumbnail (1280 × 720)</option>
+                        <option value="1920x1080">Full HD (1920 × 1080)</option>
+                        <option value="1080x1080">Instagram Post (1080 × 1080)</option>
+                        <option value="1080x1920">Shorts / Reels / Story (1080 × 1920)</option>
+                        <option value="custom">Custom Dimensions</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dim-width">Width (px)</label>
+                        <input type="number" id="dim-width" min="16" max="8192" value="800">
+                    </div>
+                    <div class="form-group">
+                        <label for="dim-height">Height (px)</label>
+                        <input type="number" id="dim-height" min="16" max="8192" value="600">
+                    </div>
+                </div>
+                <div class="form-group" id="dim-bg-group">
+                    <label for="dim-bg">Background Contents</label>
+                    <select id="dim-bg">
+                        <option value="white">White</option>
+                        <option value="transparent">Transparent</option>
+                        <option value="black">Black</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="modal-dim-cancel" class="action-btn secondary">Cancel</button>
+                <button type="button" id="modal-dim-confirm" class="action-btn primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Text Input -->
+    <div id="modal-text" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Add Text Layer</h3>
+                <button type="button" id="modal-text-close" class="icon-btn"><span data-icon="xmark"></span></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="text-input-value">Text Content</label>
+                    <input type="text" id="text-input-value" placeholder="Enter your text here..." autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="modal-text-cancel" class="action-btn secondary">Cancel</button>
+                <button type="button" id="modal-text-confirm" class="action-btn primary">Place Text</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Keyboard Shortcuts -->
+    <div id="modal-shortcuts" class="modal-backdrop hidden">
+        <div class="modal-card" style="width: 480px;">
+            <div class="modal-header">
+                <h3>Keyboard Shortcuts</h3>
+                <button type="button" id="modal-shortcuts-close" class="icon-btn"><span data-icon="xmark"></span></button>
+            </div>
+            <div class="modal-body shortcuts-list">
+                <div class="shortcut-row"><span class="shortcut-name">Move Tool</span><kbd>V</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Marquee Selection</span><kbd>M</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Lasso Selection</span><kbd>L</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Magic Wand</span><kbd>W</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Crop Tool</span><kbd>C</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Eyedropper</span><kbd>I</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Brush Tool</span><kbd>B</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Eraser Tool</span><kbd>E</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Clone Stamp (Alt+Click to anchor)</span><kbd>S</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Paint Bucket Fill</span><kbd>G</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Text Tool</span><kbd>T</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Hand / Pan Tool</span><kbd>H / Space+Drag</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Zoom In / Zoom Out</span><kbd>Ctrl+Plus / Ctrl+Minus</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Fit to Screen / 100% Zoom</span><kbd>Ctrl+0 / Ctrl+1</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Undo / Redo</span><kbd>Ctrl+Z / Ctrl+Y</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Free Transform</span><kbd>Ctrl+T</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Save Project / Quick Export</span><kbd>Ctrl+S / Ctrl+Shift+S</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Select All / Deselect / Invert</span><kbd>Ctrl+A / Ctrl+D / Ctrl+Shift+I</kbd></div>
+                <div class="shortcut-row"><span class="shortcut-name">Swap Colors / Default Colors</span><kbd>X / D</kbd></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts in Dependency Order -->
+    <script src="./lib/ag-psd.js"></script>
+    <script src="./js/icons.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/storage.js"></script>
+    <script src="./js/history.js"></script>
+    <script src="./js/selection.js"></script>
+    <script src="./js/layers.js"></script>
+    <script src="./js/adjustments.js"></script>
+    <script src="./js/tools.js"></script>
+    <script src="./js/psd-handler.js"></script>
+    <script src="./js/project-handler.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+</html>
