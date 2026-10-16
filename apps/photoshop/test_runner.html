@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Aksh Photoshop - Automated Test Suite</title>
+    <link rel="stylesheet" href="./css/styles.css">
+    <style>
+        body { padding: 20px; overflow: auto; height: auto; }
+        .test-box { max-width: 800px; margin: 0 auto; background: var(--bg-panel); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .test-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border-color); }
+        .pass { color: var(--success); font-weight: bold; }
+        .fail { color: var(--danger); font-weight: bold; }
+        h1 { margin-bottom: 16px; color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="test-box">
+        <h1>Aksh Photoshop Automated Test Suite</h1>
+        <div id="results">Running tests...</div>
+    </div>
+
+    <!-- Hidden fixture for testing full UI integration -->
+    <div id="fixture" style="position: absolute; left: -9999px; top: -9999px;">
+        <canvas id="main-canvas" width="800" height="600"></canvas>
+        <canvas id="overlay-canvas" width="800" height="600"></canvas>
+        <div id="canvas-stage"></div>
+        <div id="viewport"></div>
+        <div id="doc-tabs-bar"></div>
+        <div id="layers-list"></div>
+        <div id="history-list"></div>
+        <span id="status-dimensions"></span>
+        <span id="status-zoom"></span>
+        <span id="status-coords"></span>
+        <span id="layer-count-badge"></span>
+        <select id="layer-blend-mode"></select>
+        <input type="number" id="layer-opacity-input">
+        <input type="color" id="fg-color" value="#00d2ff">
+        <input type="color" id="bg-color" value="#ffffff">
+        <span id="save-status-indicator"></span>
+        <select id="opt-brush-preset"></select>
+        <button id="btn-save-brush-preset"></button>
+        <input id="opt-corner-radius" value="15">
+        <span id="opt-corner-radius-val"></span>
+        <input id="opt-polygon-sides" value="5">
+        <span id="opt-polygon-sides-val"></span>
+        <div id="modal-dimensions" class="hidden">
+            <h3 id="modal-dim-title"></h3>
+            <input id="dim-width" value="800">
+            <input id="dim-height" value="600">
+            <select id="dim-bg"><option value="white">white</option></select>
+            <select id="dim-anchor"><option value="center">center</option></select>
+            <div id="dim-bg-group"></div>
+            <div id="dim-anchor-group"></div>
+            <button id="modal-dim-confirm"></button>
+            <button id="modal-dim-cancel"></button>
+            <button id="modal-dim-close"></button>
+        </div>
+        <div id="modal-levels" class="hidden">
+            <input id="levels-in-black" value="0">
+            <input id="levels-in-white" value="255">
+            <input id="levels-gamma" value="1.0">
+            <input id="levels-out-black" value="0">
+            <input id="levels-out-white" value="255">
+            <button id="modal-levels-confirm"></button>
+            <button id="modal-levels-cancel"></button>
+            <button id="modal-levels-close"></button>
+        </div>
+        <div id="modal-curves" class="hidden">
+            <canvas id="curves-graph-canvas" width="220" height="220"></canvas>
+            <select id="curves-preset"><option value="linear">linear</option></select>
+            <input id="curves-in-x" value="128">
+            <span id="curves-in-x-val">128</span>
+            <input id="curves-out-y" value="128">
+            <span id="curves-out-y-val">128</span>
+            <button id="modal-curves-reset"></button>
+            <button id="modal-curves-confirm"></button>
+            <button id="modal-curves-cancel"></button>
+            <button id="modal-curves-close"></button>
+        </div>
+        <div id="modal-text" class="hidden">
+            <textarea id="text-input-value"></textarea>
+            <button id="modal-text-confirm"></button>
+            <button id="modal-text-cancel"></button>
+            <button id="modal-text-close"></button>
+        </div>
+    </div>
+
+    <!-- Scripts in Dependency Order -->
+    <script src="./lib/ag-psd.js"></script>
+    <script src="./js/icons.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/storage.js"></script>
+    <script src="./js/history.js"></script>
+    <script src="./js/selection.js"></script>
+    <script src="./js/layers.js"></script>
+    <script src="./js/adjustments.js"></script>
+    <script src="./js/tools.js"></script>
+    <script src="./js/psd-handler.js"></script>
+    <script src="./js/project-handler.js"></script>
+    <script src="./js/app.js"></script>
+
+    <script>
+        const results = [];
+        function assert(name, condition, details = '') {
+            results.push({ name, passed: !!condition, details });
+        }
+
+        async function runSuite() {
+            try {
+                // 1. Modules existence
+                assert('window.PSApp exists', typeof window.PSApp === 'object');
+                assert('window.PSLayers exists', typeof window.PSLayers === 'object');
+                assert('window.PSHistory exists', typeof window.PSHistory === 'object');
+                assert('window.PSAdjustments exists', typeof window.PSAdjustments === 'object');
+                assert('window.PSTools exists', typeof window.PSTools === 'object');
+                assert('window.PSSelection exists', typeof window.PSSelection === 'object');
+                assert('window.PSStorage exists', typeof window.PSStorage === 'object');
+                assert('window.PSPsd exists', typeof window.PSPsd === 'object');
+                assert('window.PSProject exists', typeof window.PSProject === 'object');
+                assert('window.PSIcons exists', typeof window.PSIcons === 'object');
+                assert('window.agPsd exists', typeof window.agPsd === 'object');
+
+                // 2. Document & Layer Initialization
+                window.PSApp.setCanvasDimensions(800, 600, false);
+                window.PSLayers.init(800, 600, 'white');
+                assert('Initial layer created', window.PSLayers.layers.length === 1);
+                assert('Initial layer named Background', window.PSLayers.layers[0].name === 'Background');
+                assert('Initial layer is 800x600', window.PSLayers.layers[0].canvas.width === 800 && window.PSLayers.layers[0].canvas.height === 600);
+
+                // Check pixel color of initial white canvas
+                const bgPixel = window.PSLayers.layers[0].ctx.getImageData(10, 10, 1, 1).data;
+                assert('Initial background is white', bgPixel[0] === 255 && bgPixel[1] === 255 && bgPixel[2] === 255 && bgPixel[3] === 255);
+
+                // 3. Layer Operations
+                const layer2 = window.PSLayers.addNewLayer('Art Layer');
+                assert('Add new layer increases count to 2', window.PSLayers.layers.length === 2);
+                assert('Active layer is the new layer', window.PSLayers.activeLayerId === layer2.id);
+
+                // Draw on layer 2
+                layer2.ctx.fillStyle = '#ff0000';
+                layer2.ctx.fillRect(100, 100, 50, 50);
+                const l2Pixel = layer2.ctx.getImageData(120, 120, 1, 1).data;
+                assert('Drawing on layer 2 writes red pixel', l2Pixel[0] === 255 && l2Pixel[1] === 0 && l2Pixel[2] === 0);
+
+                // Composite All
+                window.PSLayers.compositeAll();
+                const compPixel = document.getElementById('main-canvas').getContext('2d').getImageData(120, 120, 1, 1).data;
+                assert('Composited canvas has red pixel from layer 2', compPixel[0] === 255 && compPixel[1] === 0 && compPixel[2] === 0);
+
+                // Duplicate Layer
+                window.PSLayers.duplicateActiveLayer();
+                assert('Duplicate layer increases count to 3', window.PSLayers.layers.length === 3);
+
+                // Merge Down
+                window.PSLayers.mergeDown();
+                assert('Merge down reduces layer count back to 2', window.PSLayers.layers.length === 2);
+
+                // 4. History Undo / Redo
+                window.PSHistory.saveState('Test State');
+                const prevIndex = window.PSHistory.currentIndex;
+                window.PSLayers.clearActiveLayer();
+                assert('Clear active layer clears pixels', layer2.ctx.getImageData(120, 120, 1, 1).data[3] === 0);
+
+                window.PSHistory.undo();
+                assert('Undo restores drawn pixels', window.PSLayers.getActiveLayer().ctx.getImageData(120, 120, 1, 1).data[0] === 255);
+
+                window.PSHistory.redo();
+                assert('Redo re-clears active layer', window.PSLayers.getActiveLayer().ctx.getImageData(120, 120, 1, 1).data[3] === 0);
+
+                // Return to clean state
+                window.PSHistory.undo();
+
+                // 5. Selections
+                window.PSSelection.setRect(50, 50, 100, 100);
+                assert('Rect selection isActive is true', window.PSSelection.isActive === true);
+                assert('Selection bounds correct', window.PSSelection.bounds.x === 50 && window.PSSelection.bounds.w === 100);
+                window.PSSelection.deselect();
+                assert('Deselect sets isActive to false', window.PSSelection.isActive === false);
+
+                // 6. Direct Filters
+                const activeL = window.PSLayers.getActiveLayer();
+                activeL.ctx.fillStyle = '#00ff00';
+                activeL.ctx.fillRect(0, 0, 50, 50);
+                window.PSAdjustments.applyDirectFilter('invert');
+                const invertedPixel = activeL.ctx.getImageData(10, 10, 1, 1).data;
+                assert('Invert filter converts #00ff00 to #ff00ff', invertedPixel[0] === 255 && invertedPixel[1] === 0 && invertedPixel[2] === 255);
+
+                // 7. Native Project Serialization (.akshphoto)
+                const mockProject = {
+                    app: 'Aksh Photoshop',
+                    version: '1.0.0',
+                    width: 800,
+                    height: 600,
+                    activeLayerId: window.PSLayers.activeLayerId,
+                    layers: window.PSLayers.layers.map(l => ({
+                        id: l.id,
+                        name: l.name,
+                        visible: l.visible,
+                        locked: l.locked,
+                        opacity: l.opacity,
+                        blendMode: l.blendMode,
+                        x: l.x,
+                        y: l.y,
+                        width: l.canvas.width,
+                        height: l.canvas.height,
+                        dataUrl: l.canvas.toDataURL('image/png')
+                    }))
+                };
+                const jsonStr = JSON.stringify(mockProject);
+                assert('Project serialization produces valid JSON', jsonStr.length > 100);
+                const parsed = JSON.parse(jsonStr);
+                assert('Parsed project has 2 layers', parsed.layers.length === 2);
+                assert('Parsed project width matches', parsed.width === 800);
+
+                // 8. PSD Bridge Test via ag-psd
+                const psdDoc = {
+                    width: 100,
+                    height: 100,
+                    children: [
+                        {
+                            name: 'Test PSD Layer',
+                            canvas: document.createElement('canvas'),
+                            left: 0,
+                            top: 0,
+                            opacity: 1,
+                            blendMode: 'normal'
+                        }
+                    ]
+                };
+                psdDoc.children[0].canvas.width = 100;
+                psdDoc.children[0].canvas.height = 100;
+                const buffer = window.agPsd.writePsd(psdDoc);
+                assert('agPsd.writePsd creates ArrayBuffer', buffer && buffer.byteLength > 0);
+
+                const readBack = window.agPsd.readPsd(buffer);
+                assert('agPsd.readPsd reads back width and height', readBack.width === 100 && readBack.height === 100);
+                assert('agPsd.readPsd reads back child layer', readBack.children && readBack.children.length === 1);
+                assert('agPsd.readPsd preserves layer name', readBack.children[0].name === 'Test PSD Layer');
+
+                // 9. Brand Assets Path Verification
+                const testImg = new Image();
+                const logoLoaded = await new Promise((res) => {
+                    testImg.onload = () => res(true);
+                    testImg.onerror = () => res(false);
+                    testImg.src = '../../photoshop-logo.png';
+                });
+                assert('Root brand logo (../../photoshop-logo.png) resolves and loads', logoLoaded);
+
+                const studioImg = new Image();
+                const studioLoaded = await new Promise((res) => {
+                    studioImg.onload = () => res(true);
+                    studioImg.onerror = () => res(false);
+                    studioImg.src = '../../aksh-logo.png';
+                });
+                assert('Root studio logo (../../aksh-logo.png) resolves and loads', studioLoaded);
+
+                // 10. Invert Selection Clipping Accuracy Test
+                window.PSLayers.init(400, 400, 'transparent');
+                window.PSSelection.setRect(0, 0, 100, 100);
+                window.PSSelection.invert();
+                const invertCanvas = document.createElement('canvas');
+                invertCanvas.width = 400; invertCanvas.height = 400;
+                const inCtx = invertCanvas.getContext('2d');
+                inCtx.fillStyle = '#ff0000';
+                inCtx.save();
+                window.PSSelection.applySelectionClip(inCtx);
+                inCtx.fillRect(0, 0, 400, 400);
+                inCtx.restore();
+                const insideOldRectAlpha = inCtx.getImageData(50, 50, 1, 1).data[3];
+                const outsideOldRectAlpha = inCtx.getImageData(200, 200, 1, 1).data[3];
+                assert('Invert selection excludes original rect and includes rest', insideOldRectAlpha === 0 && outsideOldRectAlpha === 255);
+                window.PSSelection.deselect();
+
+                // 11. Offset Layer Filter Invert Test
+                window.PSLayers.init(400, 400, 'transparent');
+                const offsetL = window.PSLayers.getActiveLayer();
+                offsetL.x = 100;
+                offsetL.y = 0;
+                offsetL.ctx.fillStyle = '#00ff00';
+                offsetL.ctx.fillRect(0, 0, 100, 100);
+                window.PSSelection.setRect(100, 0, 50, 50);
+                window.PSAdjustments.applyDirectFilter('invert');
+                const pInside = offsetL.ctx.getImageData(25, 25, 1, 1).data;
+                const pOutside = offsetL.ctx.getImageData(75, 25, 1, 1).data;
+                assert('Offset layer direct filter inverts only inside selection', pInside[0] === 255 && pInside[1] === 0 && pInside[2] === 255 && pOutside[1] === 255 && pOutside[0] === 0);
+                window.PSSelection.deselect();
+
+                // 12. Offset Layer Brush Drawing Inside Selection Test
+                window.PSLayers.init(400, 400, 'transparent');
+                const brushL = window.PSLayers.getActiveLayer();
+                brushL.x = 80;
+                brushL.y = 40;
+                window.PSSelection.setRect(100, 60, 50, 50);
+                window.PSTools.fgColor = '#ff0000';
+                window.PSTools.size = 12;
+                window.PSTools.opacity = 100;
+                window.PSTools.drawBrushSegment(brushL, 90, 70, 140, 70);
+                const brushInside = brushL.ctx.getImageData(120 - 80, 70 - 40, 1, 1).data;
+                assert('Brush paints on offset layer inside selection', brushInside[0] === 255 && brushInside[3] > 0);
+                window.PSSelection.deselect();
+
+                // 13. Elliptical Marquee Selection Test
+                window.PSSelection.setEllipse(150, 150, 50, 30);
+                assert('Elliptical selection is active with correct type', window.PSSelection.isActive && window.PSSelection.type === 'ellipse');
+                assert('Elliptical selection bounds correct', window.PSSelection.bounds.x === 100 && window.PSSelection.bounds.w === 100);
+                window.PSSelection.deselect();
+
+                // 14. Magic Wand Custom Mask Test
+                window.PSLayers.init(200, 200, 'transparent');
+                const wandL = window.PSLayers.getActiveLayer();
+                wandL.ctx.fillStyle = '#0000ff';
+                wandL.ctx.fillRect(40, 40, 40, 40);
+                window.PSLayers.compositeAll();
+                window.PSTools.tolerance = 20;
+                window.PSTools.executeMagicWand(50, 50);
+                assert('Magic wand creates custom selection mask', window.PSSelection.isActive && window.PSSelection.type === 'custom');
+                const maskPixelInside = window.PSSelection.maskCtx.getImageData(50, 50, 1, 1).data[3];
+                const maskPixelOutside = window.PSSelection.maskCtx.getImageData(10, 10, 1, 1).data[3];
+                assert('Wand mask includes target square and excludes outer', maskPixelInside > 0 && maskPixelOutside === 0);
+                window.PSSelection.deselect();
+
+                // 15. Free Transform Engine Test
+                window.PSLayers.init(200, 200, 'white');
+                const transL = window.PSLayers.getActiveLayer();
+                transL.ctx.fillStyle = '#ff8800';
+                transL.ctx.fillRect(10, 10, 30, 30);
+                window.PSTools.startFreeTransform();
+                assert('startFreeTransform activates transformState', window.PSTools.transformState.active);
+                window.PSTools.transformState.w = 300;
+                window.PSTools.transformState.h = 250;
+                window.PSTools.applyFreeTransform();
+                assert('applyFreeTransform updates layer dimensions and deactivates', !window.PSTools.transformState.active && transL.canvas.width === 300 && transL.canvas.height === 250);
+
+                // 16. Radial Gradient Rendering Test
+                const gradCanvas = document.createElement('canvas');
+                gradCanvas.width = 100; gradCanvas.height = 100;
+                const gCtx = gradCanvas.getContext('2d');
+                window.PSTools.currentTool = 'gradient';
+                window.PSTools.gradientType = 'radial';
+                window.PSTools.fgColor = '#ffffff';
+                window.PSTools.bgColor = '#000000';
+                window.PSTools.drawVectorShape(gCtx, 50, 50, 90, 50);
+                const centerGradPixel = gCtx.getImageData(50, 50, 1, 1).data;
+                const edgeGradPixel = gCtx.getImageData(95, 50, 1, 1).data;
+                assert('Radial gradient renders light center and dark perimeter', centerGradPixel[0] > 200 && edgeGradPixel[0] < 50);
+
+                // 17. PSD Nested Group Recursive Extraction Test
+                const nestedPsd = {
+                    width: 100,
+                    height: 100,
+                    children: [
+                        {
+                            name: 'Folder Group',
+                            children: [
+                                {
+                                    name: 'Nested Leaf Layer',
+                                    canvas: document.createElement('canvas'),
+                                    left: 0,
+                                    top: 0
+                                }
+                            ]
+                        }
+                    ]
+                };
+                nestedPsd.children[0].children[0].canvas.width = 100;
+                nestedPsd.children[0].children[0].canvas.height = 100;
+                const allExtracted = [];
+                const collectFn = (nodes) => {
+                    nodes.forEach(n => {
+                        if (n.children && n.children.length > 0) collectFn(n.children);
+                        else if (n.canvas) allExtracted.push(n);
+                    });
+                };
+                collectFn(nestedPsd.children);
+                assert('PSD nested group flattener extracts leaf canvas layer', allExtracted.length === 1 && allExtracted[0].name === 'Nested Leaf Layer');
+
+                // 18. True Raster Layer Masks
+                window.PSApp.setCanvasDimensions(200, 200, false);
+                window.PSLayers.init(200, 200, 'white');
+                const maskLayer = window.PSLayers.addNewLayer('Masked Layer');
+                maskLayer.ctx.fillStyle = '#0000ff';
+                maskLayer.ctx.fillRect(0, 0, 200, 200);
+                window.PSLayers.addMaskToActiveLayer();
+                assert('Layer hasMask is true', maskLayer.hasMask === true);
+                assert('Layer maskCanvas is created at layer size', maskLayer.maskCanvas !== null && maskLayer.maskCanvas.width === 200);
+
+                // Black in mask hides layer pixels
+                maskLayer.maskCtx.fillStyle = '#000000';
+                maskLayer.maskCtx.fillRect(0, 0, 100, 200);
+                window.PSLayers.compositeAll();
+                const pMasked = document.getElementById('main-canvas').getContext('2d').getImageData(50, 100, 1, 1).data;
+                const pRevealed = document.getElementById('main-canvas').getContext('2d').getImageData(150, 100, 1, 1).data;
+                assert('Layer mask hides black area revealing white background', pMasked[0] === 255 && pMasked[1] === 255 && pMasked[2] === 255);
+                assert('Layer mask reveals white area showing blue layer', pRevealed[0] === 0 && pRevealed[1] === 0 && pRevealed[2] === 255);
+
+                // Toggle mask disabled
+                window.PSLayers.toggleMaskDisabled(maskLayer.id);
+                assert('Mask disabled is toggled to true', maskLayer.maskDisabled === true);
+                window.PSLayers.compositeAll();
+                const pDisabled = document.getElementById('main-canvas').getContext('2d').getImageData(50, 100, 1, 1).data;
+                assert('When mask is disabled, blue pixel is visible across the canvas', pDisabled[2] === 255 && pDisabled[0] === 0);
+
+                // Active drawable targeting mask vs layer
+                window.PSLayers.setEditingTarget('mask', maskLayer.id);
+                const maskDrawable = window.PSLayers.getActiveDrawable();
+                assert('getActiveDrawable targets maskCanvas when editingTarget is mask', maskDrawable.isMask === true && maskDrawable.canvas === maskLayer.maskCanvas);
+                window.PSLayers.setEditingTarget('layer', maskLayer.id);
+                const layerDrawable = window.PSLayers.getActiveDrawable();
+                assert('getActiveDrawable targets layer.canvas when editingTarget is layer', layerDrawable.isMask === false && layerDrawable.canvas === maskLayer.canvas);
+
+                // Remove mask and bake
+                window.PSLayers.removeMask(maskLayer.id, true);
+                assert('Remove mask removes mask canvas and bakes into layer', maskLayer.hasMask === false && maskLayer.maskCanvas === null);
+
+                // 19. Layer Groups
+                const testGroup = window.PSLayers.createGroup('Header Folder');
+                assert('createGroup creates group object with isGroup true', testGroup.isGroup === true);
+                assert('Group expanded defaults to true', testGroup.expanded === true);
+
+                const childLayer = window.PSLayers.addNewLayer('Child Layer');
+                childLayer.groupId = testGroup.id;
+                assert('Child layer is parented to testGroup', childLayer.groupId === testGroup.id);
+
+                // Group visibility inheritance
+                testGroup.visible = false;
+                childLayer.ctx.fillStyle = '#ff00ff';
+                childLayer.ctx.fillRect(0, 0, 50, 50);
+                window.PSLayers.compositeAll();
+                const pGroupHidden = document.getElementById('main-canvas').getContext('2d').getImageData(25, 25, 1, 1).data;
+                assert('Hiding group hides all child layers during composite', pGroupHidden[0] === 255 && pGroupHidden[1] === 255 && pGroupHidden[2] === 255);
+                testGroup.visible = true;
+
+                // Ungroup
+                window.PSLayers.ungroup(testGroup.id);
+                assert('Ungroup unlinks children and removes group', !window.PSLayers.layers.some(l => l.id === testGroup.id) && childLayer.groupId === null);
+
+                // 20. Clipping Masks
+                window.PSLayers.init(200, 200, 'transparent');
+                const baseClip = window.PSLayers.layers[0];
+                baseClip.ctx.fillStyle = '#ff0000';
+                baseClip.ctx.fillRect(20, 20, 60, 60);
+
+                const topClip = window.PSLayers.addNewLayer('Clipped Overlay');
+                topClip.ctx.fillStyle = '#00ff00';
+                topClip.ctx.fillRect(0, 0, 200, 200);
+                window.PSLayers.toggleClippingMask(topClip.id);
+                assert('toggleClippingMask sets clipped to true', topClip.clipped === true);
+                window.PSLayers.compositeAll();
+                const pClipInside = document.getElementById('main-canvas').getContext('2d').getImageData(30, 30, 1, 1).data;
+                const pClipOutside = document.getElementById('main-canvas').getContext('2d').getImageData(120, 120, 1, 1).data;
+                assert('Clipped layer renders inside base bounds (green)', pClipInside[1] === 255);
+                assert('Clipped layer is clipped out outside base bounds (alpha 0)', pClipOutside[3] === 0);
+
+                // 21. Alpha Lock
+                window.PSLayers.init(200, 200, 'transparent');
+                const lockL = window.PSLayers.layers[0];
+                lockL.ctx.fillStyle = '#ff0000';
+                lockL.ctx.fillRect(10, 10, 50, 50);
+                window.PSLayers.toggleAlphaLock(lockL.id);
+                assert('toggleAlphaLock sets alphaLocked to true', lockL.alphaLocked === true);
+
+                window.PSTools.fgColor = '#0000ff';
+                window.PSTools.size = 30;
+                window.PSTools.drawBrushSegment(lockL, 0, 150, 180, 150);
+                const pLockedOutside = lockL.ctx.getImageData(100, 150, 1, 1).data;
+                assert('Alpha lock prevents painting on transparent pixels', pLockedOutside[3] === 0);
+
+                // 22. Selection Expand, Contract, Feather, Copy, Cut, Paste
+                window.PSSelection.setRect(50, 50, 40, 40);
+                window.PSSelection.expand(10);
+                assert('Selection expand increases bounds', window.PSSelection.bounds.w === 60 && window.PSSelection.bounds.h === 60);
+                window.PSSelection.contract(10);
+                assert('Selection contract restores bounds', window.PSSelection.bounds.w === 40 && window.PSSelection.bounds.h === 40);
+                window.PSSelection.feather(5);
+                assert('Selection feather switches to custom mask with blurred boundary', window.PSSelection.type === 'custom' && window.PSSelection.maskCanvas !== null);
+
+                // Copy, Cut, Paste
+                window.PSLayers.init(200, 200, 'transparent');
+                const copySrc = window.PSLayers.layers[0];
+                copySrc.ctx.fillStyle = '#123456';
+                copySrc.ctx.fillRect(40, 40, 60, 60);
+                window.PSSelection.setRect(40, 40, 60, 60);
+                window.PSSelection.copy();
+                assert('Selection copy stores buffer in clipboard', window.PSSelection.clipboard !== null);
+                window.PSSelection.cut();
+                const afterCutPixel = copySrc.ctx.getImageData(50, 50, 1, 1).data;
+                assert('Selection cut clears pixels on source layer', afterCutPixel[3] === 0);
+                window.PSSelection.paste();
+                assert('Selection paste creates a new layer with copied pixels', window.PSLayers.layers.length === 2);
+                const pastedPixel = window.PSLayers.getActiveLayer().ctx.getImageData(50, 50, 1, 1).data;
+                assert('Pasted layer has preserved pixel data', pastedPixel[0] === 0x12 && pastedPixel[1] === 0x34 && pastedPixel[2] === 0x56 && pastedPixel[3] === 255);
+                window.PSSelection.deselect();
+
+                // 23. Levels and Curves LUT Generation
+                const levLUT = window.PSAdjustments.buildLevelsLUT(20, 230, 1.0, 0, 255);
+                assert('Levels LUT has 256 entries', levLUT.length === 256);
+                assert('Levels LUT clamps below inBlack to outBlack', levLUT[10] === 0);
+                assert('Levels LUT clamps above inWhite to outWhite', levLUT[240] === 255);
+
+                const curLUT = window.PSAdjustments.buildCurvesLUT([{ x: 0, y: 0 }, { x: 128, y: 200 }, { x: 255, y: 255 }]);
+                assert('Curves LUT has 256 entries', curLUT.length === 256);
+                assert('Curves LUT maps control points correctly', curLUT[0] === 0 && curLUT[128] === 200 && curLUT[255] === 255);
+
+                // 24. Image Size vs Canvas Size
+                window.PSApp.setCanvasDimensions(100, 100, false);
+                window.PSLayers.init(100, 100, 'transparent');
+                const resizeTestL = window.PSLayers.layers[0];
+                resizeTestL.ctx.fillStyle = '#ff0000';
+                resizeTestL.ctx.fillRect(10, 10, 10, 10);
+
+                window.PSApp.resizeCanvas(200, 200, 'center');
+                assert('resizeCanvas updates canvas dimensions to 200x200', window.PSApp.width === 200 && window.PSApp.height === 200);
+                const offsetPixel = resizeTestL.ctx.getImageData(60, 60, 1, 1).data;
+                assert('resizeCanvas centers old pixels without resampling (offset by +50,+50)', offsetPixel[0] === 255 && offsetPixel[3] === 255);
+
+                window.PSApp.resizeImage(400, 400);
+                assert('resizeImage scales canvas dimensions to 400x400', window.PSApp.width === 400 && window.PSApp.height === 400);
+                assert('resizeImage scales layer canvas width to 400', resizeTestL.canvas.width === 400 && resizeTestL.canvas.height === 400);
+
+                // 25. Retouch Tools & Vector Shapes
+                window.PSTools.currentTool = 'pencil';
+                assert('Pencil tool is registered in toolMeta', window.PSTools.toolMeta['pencil'] !== undefined);
+                window.PSTools.currentTool = 'spot-healing';
+                assert('Spot healing tool is registered in toolMeta', window.PSTools.toolMeta['spot-healing'] !== undefined);
+
+                // Vector rounded-rect
+                const shapeCanvas = document.createElement('canvas');
+                shapeCanvas.width = 100; shapeCanvas.height = 100;
+                const scCtx = shapeCanvas.getContext('2d');
+                window.PSTools.currentTool = 'rounded-rect';
+                window.PSTools.cornerRadius = 15;
+                window.PSTools.shapeMode = 'fill';
+                window.PSTools.fgColor = '#ff0000';
+                window.PSTools.drawVectorShape(scCtx, 10, 10, 80, 80);
+                const shapePixel = scCtx.getImageData(50, 50, 1, 1).data;
+                assert('Rounded rectangle vector shape draws successfully', shapePixel[3] > 0);
+
+                // Polygon shape
+                scCtx.clearRect(0, 0, 100, 100);
+                window.PSTools.currentTool = 'polygon';
+                window.PSTools.polygonSides = 6;
+                window.PSTools.drawVectorShape(scCtx, 10, 10, 80, 80);
+                const polyPixel = scCtx.getImageData(50, 50, 1, 1).data;
+                assert('Polygon vector shape draws successfully', polyPixel[3] > 0);
+
+                // 26. Multi-Document Tabs System
+                window.PSApp.init();
+                assert('Multi-document tabs array is initialized', Array.isArray(window.PSApp.documents) && window.PSApp.documents.length >= 1);
+                const initialDocId = window.PSApp.activeDocId;
+                const doc2 = window.PSApp.createDocument('Project-B', 640, 480, 'white');
+                assert('createDocument creates a new document tab', window.PSApp.documents.length === 2 && window.PSApp.activeDocId === doc2.id);
+                assert('New document has its dimensions set in PSApp', window.PSApp.width === 640 && window.PSApp.height === 480);
+                window.PSApp.switchDocument(initialDocId);
+                assert('switchDocument restores first document and dimensions', window.PSApp.activeDocId === initialDocId && window.PSApp.width === 800);
+                window.PSApp.closeDocument(doc2.id);
+                assert('closeDocument removes second document', window.PSApp.documents.length === 1);
+
+                // 27. Layer Group Operations & Mask Duplication
+                window.PSApp.setCanvasDimensions(100, 100, false);
+                window.PSLayers.init(100, 100, 'transparent');
+                const testGrp = window.PSLayers.createGroup('Folder A');
+                const childL = window.PSLayers.addNewLayer('Child In Folder');
+                childL.groupId = testGrp.id;
+                window.PSLayers.activeLayerId = childL.id;
+                window.PSLayers.addMaskToActiveLayer();
+                childL.maskCtx.fillStyle = '#808080';
+                childL.maskCtx.fillRect(0, 0, 100, 100);
+                window.PSLayers.activeLayerId = testGrp.id;
+                window.PSLayers.duplicateActiveLayer();
+                assert('duplicateActiveLayer duplicates group folder without crash', window.PSLayers.layers.some(l => l.name === 'Folder A Copy' && l.isGroup));
+                assert('duplicateActiveLayer duplicates group children and preserves mask', window.PSLayers.layers.some(l => l.groupId && l.hasMask && l.name.includes('Copy')));
+
+                // 28. Mask Baking on Merge Down
+                window.PSLayers.init(100, 100, 'transparent');
+                const bLayer = window.PSLayers.layers[0];
+                bLayer.ctx.fillStyle = '#ffffff';
+                bLayer.ctx.fillRect(0, 0, 100, 100);
+                const tLayer = window.PSLayers.addNewLayer('Red Masked');
+                tLayer.ctx.fillStyle = '#ff0000';
+                tLayer.ctx.fillRect(0, 0, 100, 100);
+                window.PSLayers.activeLayerId = tLayer.id;
+                window.PSLayers.addMaskToActiveLayer();
+                tLayer.maskCtx.fillStyle = '#ffffff';
+                tLayer.maskCtx.fillRect(0, 0, 50, 100);
+                tLayer.maskCtx.fillStyle = '#000000';
+                tLayer.maskCtx.fillRect(50, 0, 50, 100);
+                window.PSLayers.mergeDown();
+                const mergedLayer = window.PSLayers.getActiveLayer();
+                const pixLeft = mergedLayer.ctx.getImageData(25, 50, 1, 1).data;
+                const pixRight = mergedLayer.ctx.getImageData(75, 50, 1, 1).data;
+                assert('mergeDown bakes raster layer mask into merged layer', pixLeft[0] === 255 && pixLeft[1] === 0 && pixRight[0] === 255 && pixRight[1] === 255);
+
+                // 29. Document Flattening with Groups
+                window.PSLayers.createGroup('Flatten Group');
+                window.PSLayers.flattenImage();
+                assert('flattenImage composites document with group folders without crash', window.PSLayers.layers.length === 1 && window.PSLayers.layers[0].name === 'Background' && !window.PSLayers.layers[0].isGroup);
+
+                // 30. Flip Layer with Raster Mask
+                window.PSLayers.init(100, 100, 'transparent');
+                const flipTarget = window.PSLayers.layers[0];
+                flipTarget.ctx.fillStyle = '#0000ff';
+                flipTarget.ctx.fillRect(0, 0, 50, 100);
+                window.PSLayers.activeLayerId = flipTarget.id;
+                window.PSLayers.addMaskToActiveLayer();
+                flipTarget.maskCtx.fillStyle = '#ffffff';
+                flipTarget.maskCtx.fillRect(0, 0, 50, 100);
+                flipTarget.maskCtx.fillStyle = '#000000';
+                flipTarget.maskCtx.fillRect(50, 0, 50, 100);
+                window.PSLayers.flipActiveLayer(true);
+                const flipPix = flipTarget.ctx.getImageData(75, 50, 1, 1).data;
+                const maskPix = flipTarget.maskCtx.getImageData(75, 50, 1, 1).data;
+                assert('flipActiveLayer flips both layer canvas and mask canvas identically', flipPix[2] === 255 && maskPix[0] === 255);
+
+                // 31. Selection-Aware Retouch & Filters
+                window.PSLayers.init(100, 100, 'transparent');
+                const filtLayer = window.PSLayers.layers[0];
+                filtLayer.ctx.fillStyle = 'rgb(128,128,128)';
+                filtLayer.ctx.fillRect(0, 0, 100, 100);
+                window.PSSelection.setRect(0, 0, 50, 100);
+                window.PSAdjustments.applyThreshold(100);
+                const unselectedPix = filtLayer.ctx.getImageData(75, 50, 1, 1).data;
+                const selectedPix = filtLayer.ctx.getImageData(25, 50, 1, 1).data;
+                assert('applyThreshold respects selection mask and leaves unselected pixels untouched', unselectedPix[0] === 128 && selectedPix[0] === 255);
+
+                window.PSAdjustments.applyColorBalance(50, 0, -50);
+                const unselectedPix2 = filtLayer.ctx.getImageData(75, 50, 1, 1).data;
+                assert('applyColorBalance respects selection bounds', unselectedPix2[0] === 128 && unselectedPix2[1] === 128);
+
+                window.PSAdjustments.applyMedianFilter(1);
+                const unselectedPix3 = filtLayer.ctx.getImageData(75, 50, 1, 1).data;
+                assert('applyMedianFilter leaves unselected pixels untouched', unselectedPix3[0] === 128);
+                window.PSSelection.deselect();
+
+                // 32. Text Layer Metadata Persistence & Undo
+                const textL = window.PSLayers.addNewLayer('Text Layer');
+                textL.isTextLayer = true;
+                textL.textContent = 'Aksh Studio Pro';
+                textL.fontSize = 32;
+                textL.fontFamily = 'Arial';
+                window.PSHistory.saveState('Add Text');
+                window.PSHistory.undo();
+                window.PSHistory.redo();
+                const redoL = window.PSLayers.getActiveLayer();
+                assert('Text layer metadata restored on history redo', redoL.isTextLayer === true && redoL.textContent === 'Aksh Studio Pro' && redoL.fontSize === 32);
+
+                // 33. Workspace Storage Serialization with Groups
+                window.PSLayers.createGroup('Storage Group');
+                let storageSavedWithoutError = false;
+                try {
+                    window.PSStorage.saveWorkspaceState();
+                    storageSavedWithoutError = true;
+                } catch (e) {
+                    storageSavedWithoutError = false;
+                }
+                assert('saveWorkspaceState handles group folders without toBlob TypeError', storageSavedWithoutError);
+
+                // 34. Interactive Curves Graph Canvas Rendering
+                window.PSApp.openCurvesModal();
+                const graphCanvas = document.getElementById('curves-graph-canvas');
+                const graphCtx = graphCanvas?.getContext('2d');
+                const graphPixel = graphCtx ? graphCtx.getImageData(110, 110, 1, 1).data : [0,0,0,0];
+                assert('openCurvesModal renders interactive curve graph canvas', graphCanvas !== null && graphPixel[3] > 0);
+                document.getElementById('modal-curves')?.classList.add('hidden');
+
+                // 35. Multi-Document History & State Isolation
+                window.PSApp.init();
+                const docA = window.PSApp.documents[0];
+                const docALayer = window.PSLayers.addNewLayer('DocA Layer');
+                docALayer.ctx.fillStyle = '#ff0000';
+                docALayer.ctx.fillRect(0, 0, 50, 50);
+                window.PSHistory.saveState('DocA Paint');
+
+                const docB = window.PSApp.createDocument('Doc-B', 400, 300, 'transparent');
+                const docBLayer = window.PSLayers.addNewLayer('DocB Layer');
+                docBLayer.ctx.fillStyle = '#00ff00';
+                docBLayer.ctx.fillRect(0, 0, 50, 50);
+                window.PSHistory.saveState('DocB Paint');
+                window.PSAdjustments.applyUnsharpMask(1.5, 50);
+
+                // Undo on Doc-B
+                window.PSHistory.undo();
+                assert('Doc-B history undo operates isolated on Doc-B stack', window.PSHistory.stack[window.PSHistory.currentIndex].label === 'DocB Paint');
+
+                // Switch back to Doc-A
+                window.PSApp.switchDocument(docA.id);
+                assert('Doc-A restores its own history stack without Doc-B contamination', window.PSHistory.stack.some(s => s.label === 'DocA Paint') && !window.PSHistory.stack.some(s => s.label === 'DocB Unsharp'));
+                assert('Doc-A dimensions and layers remain preserved', window.PSApp.width === 800 && window.PSLayers.layers.some(l => l.name === 'DocA Layer'));
+
+                // Render Results
+                const container = document.getElementById('results');
+                let allPassed = true;
+                let html = '<div style="margin-bottom:12px;"><strong>Total Tests: ' + results.length + '</strong></div>';
+                results.forEach((r, idx) => {
+                    if (!r.passed) allPassed = false;
+                    html += `
+                        <div class="test-row">
+                            <span>${idx + 1}. ${r.name}</span>
+                            <span class="${r.passed ? 'pass' : 'fail'}">${r.passed ? 'PASSED' : 'FAILED'}</span>
+                        </div>
+                    `;
+                });
+
+                html += `<div style="margin-top:16px; font-size:16px;" class="${allPassed ? 'pass' : 'fail'}">
+                    <strong>Final Status: ${allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}</strong>
+                </div>`;
+                container.innerHTML = html;
+                window.ALL_TESTS_PASSED = allPassed;
+                window.TEST_RESULTS = results;
+            } catch (err) {
+                console.error('Test execution error:', err);
+                document.getElementById('results').innerHTML = `<div class="fail">Error running tests: ${err.message}<pre>${err.stack}</pre></div>`;
+                window.ALL_TESTS_PASSED = false;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runSuite, 100);
+        });
+    </script>
+</body>
+</html>
