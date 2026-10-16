@@ -1,33 +1,98 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+// ============================================================================
+// Aksh Calendar - Authentication & Session Module (modules/auth.js)
+// ============================================================================
 
-// 1. Core Firebase Configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyAmxOwGXgffYiEP0O4o_cWvP0lg2SbJfhw",
-    authDomain: "aksh-studio.firebaseapp.com",
-    projectId: "aksh-studio"
-};
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { cleanupCalendarListeners } from "./db.js";
 
-// 2. Initialize App and Auth Services
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+let app;
+if (getApps().length > 0) {
+  app = getApp();
+} else if (window.firebaseConfig) {
+  app = initializeApp(window.firebaseConfig);
+}
 
-// 3. Export Global User Reference
-export let currentUser = null;
+export const auth = app ? getAuth(app) : null;
+const googleProvider = new GoogleAuthProvider();
+
+let currentUser = null;
+const authCallbacks = new Set();
 
 /**
- * Initializes the authentication listener. 
- * Kicks users back to the dashboard if they are not logged in.
- * @param {Function} onReadyCallback - Runs when the user is successfully verified
+ * Subscribe to authentication state changes in Aksh Calendar
  */
-export function initAuth(onReadyCallback) {
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            currentUser = user;
-            if (onReadyCallback) onReadyCallback(user);
-        } else {
-            // Protect the route
-            window.location.href = "../../index.html";
-        }
+export function initCalendarAuth(onUserChanged) {
+  if (typeof onUserChanged === "function") {
+    authCallbacks.add(onUserChanged);
+  }
+
+  if (!auth) {
+    console.warn("[Calendar Auth] Firebase Auth not initialized; running in local mode.");
+    if (onUserChanged) onUserChanged(null);
+    return () => {};
+  }
+
+  return onAuthStateChanged(auth, (user) => {
+    currentUser = user || null;
+    if (!user) {
+      // Detach Firestore listeners immediately when user is signed out
+      cleanupCalendarListeners();
+    }
+    authCallbacks.forEach((cb) => {
+      try {
+        cb(currentUser);
+      } catch (e) {
+        console.error("[Calendar Auth] Callback error:", e);
+      }
     });
+  });
+}
+
+/**
+ * Trigger Google Sign-In Popup
+ */
+export async function loginToCalendar() {
+  if (!auth) {
+    window.location.href = "../../index.html";
+    return null;
+  }
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    console.error("[Calendar Auth] Sign-in error:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Safely detach Firestore snapshot listeners BEFORE signing out
+ */
+export async function logoutFromCalendar(redirectUrl = "../../index.html") {
+  try {
+    // 1. Stop all Firestore snapshot listeners first so base.js:1 never throws permission-denied
+    cleanupCalendarListeners();
+
+    // 2. Sign out of Firebase Auth
+    if (auth) {
+      await signOut(auth);
+    }
+
+    if (redirectUrl) {
+      window.location.href = redirectUrl;
+    }
+  } catch (error) {
+    console.error("[Calendar Auth] Logout error:", error.message);
+  }
+}
+
+export function getCurrentCalendarUser() {
+  return currentUser || (auth ? auth.currentUser : null);
 }
