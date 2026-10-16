@@ -1,134 +1,135 @@
 /**
- * history.js — Snapshot-based undo/redo history manager
- * Aksh Photoshop
+ * Aksh Photoshop - Undo/Redo History State Manager
  */
-'use strict';
+window.PSHistory = {
+    stack: [],
+    currentIndex: -1,
+    maxStates: 25,
 
-class HistoryManager {
-  /**
-   * @param {AkshPhotoshop} app
-   */
-  constructor(app) {
-    this.app      = app;
-    this.stack    = [];   // Array of snapshot entries
-    this.cursor   = -1;   // Current position in stack
-    this.maxDepth = 50;   // Maximum undo steps
-    this.listEl   = $('history-list');
-  }
+    init() {
+        this.stack = [];
+        this.currentIndex = -1;
+        this.renderUI();
+    },
 
-  /**
-   * Capture the current state of every layer and push to stack.
-   * Drops any "future" states beyond the current cursor position.
-   * @param {string} label  Human-readable label for the history list
-   */
-  snapshot(label = 'Edit') {
-    // Discard redo states
-    this.stack = this.stack.slice(0, this.cursor + 1);
+    saveState(actionLabel = 'Edit') {
+        if (!window.PSLayers || !window.PSApp) return;
 
-    const entry = {
-      label,
-      layers: this.app.layerManager.layers.map(l => ({
-        name:      l.name,
-        visible:   l.visible,
-        opacity:   l.opacity,
-        blendMode: l.blendMode,
-        imageData: l.ctx.getImageData(0, 0, this.app.canvasWidth, this.app.canvasHeight)
-      })),
-      activeIndex:  this.app.layerManager.activeIndex,
-      canvasWidth:  this.app.canvasWidth,
-      canvasHeight: this.app.canvasHeight
-    };
+        // Remove future states if we branched from an undo
+        if (this.currentIndex < this.stack.length - 1) {
+            this.stack = this.stack.slice(0, this.currentIndex + 1);
+        }
 
-    this.stack.push(entry);
+        // Deep-clone all layers via ImageData
+        const serializedLayers = window.PSLayers.layers.map(layer => {
+            const ctx = layer.canvas.getContext('2d');
+            return {
+                id: layer.id,
+                name: layer.name,
+                visible: layer.visible,
+                opacity: layer.opacity,
+                blendMode: layer.blendMode,
+                x: layer.x,
+                y: layer.y,
+                width: layer.canvas.width,
+                height: layer.canvas.height,
+                imageData: ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height)
+            };
+        });
 
-    // Enforce max depth by dropping the oldest entry
-    if (this.stack.length > this.maxDepth) {
-      this.stack.shift();
+        const snapshot = {
+            label: actionLabel,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            canvasWidth: window.PSApp.width,
+            canvasHeight: window.PSApp.height,
+            activeLayerId: window.PSLayers.activeLayerId,
+            layers: serializedLayers
+        };
+
+        this.stack.push(snapshot);
+
+        if (this.stack.length > this.maxStates) {
+            this.stack.shift();
+        } else {
+            this.currentIndex++;
+        }
+
+        this.renderUI();
+    },
+
+    undo() {
+        if (this.currentIndex > 0) {
+            this.currentIndex--;
+            this.restoreSnapshot(this.stack[this.currentIndex]);
+        }
+    },
+
+    redo() {
+        if (this.currentIndex < this.stack.length - 1) {
+            this.currentIndex++;
+            this.restoreSnapshot(this.stack[this.currentIndex]);
+        }
+    },
+
+    jumpTo(index) {
+        if (index >= 0 && index < this.stack.length) {
+            this.currentIndex = index;
+            this.restoreSnapshot(this.stack[this.currentIndex]);
+        }
+    },
+
+    restoreSnapshot(snapshot) {
+        if (!snapshot) return;
+
+        window.PSApp.setCanvasDimensions(snapshot.canvasWidth, snapshot.canvasHeight, false);
+
+        window.PSLayers.layers = snapshot.layers.map(saved => {
+            const c = document.createElement('canvas');
+            c.width = saved.width;
+            c.height = saved.height;
+            const ctx = c.getContext('2d');
+            ctx.putImageData(saved.imageData, 0, 0);
+
+            return {
+                id: saved.id,
+                name: saved.name,
+                canvas: c,
+                ctx: ctx,
+                visible: saved.visible,
+                opacity: saved.opacity,
+                blendMode: saved.blendMode,
+                x: saved.x,
+                y: saved.y
+            };
+        });
+
+        window.PSLayers.activeLayerId = snapshot.activeLayerId;
+        window.PSLayers.renderLayersList();
+        window.PSLayers.compositeAll();
+        this.renderUI();
+    },
+
+    clear() {
+        if (this.stack.length === 0) return;
+        const latest = this.stack[this.currentIndex];
+        this.stack = [latest];
+        this.currentIndex = 0;
+        this.renderUI();
+    },
+
+    renderUI() {
+        const listEl = document.getElementById('history-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        this.stack.forEach((item, idx) => {
+            const row = document.createElement('div');
+            row.className = `history-item ${idx === this.currentIndex ? 'active' : ''}`;
+            row.innerHTML = `<i class="fa-solid fa-circle-dot"></i> <span>${item.label}</span>`;
+            row.addEventListener('click', () => this.jumpTo(idx));
+            listEl.appendChild(row);
+        });
+
+        listEl.scrollTop = listEl.scrollHeight;
     }
-
-    this.cursor = this.stack.length - 1;
-    this.render();
-  }
-
-  /**
-   * Step back one state in the history stack.
-   * @returns {boolean}  true if undo was possible
-   */
-  undo() {
-    if (this.cursor <= 0) return false;
-    this.cursor--;
-    this._restore(this.stack[this.cursor]);
-    this.render();
-    return true;
-  }
-
-  /**
-   * Step forward one state in the history stack.
-   * @returns {boolean}  true if redo was possible
-   */
-  redo() {
-    if (this.cursor >= this.stack.length - 1) return false;
-    this.cursor++;
-    this._restore(this.stack[this.cursor]);
-    this.render();
-    return true;
-  }
-
-  /**
-   * Jump to an arbitrary history entry by index.
-   * @param {number} index
-   */
-  jumpTo(index) {
-    if (index < 0 || index >= this.stack.length) return;
-    this.cursor = index;
-    this._restore(this.stack[index]);
-    this.render();
-  }
-
-  /**
-   * Restore application state from a snapshot entry.
-   * @private
-   * @param {Object} entry
-   */
-  _restore(entry) {
-    const lm = this.app.layerManager;
-    lm.layers = entry.layers.map(snap => {
-      const c   = createOffscreenCanvas(entry.canvasWidth, entry.canvasHeight);
-      const ctx = c.getContext('2d');
-      ctx.putImageData(snap.imageData, 0, 0);
-      return {
-        canvas:    c,
-        ctx,
-        name:      snap.name,
-        visible:   snap.visible,
-        opacity:   snap.opacity,
-        blendMode: snap.blendMode
-      };
-    });
-    lm.activeIndex = clamp(entry.activeIndex, 0, lm.layers.length - 1);
-    lm.renderLayersPanel();
-    this.app.composite();
-  }
-
-  /**
-   * Re-render the history panel list UI.
-   */
-  render() {
-    this.listEl.innerHTML = '';
-    this.stack.forEach((entry, i) => {
-      const li = document.createElement('li');
-      li.className = 'history-item' +
-        (i === this.cursor ? ' current' : '') +
-        (i > this.cursor  ? ' future'  : '');
-      li.innerHTML = `<span class="history-icon">📋</span>${entry.label}`;
-      li.addEventListener('click', () => this.jumpTo(i));
-      this.listEl.appendChild(li);
-    });
-
-    // Scroll current item into view
-    const items = this.listEl.querySelectorAll('.history-item');
-    if (items[this.cursor]) {
-      items[this.cursor].scrollIntoView({ block: 'nearest' });
-    }
-  }
-}
+};
