@@ -19,6 +19,7 @@ const STATIC_ASSETS = [
   "/assets/office-logo.png",
   "/assets/photoshop-logo.png",
   "/assets/support-logo.png",
+  "/assets/code-playground-logo.png",
   "/apps/calculator/index.html",
   "/apps/calculator/style.css",
   "/apps/calculator/calc.js",
