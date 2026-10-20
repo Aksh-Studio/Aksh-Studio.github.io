@@ -242,17 +242,17 @@
                 const logoLoaded = await new Promise((res) => {
                     testImg.onload = () => res(true);
                     testImg.onerror = () => res(false);
-                    testImg.src = '../../photoshop-logo.png';
+                    testImg.src = '/assets/photoshop-logo.png';
                 });
-                assert('Root brand logo (../../photoshop-logo.png) resolves and loads', logoLoaded);
+                assert('Root brand logo (/assets/photoshop-logo.png) resolves and loads', logoLoaded);
 
                 const studioImg = new Image();
                 const studioLoaded = await new Promise((res) => {
                     studioImg.onload = () => res(true);
                     studioImg.onerror = () => res(false);
-                    studioImg.src = '../../aksh-logo.png';
+                    studioImg.src = '/assets/aksh-logo.png';
                 });
-                assert('Root studio logo (../../aksh-logo.png) resolves and loads', studioLoaded);
+                assert('Root studio logo (/assets/aksh-logo.png) resolves and loads', studioLoaded);
 
                 // 10. Invert Selection Clipping Accuracy Test
                 window.PSLayers.init(400, 400, 'transparent');
