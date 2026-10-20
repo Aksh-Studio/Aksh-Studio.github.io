@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Aksh Code Playground Icon">
+  <defs>
+    <linearGradient id="favBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <linearGradient id="favB1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="favB2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    <linearGradient id="favCore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+    <filter id="favGlow">
+      <feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="#38bdf8" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background tile -->
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#favBg)" stroke="#334155" stroke-width="2" />
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="none" stroke="rgba(56, 189, 248, 0.25)" stroke-width="1.5" />
+
+  <!-- Angle brackets -->
+  <path d="M22 20 L12 32 L22 44" stroke="url(#favB1)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#favGlow)" />
+  <path d="M42 20 L52 32 L42 44" stroke="url(#favB2)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#favGlow)" />
+
+  <!-- Central 'A' Apex & Crossbar -->
+  <path d="M32 16 L27 46 M32 16 L37 46 M28 37 L36 37" stroke="url(#favCore)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="32" cy="16" r="2.5" fill="#38bdf8" />
+</svg>
