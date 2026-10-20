@@ -4,7 +4,7 @@
  * Cache-First Strategy for complete offline photo editing
  */
 
-const CACHE_NAME = 'aksh-photoshop-v1.0.0';
+const CACHE_NAME = 'aksh-photoshop-v1.3.0';
 
 // Relative assets belonging strictly to Aksh Photoshop and its verified logos
 const PRECACHE_ASSETS = [
@@ -25,8 +25,8 @@ const PRECACHE_ASSETS = [
     './js/psd-handler.js',
     './js/project-handler.js',
     './js/app.js',
-    '../../photoshop-logo.png',
-    '../../aksh-logo.png'
+    '/assets/photoshop-logo.png',
+    '/assets/aksh-logo.png'
 ];
 
 self.addEventListener('install', (event) => {
