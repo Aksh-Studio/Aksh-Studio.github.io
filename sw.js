@@ -2,7 +2,7 @@
 // Aksh Studio - Progressive Web App Service Worker (sw.js)
 // ============================================================================
 
-const CACHE_NAME = "aksh-studio-v2.6";
+const CACHE_NAME = "aksh-studio-v1.3";
 
 // Only include verified existing files (Aksh Chat removed)
 const STATIC_ASSETS = [
@@ -13,12 +13,12 @@ const STATIC_ASSETS = [
   "/style.css",
   "/global-mobile.css",
   "/auth.js",
-  "/aksh-logo.png",
-  "/cal-logo.png",
-  "/calc-logo.png",
-  "/office-logo.png",
-  "/photoshop-logo.png",
-  "/support-logo.png",
+  "/assets/aksh-logo.png",
+  "/assets/cal-logo.png",
+  "/assets/calc-logo.png",
+  "/assets/office-logo.png",
+  "/assets/photoshop-logo.png",
+  "/assets/support-logo.png",
   "/apps/calculator/index.html",
   "/apps/calculator/style.css",
   "/apps/calculator/calc.js",
