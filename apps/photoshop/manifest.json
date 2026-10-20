@@ -10,7 +10,7 @@
   "theme_color": "#1b1d22",
   "icons": [
     {
-      "src": "../../photoshop-logo.png",
+      "src": "/assets/photoshop-logo.png",
       "sizes": "192x192 512x512",
       "type": "image/png",
       "purpose": "any maskable"
